@@ -23,6 +23,12 @@
     down: svg('<path d="M12 5v14"/><path d="m18.5 12.5-6.5 6.5-6.5-6.5"/>'),
     x: svg('<path d="M18 6 6 18"/><path d="m6 6 12 12"/>'),
     chev: svg('<path d="m9 6 6 6-6 6"/>'),
+    sun: svg('<circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>'),
+    moon: svg('<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>'),
+    auto: svg('<circle cx="12" cy="12" r="10"/><path d="M12 18a6 6 0 0 0 0-12v12z"/>'),
+    music: svg('<path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>'),
+    volume: svg('<path d="M11 4.702a.705.705 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.705.705 0 0 0 11 19.298z"/><path d="M16 9a5 5 0 0 1 0 6"/><path d="M19.364 18.364a9 9 0 0 0 0-12.728"/>'),
+    language: svg('<path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/>'),
   };
 
   /* ---------- Helfer ---------- */
@@ -112,6 +118,7 @@
   }
 
   let state = load();
+  let atStart = true;   // Beim Öffnen kommt zuerst der Startbildschirm.
 
   /* ---------- Spiel-Logik ---------- */
   const playerById = id => state.players.find(p => p.id === id) || null;
@@ -243,9 +250,18 @@
     else if (isOver()) el.innerHTML = fit('Spiel beendet', 'Beendet', 'Ende');
     else el.innerHTML = fit('Runde ' + r + ' von ' + NF, 'Runde ' + r + '/' + NF, r + '/' + NF);
     $('#cdBadge').hidden = !cdPending();
-    const db = $('#duoBtn');
-    db.hidden = !canDuo();
-    db.setAttribute('aria-pressed', duoOn() ? 'true' : 'false');
+    // Breite Bildschirme: Im aktiven Tab (Würfel oder Block) holt ein Knopf die andere Ansicht dazu.
+    const wide = canDuo();
+    const duo = duoOn();
+    $$('.tab-split').forEach(b => {
+      const show = wide && b.dataset.for === state.tab;
+      b.hidden = !show;
+      if (!show) return;
+      const label = duo ? 'Nebeneinander schließen' : (b.dataset.for === 'dice' ? 'Block' : 'Würfel') + ' daneben öffnen';
+      b.setAttribute('aria-pressed', duo ? 'true' : 'false');
+      b.setAttribute('aria-label', label);
+      b.title = label;
+    });
   }
 
   function renderPlayers() {
@@ -404,7 +420,7 @@
         <button type="button" class="btn btn-pen btn-roll" data-act="roll" aria-keyshortcuts="Space"${rs.off ? ' disabled' : ''}><span class="rl">${esc(rs.label)}</span><small>${esc(rs.sub)}</small></button>
         <button type="button" class="btn btn-line btn-reset" data-act="reset" aria-label="Würfel zurücksetzen"${idle ? ' disabled' : ''}>${ICON.reset}<span>Zurücksetzen</span></button>
       </div>
-      <p class="keys">Tastatur: <kbd>Leertaste</kbd> würfelt, <kbd>1</kbd> bis <kbd>6</kbd> hält oder löst einen Würfel, <kbd>M</kbd> schaltet den Ton an oder aus.</p>
+      <p class="keys">Tastatur: <kbd>Leertaste</kbd> würfelt, <kbd>1</kbd> bis <kbd>6</kbd> hält oder löst einen Würfel, <kbd>M</kbd> schaltet alle Töne an oder aus.</p>
       ${cdHTML}
       ${entryHTML}`;
   }
@@ -618,15 +634,17 @@
   // Ist ein Fenster offen, ist die Seite dahinter für Tastatur und Screenreader gesperrt.
   function updateInert() {
     const modal = !$('#sheet').hidden || !$('#cd').hidden;
+    $('#start').inert = modal;
     $('.app').inert = modal;
     $('.tabbar').inert = modal;
   }
 
-  function openSheet(html, fns) {
+  function openSheet(html, fns, label) {
     const wrap = $('#sheet');
     sheetGen++;
     sheetFns = fns || {};
     if (wrap.hidden) sheetReturn = document.activeElement;
+    $('.sheet', wrap).setAttribute('aria-label', label || 'Eingabe');
     $('.sheet-body', wrap).innerHTML = html;
     wrap.classList.remove('closing');
     wrap.hidden = false;
@@ -1090,38 +1108,43 @@
     });
   }
 
-  /* ---------- Hell / Dunkel ---------- */
+  /* ---------- Design: hell, dunkel oder automatisch ---------- */
   const THEME_KEY = 'hexa-theme';
   const THEME_COLOR = { light: '#EDEFF4', dark: '#0D1020' };
+  const START_COLOR = { light: '#232C7A', dark: '#1E2672' };   // Farbe des Spieltischs auf dem Startbildschirm
+  const THEMES = [['light', 'Hell', 'sun'], ['dark', 'Dunkel', 'moon'], ['auto', 'Automatisch', 'auto']];
   const darkMQ = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
   function chosenTheme() {
     const t = document.documentElement.getAttribute('data-theme');
     return t === 'light' || t === 'dark' ? t : null;
   }
-  const isDark = () => (chosenTheme() || (darkMQ && darkMQ.matches ? 'dark' : 'light')) === 'dark';
+  // „Automatisch“ folgt der Einstellung des Geräts.
+  let themeChoice = chosenTheme() || 'auto';
+  try {
+    const t = localStorage.getItem(THEME_KEY);
+    themeChoice = t === 'light' || t === 'dark' ? t : 'auto';
+  } catch (e) { /* Speicher gesperrt */ }
 
   function syncTheme() {
     const t = chosenTheme();
-    $('#themeBtn').setAttribute('aria-checked', isDark() ? 'true' : 'false');
+    const colors = atStart ? START_COLOR : THEME_COLOR;
     $$('meta[name="theme-color"]').forEach(m => {
       const own = /dark/.test(m.getAttribute('media') || '') ? 'dark' : 'light';
-      m.setAttribute('content', THEME_COLOR[t || own]);
+      m.setAttribute('content', colors[t || own]);
     });
+    syncSettings();
   }
 
-  function syncSound() {
-    $('#soundBtn').setAttribute('aria-pressed', Sound.isMuted() ? 'true' : 'false');
-  }
-  function toggleSound() {
-    Sound.setMuted(!Sound.isMuted());
-    syncSound();
-  }
-
-  function toggleTheme() {
-    const next = isDark() ? 'light' : 'dark';
+  function setTheme(mode) {
+    if (mode !== 'light' && mode !== 'dark') mode = 'auto';
     const apply = () => {
-      document.documentElement.setAttribute('data-theme', next);
-      try { localStorage.setItem(THEME_KEY, next); } catch (e) { /* Speicher gesperrt */ }
+      themeChoice = mode;
+      if (mode === 'auto') document.documentElement.removeAttribute('data-theme');
+      else document.documentElement.setAttribute('data-theme', mode);
+      try {
+        if (mode === 'auto') localStorage.removeItem(THEME_KEY);
+        else localStorage.setItem(THEME_KEY, mode);
+      } catch (e) { /* Speicher gesperrt */ }
       syncTheme();
     };
     if (document.startViewTransition && !reduced()) {
@@ -1130,11 +1153,140 @@
     apply();
   }
 
+  /* ---------- Einstellungen ---------- */
+  const pct = v => Math.round(v * 100);
+
+  function openSettings() {
+    const s = Sound.get();
+    const row = (ch, label, icon, on, vol) => `
+        <div class="set-row">
+          <div class="set-line">
+            <span class="set-ic">${ICON[icon]}</span>
+            <span class="set-lab" id="lab-${ch}">${label}</span>
+            <button type="button" class="sw" id="sw-${ch}" role="switch" aria-checked="${on}" aria-labelledby="lab-${ch}" data-act="set-sound" data-ch="${ch}"><i></i></button>
+          </div>
+          <div class="set-vol">
+            <input type="range" class="vol" id="vol-${ch}" data-ch="${ch}" min="0" max="100" step="5" value="${pct(vol)}" style="--v:${pct(vol)}%" aria-label="Lautstärke ${label}"${on ? '' : ' disabled'}>
+            <output class="vol-n" id="out-${ch}" for="vol-${ch}">${pct(vol)} %</output>
+          </div>
+        </div>`;
+    openSheet(`
+      <h3 class="s-title">Einstellungen</h3>
+      <section class="set-grp" aria-labelledby="set-h-design">
+        <h4 class="set-h" id="set-h-design">Design</h4>
+        <div class="seg" role="group" aria-labelledby="set-h-design">
+          ${THEMES.map(([v, label, icon]) => `<button type="button" class="seg-b" data-act="set-theme" data-v="${v}" aria-pressed="${themeChoice === v}">${ICON[icon]}<span>${label}</span></button>`).join('')}
+        </div>
+      </section>
+      <section class="set-grp" aria-labelledby="set-h-sound">
+        <h4 class="set-h" id="set-h-sound">Töne</h4>
+        <div class="set-card">
+          ${row('music', 'Musik', 'music', s.music, s.musicVol)}
+          ${row('fx', 'Spielsounds', 'volume', s.fx, s.fxVol)}
+        </div>
+        <p class="keys">Mit <kbd>M</kbd> schaltest du alle Töne an oder aus.</p>
+      </section>
+      <section class="set-grp" aria-labelledby="set-h-lang">
+        <h4 class="set-h" id="set-h-lang">Sprache</h4>
+        <div class="set-card">
+          <button type="button" class="set-line set-soon" data-act="soon" data-what="lang" aria-disabled="true">
+            <span class="set-ic">${ICON.language}</span>
+            <span class="set-lab">Deutsch</span>
+            <span class="chip">Bald verfügbar</span>
+          </button>
+        </div>
+      </section>
+      <div class="s-acts"><button type="button" class="btn btn-pen" data-act="sheet-close">Fertig</button></div>`, null, 'Einstellungen');
+  }
+
+  // Offenes Einstellungsfenster auf den neuen Stand bringen, ohne es neu aufzubauen
+  function syncSettings() {
+    const box = $('#sheet');
+    if (box.hidden || !$('.seg', box)) return;
+    $$('.seg-b', box).forEach(b => b.setAttribute('aria-pressed', b.dataset.v === themeChoice ? 'true' : 'false'));
+    const s = Sound.get();
+    [['music', s.music, s.musicVol], ['fx', s.fx, s.fxVol]].forEach(([ch, on, vol]) => {
+      $('#sw-' + ch, box).setAttribute('aria-checked', on ? 'true' : 'false');
+      const r = $('#vol-' + ch, box);
+      r.disabled = !on;
+      if (document.activeElement !== r) r.value = pct(vol);
+      r.style.setProperty('--v', r.value + '%');
+      $('#out-' + ch, box).textContent = r.value + ' %';
+    });
+  }
+
+  function toggleChannel(ch) {
+    const s = Sound.get();
+    const on = !s[ch];
+    const next = { [ch]: on };
+    // Beim Einschalten nicht auf Lautstärke 0 hängen bleiben
+    if (on && !s[ch + 'Vol']) next[ch + 'Vol'] = 0.6;
+    Sound.set(next);
+    if (ch === 'fx' && on) Sound.preview();
+    syncSettings();
+  }
+
+  function toggleAllSound() {
+    const on = Sound.toggleAll();
+    if (on) Sound.preview();
+    syncSettings();
+    toast(on ? 'Töne an' : 'Töne aus');
+  }
+
+  const SOON = { online: 'Online spielen kommt bald.', lang: 'Weitere Sprachen kommen bald.' };
+
+  /* ---------- Startbildschirm ---------- */
+  function renderStart() {
+    const sub = $('#localSub');
+    if (!state.players.length) sub.textContent = 'Ein Gerät, reihum spielen';
+    else if (isOver()) sub.textContent = 'Spiel beendet · Ergebnis ansehen';
+    else sub.textContent = 'Weiterspielen · Runde ' + roundNo() + ' von ' + NF;
+  }
+
+  // Sechs Würfel mit 1 bis 6, die beim Erscheinen einmal kurz rollen
+  function rollStartDice() {
+    const box = $('#startDice');
+    if (!box.firstChild) box.innerHTML = [1, 2, 3, 4, 5, 6].map((v, i) => `<div class="die" style="--k:${i * 3}">${faceHTML(v)}</div>`).join('');
+    $$('.die', box).forEach(el => {
+      el.classList.remove('rolling');
+      void el.offsetWidth;
+      el.classList.add('rolling');
+    });
+  }
+
+  function showStart() {
+    closeSheet(true);
+    hideCountdown();
+    atStart = true;
+    renderStart();
+    $('.app').hidden = true;
+    $('.tabbar').hidden = true;
+    $('#start').hidden = false;
+    rollStartDice();
+    syncTheme();
+    const b = $('#start [data-act="local"]');
+    try { b.focus({ preventScroll: true }); } catch (e) { /* egal */ }
+  }
+
+  function enterLocal() {
+    atStart = false;
+    // Noch niemand dabei: zuerst die Spieler eintragen
+    if (!state.players.length && state.tab !== 'rules') { state.tab = 'players'; save(); }
+    $('#start').hidden = true;
+    $('.app').hidden = false;
+    $('.tabbar').hidden = false;
+    render();
+    syncTheme();
+    try { window.scrollTo(0, 0); } catch (e) { /* egal */ }
+    const tab = $('.tab.on');
+    if (tab) { try { tab.focus({ preventScroll: true }); } catch (e) { /* egal */ } }
+  }
+
   function setTab(tab) {
     if (TABS.indexOf(tab) < 0) return;
     // Schon sichtbar (auch als eine Hälfte der Zwei-Spalten-Ansicht): nur nach oben scrollen.
     if (tab === state.tab || (duoOn() && PAIR.indexOf(tab) >= 0)) {
-      if (state.tab !== tab) { state.tab = tab; save(); }
+      if (state.tab !== tab) { state.tab = tab; save(); renderTop(); }
       const behavior = reduced() ? 'auto' : 'smooth';
       try { window.scrollTo({ top: 0, behavior }); } catch (e) { /* egal */ }
       if (tab === 'dice' && duoOn()) {
@@ -1168,8 +1320,12 @@
     switch (t.dataset.act) {
       case 'tab': setTab(t.dataset.tab); break;
       case 'duo': toggleDuo(); break;
-      case 'theme': toggleTheme(); break;
-      case 'sound': toggleSound(); break;
+      case 'local': enterLocal(); break;
+      case 'home': showStart(); break;
+      case 'settings': openSettings(); break;
+      case 'set-theme': setTheme(t.dataset.v); break;
+      case 'set-sound': toggleChannel(t.dataset.ch); break;
+      case 'soon': toast(SOON[t.dataset.what] || 'Kommt bald.'); break;
       case 'roll': roll(); break;
       case 'reset': resetDice(); break;
       case 'hold': toggleHold(Number(t.dataset.i)); break;
@@ -1209,9 +1365,10 @@
     if (t && t.closest && t.closest('input, textarea, select, [contenteditable="true"]')) return false;
     if (e.key === 'm' || e.key === 'M') {
       e.preventDefault();
-      if (!e.repeat) toggleSound();
+      if (!e.repeat) toggleAllSound();
       return true;
     }
+    if (atStart) return false;
     if (!$('#cd').hidden) {
       const g = state.cdGame;
       if (!isSpace(e) || !g || g.status !== 'play') return false;
@@ -1259,6 +1416,11 @@
 
   document.addEventListener('input', e => {
     const t = e.target;
+    if (t && t.classList && t.classList.contains('vol')) {
+      Sound.set({ [t.dataset.ch + 'Vol']: Number(t.value) / 100 });
+      syncSettings();
+      return;
+    }
     if (!t || !t.classList || !t.classList.contains('pname')) return;
     const p = playerById(t.dataset.pid);
     if (!p) return;
@@ -1268,6 +1430,11 @@
 
   document.addEventListener('change', e => {
     const t = e.target;
+    // Nach dem Loslassen des Reglers hört man die neue Lautstärke der Spielsounds.
+    if (t && t.classList && t.classList.contains('vol')) {
+      if (t.dataset.ch === 'fx') Sound.preview();
+      return;
+    }
     if (!t || !t.classList || !t.classList.contains('pname')) return;
     const p = playerById(t.dataset.pid);
     if (!p) return;
@@ -1322,7 +1489,6 @@
 
   if (dropStrayRoll()) save();
   syncTheme();
-  syncSound();
   if (darkMQ) {
     if (darkMQ.addEventListener) darkMQ.addEventListener('change', syncTheme);
     else if (darkMQ.addListener) darkMQ.addListener(syncTheme);
@@ -1337,4 +1503,6 @@
   }
 
   render();
+  renderStart();
+  rollStartDice();
 })();

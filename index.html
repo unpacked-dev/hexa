@@ -10,6 +10,7 @@
 <title>HEXA</title>
 <meta name="description" content="HEXA – Würfel, Spielblock und Regeln für das Würfelspiel mit sechs Würfeln.">
 <meta name="apple-mobile-web-app-title" content="HEXA">
+<meta name="robots" content="noindex">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="manifest" href="manifest.webmanifest">
@@ -30,29 +31,39 @@
 </head>
 <body>
 <!-- Einige Icons stammen aus Lucide (ISC-Lizenz, teils Feather/MIT), siehe THIRD-PARTY-NOTICES.md. -->
-<div class="app">
+<section class="start" id="start" aria-labelledby="startName">
+  <div class="start-in">
+    <header class="start-hero">
+      <svg class="start-logo" viewBox="0 0 40 40" aria-hidden="true"><path class="hex" d="M20 3 34.7 11.5v17L20 37 5.3 28.5v-17z"/><g class="pip"><circle cx="15" cy="13.5" r="2.4"/><circle cx="15" cy="20" r="2.4"/><circle cx="15" cy="26.5" r="2.4"/><circle cx="25" cy="13.5" r="2.4"/><circle cx="25" cy="20" r="2.4"/><circle cx="25" cy="26.5" r="2.4"/></g></svg>
+      <h1 class="start-name" id="startName">HEXA</h1>
+      <p class="start-claim">Sechs Würfel. Drei Würfe. Ein Countdown.</p>
+    </header>
+    <div class="start-dice" id="startDice" aria-hidden="true"></div>
+    <div class="start-modes" role="group" aria-label="Spielmodus">
+      <button type="button" class="mode mode-local" data-act="local">
+        <span class="mode-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><path d="M16 3.128a4 4 0 0 1 0 7.744"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><circle cx="9" cy="7" r="4"/></svg></span>
+        <span class="mode-tx"><span class="mode-t">Lokal</span><span class="mode-s" id="localSub">Ein Gerät, reihum spielen</span></span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mode-go" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
+      </button>
+      <button type="button" class="mode mode-online" data-act="soon" data-what="online" aria-disabled="true">
+        <span class="mode-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg></span>
+        <span class="mode-tx"><span class="mode-t">Online</span><span class="mode-s">Bald verfügbar</span></span>
+      </button>
+    </div>
+    <button type="button" class="start-set" data-act="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/><circle cx="12" cy="12" r="3"/></svg><span>Einstellungen</span></button>
+    <noscript><p class="start-ns">Bitte aktiviere JavaScript, um HEXA zu nutzen.</p></noscript>
+  </div>
+</section>
+
+<div class="app" hidden>
   <header class="top">
-    <div class="brand">
+    <button type="button" class="brand" data-act="home" aria-label="Zum Startbildschirm" title="Zum Startbildschirm">
       <svg class="logo" viewBox="0 0 40 40" aria-hidden="true"><path class="hex" d="M20 3 34.7 11.5v17L20 37 5.3 28.5v-17z"/><g class="pip"><circle cx="15" cy="13.5" r="2.4"/><circle cx="15" cy="20" r="2.4"/><circle cx="15" cy="26.5" r="2.4"/><circle cx="25" cy="13.5" r="2.4"/><circle cx="25" cy="20" r="2.4"/><circle cx="25" cy="26.5" r="2.4"/></g></svg>
       <span class="wordmark">HEXA</span>
-    </div>
+    </button>
     <div class="top-r">
       <span class="top-status" id="topStatus"></span>
-      <button type="button" class="duo-btn" id="duoBtn" data-act="duo" aria-pressed="false" title="Würfel und Block nebeneinander anzeigen" hidden>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4.5" width="18" height="15" rx="2.5"/><path d="M10 4.5v15"/></svg>
-        <span>Nebeneinander</span>
-      </button>
-      <div class="top-ctl">
-      <button type="button" class="snd-btn" id="soundBtn" data-act="sound" aria-pressed="false" aria-label="Stumm" aria-keyshortcuts="M" title="Ton an oder aus (M)">
-        <svg class="ic-snd" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5a10 10 0 0 1 0 14"/></svg>
-        <svg class="ic-mute" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="m22 9-6 6"/><path d="m16 9 6 6"/></svg>
-      </button>
-      <button type="button" class="theme-sw" id="themeBtn" data-act="theme" role="switch" aria-checked="false" aria-label="Dunkles Design" title="Hell oder dunkel">
-        <span class="theme-knob" aria-hidden="true"></span>
-        <svg class="ic-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
-        <svg class="ic-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
-      </button>
-      </div>
+      <button type="button" class="icon-btn" data-act="settings" aria-label="Einstellungen" title="Einstellungen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/><circle cx="12" cy="12" r="3"/></svg></button>
     </div>
   </header>
 
@@ -325,24 +336,29 @@
 
     </section>
   </main>
-  <noscript><p>Bitte aktiviere JavaScript, um HEXA zu nutzen.</p></noscript>
 </div>
 
-<nav class="tabbar" aria-label="Bereiche">
+<nav class="tabbar" aria-label="Bereiche" hidden>
   <div class="tabbar-in">
     <button type="button" class="tab" data-act="tab" data-tab="players">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.7-3.4 3.3-5.3 6.5-5.3s5.8 1.9 6.5 5.3"/><path d="M15.5 4.9a3.5 3.5 0 0 1 0 6.2"/><path d="M18 14.9c1.8.7 3 2.4 3.5 5.1"/></svg>
       <span>Spieler</span>
     </button>
-    <button type="button" class="tab" data-act="tab" data-tab="dice">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="17" rx="4"/><circle cx="8.5" cy="8.5" r="1.3" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.3" fill="currentColor" stroke="none"/><circle cx="15.5" cy="15.5" r="1.3" fill="currentColor" stroke="none"/></svg>
-      <span>Würfel</span>
-      <i class="badge" id="cdBadge" hidden></i>
-    </button>
-    <button type="button" class="tab" data-act="tab" data-tab="block">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4.5" y="3" width="15" height="18" rx="2.5"/><path d="M4.5 8.5h15"/><path d="M10 8.5V21"/><path d="M4.5 13h15"/><path d="M4.5 17h15"/></svg>
-      <span>Block</span>
-    </button>
+    <div class="tab-cell">
+      <button type="button" class="tab" data-act="tab" data-tab="dice">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="17" rx="4"/><circle cx="8.5" cy="8.5" r="1.3" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.3" fill="currentColor" stroke="none"/><circle cx="15.5" cy="15.5" r="1.3" fill="currentColor" stroke="none"/></svg>
+        <span>Würfel</span>
+        <i class="badge" id="cdBadge" hidden></i>
+      </button>
+      <button type="button" class="tab-split" data-act="duo" data-for="dice" aria-pressed="false" aria-label="Block daneben öffnen" title="Block daneben öffnen" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4.5" width="18" height="15" rx="2.5"/><path d="M10 4.5v15"/></svg></button>
+    </div>
+    <div class="tab-cell">
+      <button type="button" class="tab" data-act="tab" data-tab="block">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4.5" y="3" width="15" height="18" rx="2.5"/><path d="M4.5 8.5h15"/><path d="M10 8.5V21"/><path d="M4.5 13h15"/><path d="M4.5 17h15"/></svg>
+        <span>Block</span>
+      </button>
+      <button type="button" class="tab-split" data-act="duo" data-for="block" aria-pressed="false" aria-label="Würfel daneben öffnen" title="Würfel daneben öffnen" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4.5" width="18" height="15" rx="2.5"/><path d="M10 4.5v15"/></svg></button>
+    </div>
     <button type="button" class="tab" data-act="tab" data-tab="rules">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4.5A1.5 1.5 0 0 1 6.5 3H19v15H6.5A1.5 1.5 0 0 0 5 19.5z"/><path d="M5 19.5A1.5 1.5 0 0 0 6.5 21H19"/><path d="M9 7.5h6"/><path d="M9 11h4"/></svg>
       <span>Regeln</span>

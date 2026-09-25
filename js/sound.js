@@ -7,11 +7,33 @@ window.HexaSound = (() => {
   const AC = window.AudioContext || window.webkitAudioContext;
   const KEY = 'hexa-sound';
   const MUSIC_VOL = 0.55;
-  let muted = false;
-  try { muted = localStorage.getItem(KEY) === 'off'; } catch (e) { /* Speicher gesperrt */ }
+  const clamp01 = v => Math.max(0, Math.min(1, Number(v) || 0));
+
+  // Musik und Spielsounds lassen sich getrennt an- und ausschalten und leiser stellen.
+  const prefs = { music: true, fx: true, musicVol: 1, fxVol: 1 };
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (raw === 'off') {
+      // alte Einstellung: alles stumm
+      prefs.music = false;
+      prefs.fx = false;
+    } else if (raw && raw !== 'on') {
+      const p = JSON.parse(raw);
+      if (typeof p.music === 'boolean') prefs.music = p.music;
+      if (typeof p.fx === 'boolean') prefs.fx = p.fx;
+      if (p.musicVol != null) prefs.musicVol = clamp01(p.musicVol);
+      if (p.fxVol != null) prefs.fxVol = clamp01(p.fxVol);
+    }
+  } catch (e) { /* Speicher gesperrt oder Eintrag kaputt */ }
+
+  // Der Regler wirkt quadratisch, so fühlt er sich über den ganzen Weg gleichmäßig an.
+  const level = v => v * v;
+  const musicWanted = () => prefs.music && prefs.musicVol > 0;
+  const fxLevel = () => (prefs.fx ? level(prefs.fxVol) : 0);
+  const musicLevel = () => MUSIC_VOL * level(prefs.musicVol);
 
   let ctx = null;
-  let out = null;    // alles, hier wird stumm geschaltet
+  let out = null;    // Summe aller Töne
   let fx = null;     // Effekte
   let mus = null;    // Musik (Ein- und Ausblenden)
   let dry = null;    // Musik ohne Hall
@@ -48,10 +70,10 @@ window.HexaSound = (() => {
     comp.release.value = 0.25;
     comp.connect(ctx.destination);
     out = ctx.createGain();
-    out.gain.value = muted ? 0 : 1;
+    out.gain.value = 1;
     out.connect(comp);
     fx = ctx.createGain();
-    fx.gain.value = 1;
+    fx.gain.value = fxLevel();
     fx.connect(out);
     // Musik: warmer Tiefpass und leichtes Leiern wie bei einem alten Tonband
     mus = ctx.createGain();
@@ -84,7 +106,7 @@ window.HexaSound = (() => {
     return true;
   }
 
-  const ready = () => !!ctx && !muted;
+  const ready = () => !!ctx && prefs.fx && prefs.fxVol > 0;
 
   /* Bausteine */
   function env(g, t, peak, attack, decay) {
@@ -358,15 +380,15 @@ window.HexaSound = (() => {
         step++;
       }
     }
-    function start() {
-      if (on || !ctx || muted) return;
+    function start(fade) {
+      if (on || !ctx || !musicWanted()) return;
       on = true;
       step = 0;
       const t = ctx.currentTime;
       next = t + 0.2;
       mus.gain.cancelScheduledValues(t);
       mus.gain.setValueAtTime(0.0001, t);
-      mus.gain.linearRampToValueAtTime(MUSIC_VOL, t + 3);
+      mus.gain.linearRampToValueAtTime(musicLevel(), t + (fade || 3));
       // leises Plattenrauschen im Hintergrund
       hiss = ctx.createBufferSource();
       hiss.buffer = noise;
@@ -396,10 +418,18 @@ window.HexaSound = (() => {
         hiss = null;
       }
     }
-    return { start, stop };
+    // Lautstärke ändern, während die Musik läuft
+    function volume() {
+      if (!on) return;
+      const t = ctx.currentTime;
+      mus.gain.cancelScheduledValues(t);
+      mus.gain.setValueAtTime(mus.gain.value, t);
+      mus.gain.linearRampToValueAtTime(musicLevel(), t + 0.15);
+    }
+    return { start, stop, volume, playing: () => on };
   })();
 
-  /* ---------- Freischalten, Stummschalten, Hintergrund ---------- */
+  /* ---------- Freischalten, Einstellungen, Hintergrund ---------- */
   function unlock() {
     if (!build()) return;
     if (ctx.state !== 'running' && document.visibilityState === 'visible') quiet(ctx.resume());
@@ -413,25 +443,41 @@ window.HexaSound = (() => {
         s.start(0);
       } catch (e) { /* egal */ }
     }
-    if (!muted) Music.start();
+    if (musicWanted()) Music.start();
   }
 
-  function setMuted(m) {
-    muted = !!m;
-    try { localStorage.setItem(KEY, muted ? 'off' : 'on'); } catch (e) { /* Speicher gesperrt */ }
-    if (!ctx) {
-      if (!muted) unlock();
-      return;
-    }
+  // Neue Einstellungen übernehmen: Spielsounds sofort, Musik mit kurzem Ein- oder Ausblenden
+  function set(next) {
+    Object.keys(next).forEach(k => {
+      if (k === 'music' || k === 'fx') prefs[k] = !!next[k];
+      else if (k === 'musicVol' || k === 'fxVol') prefs[k] = clamp01(next[k]);
+    });
+    try { localStorage.setItem(KEY, JSON.stringify(prefs)); } catch (e) { /* Speicher gesperrt */ }
+    if (!ctx) return;
     const t = ctx.currentTime;
-    out.gain.cancelScheduledValues(t);
-    out.gain.setValueAtTime(out.gain.value, t);
-    out.gain.linearRampToValueAtTime(muted ? 0 : 1, t + 0.08);
-    if (muted) Music.stop();
-    else {
-      unlock();
-      pluck(ctx.currentTime + 0.02, 79, 0.08, 0);
+    fx.gain.cancelScheduledValues(t);
+    fx.gain.setValueAtTime(fx.gain.value, t);
+    fx.gain.linearRampToValueAtTime(fxLevel(), t + 0.08);
+    if (!musicWanted()) Music.stop();
+    else if (Music.playing()) Music.volume();
+    else if (unlocked) Music.start(1.2);
+  }
+
+  // Taste M: alle Töne aus – oder wieder so an, wie sie vorher waren
+  let before = null;
+  function toggleAll() {
+    if (prefs.music || prefs.fx) {
+      before = { music: prefs.music, fx: prefs.fx };
+      set({ music: false, fx: false });
+    } else {
+      set(before || { music: true, fx: true });
     }
+    return prefs.music || prefs.fx;
+  }
+
+  // Kurzer Klang, damit man die Spielsounds nach dem Einstellen hört
+  function preview() {
+    setTimeout(() => score(20), 90);
   }
 
   ['pointerup', 'click', 'keydown'].forEach(type => document.addEventListener(type, unlock, true));
@@ -443,9 +489,9 @@ window.HexaSound = (() => {
       quiet(ctx.suspend());
     } else if (unlocked) {
       quiet(ctx.resume());
-      if (!muted) Music.start();
+      if (musicWanted()) Music.start();
     }
   });
 
-  return { setMuted, isMuted: () => muted, roll, hold, score, fanfare, sparkle, cdHit, cdMiss };
+  return { get: () => Object.assign({}, prefs), set, toggleAll, preview, roll, hold, score, fanfare, sparkle, cdHit, cdMiss };
 })();
