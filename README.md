@@ -21,7 +21,7 @@ Läuft direkt im Browser, auf dem Handy wie am Laptop. Ohne Installation, ohne K
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/hero-dark.webp">
-  <img src="docs/screenshots/hero-light.webp" width="880" alt="HEXA auf dem Handy: Startbildschirm mit fallenden Würfeln, Würfel mit gehaltenen Vierern und der Countdown">
+  <img src="docs/screenshots/hero-light.webp" width="880" alt="HEXA auf dem Handy: Hauptmenü mit fallenden Würfeln, Würfel mit gehaltenen Vierern und der Countdown">
 </picture>
 
 </div>
@@ -34,14 +34,30 @@ Wer geschickt plant, holt sich im oberen Block einen dicken Bonus. Und wer schon
 
 Die App ersetzt Würfel, Becher, Block und Stift. Ihr gebt einfach das Handy reihum – oder legt es in die Mitte.
 
+## So läuft ein Spiel
+
+1. Im Hauptmenü **Lokal** wählen und eintragen, wer mitspielt.
+2. Entscheiden, **womit ihr würfelt**: mit der App oder mit euren eigenen Würfeln. Den Spielblock führt die App in beiden Fällen.
+3. Reihum spielen. Über **Menü** könnt ihr jederzeit pausieren und später weitermachen.
+4. Nach 15 Runden auf **Spiel beenden** tippen. Das Ergebnis zeigt die Platzierung, die Punkte landen in den **Highscores**.
+
+<div align="center">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/flow-dark.webp">
+  <img src="docs/screenshots/flow-light.webp" width="880" alt="HEXA auf dem Handy: Spieler-Auswahl mit App- oder eigenen Würfeln, Ergebnis mit neuem Rekord und die Highscores">
+</picture>
+</div>
+
 ## Features
 
-- **Startbildschirm** – Spielmodus wählen: Lokal auf einem Gerät reihum spielen, Online kommt bald.
+- **Hauptmenü** – lokal auf einem Gerät reihum spielen, Highscores ansehen, Einstellungen öffnen. Online kommt bald.
+- **Mit App- oder eigenen Würfeln** – vor dem Spiel wählen: Die App würfelt für euch, oder ihr würfelt selbst und nutzt nur den Spielblock.
 - **Würfeln mit Gefühl** – sechs Würfel mit Rollanimation, Klackern und Vibration. Tippen hält einen Würfel fest, nochmal Tippen löst ihn wieder.
 - **Spielblock, der mitrechnet** – Summen, Bonus und Endstand werden automatisch berechnet. Nach jedem Wurf zeigt die App, wie viele Punkte jedes freie Feld bringen würde.
 - **Countdown als Bonusspiel** – wird automatisch freigeschaltet und direkt nach dem Zug gestartet.
-- **Mehrere Personen oder solo** – Reihenfolge festlegen, Namen ändern, Bestenliste mit den fünf besten Ergebnissen.
-- **Nichts geht verloren** – der Spielstand bleibt auch nach dem Schließen erhalten. Einträge, gelöschte Personen oder ein neues Spiel lassen sich mit einem Tipp rückgängig machen.
+- **Mehrere Personen oder solo** – Reihenfolge vor dem Spiel festlegen. Im Spiel lassen sich Namen ändern und Personen entfernen.
+- **Spielende und Highscores** – das Ergebnis zeigt alle Platzierungen und neue Rekorde. Die zehn besten Ergebnisse bleiben auf dem Gerät gespeichert, Online-Highscores kommen bald.
+- **Nichts geht verloren** – Spiele lassen sich pausieren und bleiben auch nach dem Schließen erhalten. Einträge, entfernte Personen oder ein abgebrochenes Spiel lassen sich mit einem Tipp rückgängig machen.
 - **Regeln eingebaut** – Kurzübersicht, Beispiele und Wahrscheinlichkeiten für Neugierige.
 - **Einstellungen** – Design hell, dunkel oder automatisch. Musik und Spielsounds lassen sich getrennt an- und ausschalten und leiser stellen.
 - **Ton** – Effekte und entspannte Lo-Fi-Musik, live im Browser erzeugt.
@@ -131,7 +147,7 @@ HEXA ist bewusst einfach gebaut: **reines HTML, CSS und JavaScript** – kein Fr
 
 - **Ton aus dem Browser:** Alle Effekte und die Lo-Fi-Musik entstehen live mit der Web Audio API. Es wird keine einzige Audiodatei geladen.
 - **Faire Würfel:** Zufallszahlen kommen aus `crypto.getRandomValues`, ohne Modulo-Verzerrung.
-- **Alles bleibt auf dem Gerät:** Spielstand, Bestenliste, Design und Ton werden im `localStorage` deines Browsers gespeichert und nie übertragen. Es gibt kein Konto und kein Backend.
+- **Alles bleibt auf dem Gerät:** Spielstand, Highscores, Design und Ton werden im `localStorage` deines Browsers gespeichert und nie übertragen. Es gibt kein Konto und kein Backend.
 - **Keine fremden Server:** Schriften und Icons liegen im Repository. Beim Spielen wird nichts von Google oder anderen Anbietern geladen. Es gibt keine Cookies und kein Tracking.
 - **Barrierearm:** Bedienbar per Tastatur, mit Screenreader-Beschriftungen, sichtbarem Fokus und Rücksicht auf *reduzierte Bewegung*.
 - **Moderne Web-APIs, wo verfügbar:** Screen Wake Lock (Bildschirm bleibt an), View Transitions (weicher Wechsel hell/dunkel), Vibration.

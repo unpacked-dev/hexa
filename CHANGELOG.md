@@ -3,6 +3,25 @@
 Alle wichtigen Änderungen an HEXA stehen hier.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), die Versionen folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.3.0] – 2026-09-25
+
+Neuer Spielablauf mit Spielende und Highscores.
+
+### Neu
+
+- **Spieler-Auswahl:** „Lokal“ führt zuerst zu „Wer spielt mit?“. Dort wählt ihr, ob mit der App oder mit eigenen Würfeln gespielt wird. Mit der App geht es zum Würfeln, mit eigenen Würfeln direkt zum Block.
+- **Spiel beenden:** Sind alle Runden gespielt, erscheint im Würfel- und im Block-Tab „Spiel beenden“. Das Ergebnis zeigt die Platzierung aller Personen und neue Rekorde. Danach geht es zurück ins Hauptmenü oder mit „Nochmal spielen“ direkt in ein neues Spiel.
+- **Highscores:** eigener Button im Hauptmenü mit den Tabs „Lokal“ (die zehn besten Ergebnisse auf diesem Gerät) und „Online“ (bald verfügbar).
+- **Pausieren und Abbrechen:** Über „Menü“ geht es jederzeit ins Hauptmenü. Ein pausiertes Spiel geht mit „Lokal“ weiter, ein abgebrochenes lässt sich rückgängig machen.
+- **Spieler im Spiel bearbeiten:** Ein Tipp auf einen Namen im Block benennt die Person um oder entfernt sie. Stehen schon Punkte drin, fragt die App vorher nach.
+
+### Geändert
+
+- **Leiste unten:** Aus „Spieler“ wird „Menü“. Es führt zurück ins Hauptmenü, das Logo oben ebenso.
+- **Bestenliste:** ist jetzt Teil der Highscores und zeigt zehn statt fünf Ergebnisse.
+- **Neues Spiel:** Der bisherige Knopf entfällt. Ein neues Spiel startet über „Nochmal spielen“ im Ergebnis oder über „Lokal“ im Hauptmenü.
+- **Ältere Spielstände:** Ein laufendes Spiel aus einer früheren Version geht einfach weiter.
+
 ## [1.2.0] – 2026-09-25
 
 Startbildschirm, Einstellungen und fallende Würfel.
@@ -52,6 +71,7 @@ Die erste Version von HEXA.
 - **Web-App:** installierbar auf dem Home-Bildschirm, Bildschirm bleibt während des Spiels an.
 - **Tests:** Wertung aller Felder mit `node --test` abgedeckt.
 
+[1.3.0]: https://github.com/unpacked-dev/hexa/releases/tag/v1.3.0
 [1.2.0]: https://github.com/unpacked-dev/hexa/releases/tag/v1.2.0
 [1.1.0]: https://github.com/unpacked-dev/hexa/releases/tag/v1.1.0
 [1.0.0]: https://github.com/unpacked-dev/hexa/releases/tag/v1.0.0
