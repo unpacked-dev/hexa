@@ -1,16 +1,16 @@
 name: Release
 
-# Erzeugt ein GitHub-Release mit den passenden Notizen aus CHANGELOG.md
-# und einer spielfertigen ZIP-Datei. Zwei Wege:
-#   - einen Tag wie v1.2.0 pushen, oder
-#   - unter Actions → Release → "Run workflow" die Version eingeben (legt den Tag selbst an).
+# Erstellt ein GitHub-Release mit den Notizen aus CHANGELOG.md und einer spielfertigen ZIP-Datei.
+# So geht eine neue Version:
+#   1. In CHANGELOG.md einen Abschnitt wie "## [1.2.0] – 2026-10-01" mit den Änderungen ergänzen und pushen.
+#   2. Actions → Release → "Run workflow" → Version 1.2.0 eingeben (oder den Tag v1.2.0 pushen).
 on:
   push:
     tags: ['v*']
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version ohne "v", z. B. 1.2.0 (muss in CHANGELOG.md stehen)'
+        description: 'Neue Version, z. B. 1.2.0 (muss vorher in CHANGELOG.md stehen)'
         required: true
 
 permissions:
@@ -19,11 +19,33 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
-    env:
-      TAG: ${{ github.event_name == 'workflow_dispatch' && format('v{0}', inputs.version) || github.ref_name }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+
+      - name: Version prüfen
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          # Version aus der Eingabe oder aus dem Tag; ein "v" davor ist egal.
+          VERSION="$(printf '%s' "${INPUT_VERSION:-$GITHUB_REF_NAME}" | tr -d '[:space:]')"
+          VERSION="${VERSION#v}"
+          if ! printf '%s' "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error title=Ungültige Version::Bitte eine Versionsnummer wie 1.2.0 eingeben."
+            exit 1
+          fi
+          if ! grep -qF "## [$VERSION]" CHANGELOG.md; then
+            echo "::error title=Kein Eintrag in CHANGELOG.md::Für $VERSION fehlt der Abschnitt \"## [$VERSION]\" in CHANGELOG.md. Erst dort eintragen, was neu ist, pushen und dann den Workflow erneut starten."
+            exit 1
+          fi
+          if gh release view "v$VERSION" > /dev/null 2>&1; then
+            echo "::error title=Release gibt es schon::v$VERSION ist bereits veröffentlicht. Für neue Änderungen eine höhere Version wählen."
+            exit 1
+          fi
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "TAG=v$VERSION" >> "$GITHUB_ENV"
+
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
       - name: Wertung testen
@@ -37,13 +59,11 @@ jobs:
 
       - name: Notizen aus CHANGELOG.md holen
         run: |
-          VERSION="${TAG#v}"
           awk -v v="$VERSION" '
             /^## \[/ { f = index($0, "[" v "]") > 0; next }
             /^\[[^]]+\]: / { f = 0 }
             f
           ' CHANGELOG.md > notes.md
-          if [ ! -s notes.md ]; then echo "Kein Eintrag für $VERSION in CHANGELOG.md" >&2; exit 1; fi
           {
             echo
             echo "---"
