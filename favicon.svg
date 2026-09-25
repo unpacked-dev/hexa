@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40">
+  <style>
+    .hex { fill: #2340C8; stroke: #2340C8; }
+    .pip { fill: #FFFFFF; }
+    @media (prefers-color-scheme: dark) {
+      .hex { fill: #93A4FF; stroke: #93A4FF; }
+      .pip { fill: #0D1020; }
+    }
+  </style>
+  <path class="hex" d="M20 3 34.7 11.5v17L20 37 5.3 28.5v-17z" stroke-width="3" stroke-linejoin="round"/>
+  <g class="pip">
+    <circle cx="15" cy="13.5" r="2.4"/><circle cx="15" cy="20" r="2.4"/><circle cx="15" cy="26.5" r="2.4"/>
+    <circle cx="25" cy="13.5" r="2.4"/><circle cx="25" cy="20" r="2.4"/><circle cx="25" cy="26.5" r="2.4"/>
+  </g>
+</svg>
