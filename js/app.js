@@ -13,6 +13,7 @@
   const WIDE = '(min-width: 1100px)';
   const PIPS = { 0: [], 1: [4], 2: [2, 6], 3: [2, 4, 6], 4: [0, 2, 6, 8], 5: [0, 2, 4, 6, 8], 6: [0, 2, 3, 5, 6, 8] };
 
+  // Icons teils aus Lucide (ISC-Lizenz, teils Feather/MIT), siehe THIRD-PARTY-NOTICES.md.
   function svg(paths) {
     return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + paths + '</svg>';
   }

@@ -54,7 +54,7 @@ jobs:
       - name: Spielfertiges Paket bauen
         run: |
           mkdir -p dist/hexa
-          cp -r index.html favicon.svg manifest.webmanifest css js icons LICENSE dist/hexa/
+          cp -r index.html favicon.svg manifest.webmanifest css js fonts icons LICENSE THIRD-PARTY-NOTICES.md dist/hexa/
           (cd dist && zip -qr "../hexa-${TAG}.zip" hexa)
 
       - name: Notizen aus CHANGELOG.md holen

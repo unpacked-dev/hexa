@@ -129,10 +129,11 @@ HEXA ist bewusst einfach gebaut: **reines HTML, CSS und JavaScript** – kein Fr
 
 - **Ton aus dem Browser:** Alle Effekte und die Lo-Fi-Musik entstehen live mit der Web Audio API. Es wird keine einzige Audiodatei geladen.
 - **Faire Würfel:** Zufallszahlen kommen aus `crypto.getRandomValues`, ohne Modulo-Verzerrung.
-- **Alles bleibt auf dem Gerät:** Spielstand, Bestenliste, Design und Ton werden im `localStorage` gespeichert. Es gibt keinen Server und kein Tracking.
+- **Alles bleibt auf dem Gerät:** Spielstand, Bestenliste, Design und Ton werden im `localStorage` deines Browsers gespeichert und nie übertragen. Es gibt kein Konto und kein Backend.
+- **Keine fremden Server:** Schriften und Icons liegen im Repository. Beim Spielen wird nichts von Google oder anderen Anbietern geladen. Es gibt keine Cookies und kein Tracking.
 - **Barrierearm:** Bedienbar per Tastatur, mit Screenreader-Beschriftungen, sichtbarem Fokus und Rücksicht auf *reduzierte Bewegung*.
 - **Moderne Web-APIs, wo verfügbar:** Screen Wake Lock (Bildschirm bleibt an), View Transitions (weicher Wechsel hell/dunkel), Vibration.
-- **Schriften:** [Archivo](https://fonts.google.com/specimen/Archivo) und [Kalam](https://fonts.google.com/specimen/Kalam) über Google Fonts.
+- **Schriften:** [Archivo](https://github.com/Omnibus-Type/Archivo) und [Kalam](https://fonts.google.com/specimen/Kalam), lokal eingebunden (SIL Open Font License).
 
 ### Projektstruktur
 
@@ -146,11 +147,13 @@ hexa/
 │   ├── rules.js           # Felder, Punkte und Wertung
 │   ├── sound.js           # Effekte und Lo-Fi-Musik (Web Audio)
 │   └── app.js             # Spielablauf, Darstellung, Eingaben
+├── fonts/                 # Schriften Archivo und Kalam mit Lizenztexten
 ├── icons/                 # App-Icons für Home-Bildschirm
 ├── manifest.webmanifest   # macht HEXA installierbar
 ├── tests/
 │   └── rules.test.js      # Tests für die Wertung
-└── docs/                  # Screenshots und Vorschaubild
+├── docs/                  # Screenshots und Vorschaubild
+└── THIRD-PARTY-NOTICES.md # Lizenzen von Schriften und Icons
 ```
 
 ### Tests
@@ -164,3 +167,5 @@ node --test
 ## Lizenz
 
 [MIT](LICENSE) – mach damit, was du möchtest.
+
+Die Schriften (SIL Open Font License) und einige Icons (Lucide, ISC/MIT) stammen von anderen und stehen unter eigenen freien Lizenzen. Details stehen in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
