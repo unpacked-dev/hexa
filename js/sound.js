@@ -47,6 +47,12 @@ window.HexaSound = (() => {
   function chain(...nodes) {
     for (let i = 0; i < nodes.length - 1; i++) nodes[i].connect(nodes[i + 1]);
   }
+  // Jeder Ton besteht aus kleinen Knoten (Oszillator, Filter, Lautstärke). Ist er verklungen,
+  // werden sie wieder abgehängt. Safari räumt verbundene Knoten sonst nicht auf: Sie sammeln sich
+  // an (etwa 2.000 pro Minute Musik), und nach einer halben Stunde kommt das Audio nicht mehr hinterher.
+  function release(src, nodes) {
+    src.onended = () => nodes.forEach(n => { if (n) { try { n.disconnect(); } catch (e) { /* schon getrennt */ } } });
+  }
 
   function impulse(sec) {
     const len = Math.floor(ctx.sampleRate * sec);
@@ -75,7 +81,20 @@ window.HexaSound = (() => {
     fx = ctx.createGain();
     fx.gain.value = fxLevel();
     fx.connect(out);
-    // Musik: warmer Tiefpass und leichtes Leiern wie bei einem alten Tonband
+    room = impulse(2.2);
+    musicBus();
+    noise = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
+    const ch = noise.getChannelData(0);
+    for (let i = 0; i < ch.length; i++) ch[i] = Math.random() * 2 - 1;
+    return true;
+  }
+
+  // Musik: warmer Tiefpass und leichtes Leiern wie bei einem alten Tonband, dazu Hall.
+  // Läuft die Musik lange, wird dieser Weg ab und zu frisch aufgebaut und der alte leise abgebaut.
+  let room = null;       // Nachhall, einmal berechnet
+  let busNodes = [];
+  function musicBus() {
+    const old = { mus, nodes: busNodes };
     mus = ctx.createGain();
     mus.gain.value = 0;
     const tape = ctx.createBiquadFilter();
@@ -96,14 +115,12 @@ window.HexaSound = (() => {
     dry.connect(mus);
     wet = ctx.createGain();
     const verb = ctx.createConvolver();
-    verb.buffer = impulse(2.2);
+    verb.buffer = room;
     const verbOut = ctx.createGain();
     verbOut.gain.value = 0.32;
     chain(wet, verb, verbOut, mus);
-    noise = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
-    const ch = noise.getChannelData(0);
-    for (let i = 0; i < ch.length; i++) ch[i] = Math.random() * 2 - 1;
-    return true;
+    busNodes = [mus, tape, wow, lfo, depth, dry, wet, verb, verbOut];
+    return old;
   }
 
   const ready = () => !!ctx && prefs.fx && prefs.fxVol > 0;
@@ -114,11 +131,13 @@ window.HexaSound = (() => {
     g.gain.exponentialRampToValueAtTime(Math.max(peak, 0.0002), t + attack);
     g.gain.exponentialRampToValueAtTime(0.0001, t + attack + decay);
   }
+  // Anteil in den Hall. Gibt den Knoten zurück, damit er mit dem Ton wieder abgehängt wird.
   function send(g, amount) {
-    if (!amount) return;
+    if (!amount) return null;
     const s = ctx.createGain();
     s.gain.value = amount;
     chain(g, s, wet);
+    return s;
   }
   // Kurzes, gefiltertes Rauschen: Klacken, Hi-Hat, Bleistift, Knistern
   function hit(t, o) {
@@ -133,7 +152,7 @@ window.HexaSound = (() => {
     const g = ctx.createGain();
     env(g, t, o.gain, attack, o.decay);
     chain(src, f, g, o.dest || fx);
-    send(g, o.wet);
+    release(src, [src, f, g, send(g, o.wet)]);
     src.start(t, Math.random() * Math.max(0, 1 - len), len);
   }
   function tone(t, freq, o) {
@@ -145,7 +164,7 @@ window.HexaSound = (() => {
     const g = ctx.createGain();
     env(g, t, o.gain, attack, o.decay);
     chain(osc, g, o.dest || fx);
-    send(g, o.wet);
+    release(osc, [osc, g, send(g, o.wet)]);
     osc.start(t);
     osc.stop(t + attack + o.decay + 0.05);
   }
@@ -242,11 +261,14 @@ window.HexaSound = (() => {
       [45, [55, 59, 60, 64]],  // Am9
       [43, [53, 57, 60, 64]],  // G13sus
     ];
+    const AHEAD = 0.5;          // so viele Sekunden im Voraus wird geplant
+    const FRESH = 20 * 60;      // nach 20 Minuten Musik wird ihr Weg frisch aufgebaut
     let on = false;
     let timer = 0;
     let next = 0;
     let step = 0;
     let hiss = null;
+    let since = 0;              // seit wann der aktuelle Musik-Weg spielt
 
     // E-Piano: Sinus mit etwas Dreieck, heller Anschlag, langes Ausklingen
     function ep(t, m, vel, len) {
@@ -278,7 +300,7 @@ window.HexaSound = (() => {
       h.start(t);
       h.stop(t + len + 0.05);
       g.connect(dry);
-      send(g, 0.6);
+      release(a, [a, b, bg, h, hg, g, send(g, 0.6)]);
       a.start(t);
       b.start(t);
       a.stop(t + len + 0.05);
@@ -308,6 +330,7 @@ window.HexaSound = (() => {
       a.connect(lp);
       b.connect(lp);
       chain(lp, g, dry);
+      release(a, [a, b, lp, g]);
       a.start(t);
       b.start(t);
       a.stop(t + len + 0.05);
@@ -320,6 +343,7 @@ window.HexaSound = (() => {
       const g = ctx.createGain();
       env(g, t, 0.16 * vel, 0.004, 0.26);
       chain(o, g, dry);
+      release(o, [o, g]);
       o.start(t);
       o.stop(t + 0.36);
       hit(t, { type: 'lowpass', freq: 1800, q: 0.7, gain: 0.12 * vel, decay: 0.015, dest: dry });
@@ -374,11 +398,52 @@ window.HexaSound = (() => {
     }
     function tick() {
       if (!on) return;
-      while (next < ctx.currentTime + 0.3) {
+      const now = ctx.currentTime;
+      // Hing die Seite kurz, werden die verpassten Töne nicht alle auf einmal nachgeholt.
+      if (next < now) next = now + 0.05;
+      while (next < now + AHEAD) {
+        if (step % 16 === 0 && next - since > FRESH) refresh(next);
         play(step, next);
         next += STEP;
         step++;
       }
+    }
+    // Leises Plattenrauschen im Hintergrund
+    function startHiss(t) {
+      const src = ctx.createBufferSource();
+      src.buffer = noise;
+      src.loop = true;
+      const bp = ctx.createBiquadFilter();
+      bp.type = 'bandpass';
+      bp.frequency.value = 3200;
+      bp.Q.value = 0.4;
+      const hg = ctx.createGain();
+      hg.gain.value = 0.012;
+      chain(src, bp, hg, dry);
+      release(src, [src, bp, hg]);
+      src.start(t);
+      return src;
+    }
+    // Zu Beginn eines Takts einen frischen Musik-Weg aufbauen und überblenden.
+    // Der alte klingt aus und wird danach komplett abgehängt.
+    function refresh(t) {
+      const level = musicLevel();
+      const old = musicBus();
+      since = t;
+      mus.gain.setValueAtTime(0.0001, t);
+      mus.gain.linearRampToValueAtTime(Math.max(level, 0.0001), t + 2);
+      const g = old.mus.gain;
+      g.cancelScheduledValues(t);
+      g.setValueAtTime(level, t);
+      g.linearRampToValueAtTime(0, t + 3);
+      if (hiss) { try { hiss.stop(t + 3); } catch (e) { /* schon gestoppt */ } }
+      hiss = startHiss(t);
+      setTimeout(() => {
+        old.nodes.forEach(n => {
+          try { if (n.stop) n.stop(); } catch (e) { /* schon gestoppt */ }
+          try { n.disconnect(); } catch (e) { /* schon getrennt */ }
+        });
+      }, (t - ctx.currentTime + 4) * 1000);
     }
     function start(fade) {
       if (on || !ctx || !musicWanted()) return;
@@ -389,18 +454,7 @@ window.HexaSound = (() => {
       mus.gain.cancelScheduledValues(t);
       mus.gain.setValueAtTime(0.0001, t);
       mus.gain.linearRampToValueAtTime(musicLevel(), t + (fade || 3));
-      // leises Plattenrauschen im Hintergrund
-      hiss = ctx.createBufferSource();
-      hiss.buffer = noise;
-      hiss.loop = true;
-      const bp = ctx.createBiquadFilter();
-      bp.type = 'bandpass';
-      bp.frequency.value = 3200;
-      bp.Q.value = 0.4;
-      const hg = ctx.createGain();
-      hg.gain.value = 0.012;
-      chain(hiss, bp, hg, dry);
-      hiss.start(t);
+      hiss = startHiss(t);
       tick();
       timer = setInterval(tick, 80);
     }
@@ -440,6 +494,7 @@ window.HexaSound = (() => {
         const s = ctx.createBufferSource();
         s.buffer = ctx.createBuffer(1, 1, ctx.sampleRate);
         s.connect(ctx.destination);
+        release(s, [s]);
         s.start(0);
       } catch (e) { /* egal */ }
     }
