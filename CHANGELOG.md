@@ -3,6 +3,23 @@
 Alle wichtigen Änderungen an HEXA stehen hier.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), die Versionen folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.2.0] – 2026-09-25
+
+Startbildschirm, Einstellungen und fallende Würfel.
+
+### Neu
+
+- **Startbildschirm:** Logo, Spielmodi „Lokal“ und „Online“ (bald verfügbar) und Einstellungen. Das Logo in der Kopfzeile führt zurück.
+- **Einstellungen:** Design hell, dunkel oder automatisch, Musik und Spielsounds getrennt schaltbar mit eigener Lautstärke, Sprache (bald verfügbar).
+- **Fallende Würfel:** auf dem Startbildschirm echte Würfel, im Spiel dezente gezeichnete. Lassen sich in den Einstellungen ausschalten und stehen bei „Bewegung reduzieren“ still.
+
+### Geändert
+
+- **Kopfzeile:** nur noch Rundenanzeige und Zahnrad für die Einstellungen.
+- **Nebeneinander am Desktop:** Der Knopf sitzt jetzt im aktiven Würfel- bzw. Block-Tab.
+- **Taste M:** schaltet alle Töne aus und wieder so an, wie sie vorher waren.
+- **Suchmaschinen:** nehmen die Seite nicht mehr auf (`noindex`).
+
 ## [1.1.0] – 2026-09-25
 
 Keine Verbindung mehr zu fremden Servern.
@@ -35,5 +52,6 @@ Die erste Version von HEXA.
 - **Web-App:** installierbar auf dem Home-Bildschirm, Bildschirm bleibt während des Spiels an.
 - **Tests:** Wertung aller Felder mit `node --test` abgedeckt.
 
+[1.2.0]: https://github.com/unpacked-dev/hexa/releases/tag/v1.2.0
 [1.1.0]: https://github.com/unpacked-dev/hexa/releases/tag/v1.1.0
 [1.0.0]: https://github.com/unpacked-dev/hexa/releases/tag/v1.0.0

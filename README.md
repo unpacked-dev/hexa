@@ -21,7 +21,7 @@ Läuft direkt im Browser, auf dem Handy wie am Laptop. Ohne Installation, ohne K
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/hero-dark.webp">
-  <img src="docs/screenshots/hero-light.webp" width="880" alt="HEXA auf dem Handy: Würfel mit gehaltenen Vierern, Spielblock mit drei Personen und der Countdown">
+  <img src="docs/screenshots/hero-light.webp" width="880" alt="HEXA auf dem Handy: Startbildschirm mit fallenden Würfeln, Würfel mit gehaltenen Vierern und der Countdown">
 </picture>
 
 </div>
@@ -36,15 +36,17 @@ Die App ersetzt Würfel, Becher, Block und Stift. Ihr gebt einfach das Handy rei
 
 ## Features
 
+- **Startbildschirm** – Spielmodus wählen: Lokal auf einem Gerät reihum spielen, Online kommt bald.
 - **Würfeln mit Gefühl** – sechs Würfel mit Rollanimation, Klackern und Vibration. Tippen hält einen Würfel fest, nochmal Tippen löst ihn wieder.
 - **Spielblock, der mitrechnet** – Summen, Bonus und Endstand werden automatisch berechnet. Nach jedem Wurf zeigt die App, wie viele Punkte jedes freie Feld bringen würde.
 - **Countdown als Bonusspiel** – wird automatisch freigeschaltet und direkt nach dem Zug gestartet.
 - **Mehrere Personen oder solo** – Reihenfolge festlegen, Namen ändern, Bestenliste mit den fünf besten Ergebnissen.
 - **Nichts geht verloren** – der Spielstand bleibt auch nach dem Schließen erhalten. Einträge, gelöschte Personen oder ein neues Spiel lassen sich mit einem Tipp rückgängig machen.
 - **Regeln eingebaut** – Kurzübersicht, Beispiele und Wahrscheinlichkeiten für Neugierige.
-- **Hell und dunkel** – folgt dem System oder per Schalter.
-- **Ton** – Effekte und entspannte Lo-Fi-Musik, live im Browser erzeugt. Mit einem Tipp stumm.
-- **Nebeneinander** – auf großen Bildschirmen stehen Würfel und Block nebeneinander.
+- **Einstellungen** – Design hell, dunkel oder automatisch. Musik und Spielsounds lassen sich getrennt an- und ausschalten und leiser stellen.
+- **Ton** – Effekte und entspannte Lo-Fi-Musik, live im Browser erzeugt.
+- **Fallende Würfel** – langsam fallende Würfel im Hintergrund, in den Einstellungen abschaltbar. Bei „Bewegung reduzieren“ stehen sie still.
+- **Nebeneinander** – auf großen Bildschirmen holt ein Knopf im Würfel- oder Block-Tab die andere Ansicht dazu.
 - **Auf den Home-Bildschirm** – lässt sich wie eine App installieren und startet dann im Vollbild. Der Bildschirm bleibt während des Spiels an.
 
 <div align="center">
@@ -120,7 +122,7 @@ python3 -m http.server 8000   # dann http://localhost:8000 öffnen
 | --- | --- |
 | <kbd>Leertaste</kbd> | würfeln (auch im Countdown) |
 | <kbd>1</kbd> – <kbd>6</kbd> | Würfel halten oder lösen |
-| <kbd>M</kbd> | Ton an oder aus |
+| <kbd>M</kbd> | alle Töne an oder aus |
 | <kbd>Esc</kbd> | Fenster schließen |
 
 ## Technik
