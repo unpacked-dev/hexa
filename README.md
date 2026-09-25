@@ -1,0 +1,2 @@
+# hexa
+HEXA: Dicegame
