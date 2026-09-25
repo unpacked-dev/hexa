@@ -50,8 +50,19 @@ window.HexaSound = (() => {
   // Jeder Ton besteht aus kleinen Knoten (Oszillator, Filter, Lautstärke). Ist er verklungen,
   // werden sie wieder abgehängt. Safari räumt verbundene Knoten sonst nicht auf: Sie sammeln sich
   // an (etwa 2.000 pro Minute Musik), und nach einer halben Stunde kommt das Audio nicht mehr hinterher.
-  function release(src, nodes) {
-    src.onended = () => nodes.forEach(n => { if (n) { try { n.disconnect(); } catch (e) { /* schon getrennt */ } } });
+  // Töne der Musik merkt sich die App, bis sie verklungen sind. So lassen sich schon geplante Töne
+  // beim Ausschalten oder Sperren absagen, statt dass sie später noch nachklingen.
+  // extra: weitere Klangquellen desselben Tons, die gleichzeitig enden
+  const planned = new Set();
+  function release(src, nodes, music, extra) {
+    if (music) {
+      planned.add(src);
+      (extra || []).forEach(x => { planned.add(x); x.onended = () => planned.delete(x); });
+    }
+    src.onended = () => {
+      planned.delete(src);
+      nodes.forEach(n => { if (n) { try { n.disconnect(); } catch (e) { /* schon getrennt */ } } });
+    };
   }
 
   function impulse(sec) {
@@ -152,7 +163,7 @@ window.HexaSound = (() => {
     const g = ctx.createGain();
     env(g, t, o.gain, attack, o.decay);
     chain(src, f, g, o.dest || fx);
-    release(src, [src, f, g, send(g, o.wet)]);
+    release(src, [src, f, g, send(g, o.wet)], o.dest === dry);
     src.start(t, Math.random() * Math.max(0, 1 - len), len);
   }
   function tone(t, freq, o) {
@@ -164,7 +175,7 @@ window.HexaSound = (() => {
     const g = ctx.createGain();
     env(g, t, o.gain, attack, o.decay);
     chain(osc, g, o.dest || fx);
-    release(osc, [osc, g, send(g, o.wet)]);
+    release(osc, [osc, g, send(g, o.wet)], o.dest === dry);
     osc.start(t);
     osc.stop(t + attack + o.decay + 0.05);
   }
@@ -300,7 +311,7 @@ window.HexaSound = (() => {
       h.start(t);
       h.stop(t + len + 0.05);
       g.connect(dry);
-      release(a, [a, b, bg, h, hg, g, send(g, 0.6)]);
+      release(a, [a, b, bg, h, hg, g, send(g, 0.6)], true, [b, h]);
       a.start(t);
       b.start(t);
       a.stop(t + len + 0.05);
@@ -330,7 +341,7 @@ window.HexaSound = (() => {
       a.connect(lp);
       b.connect(lp);
       chain(lp, g, dry);
-      release(a, [a, b, lp, g]);
+      release(a, [a, b, lp, g], true, [b]);
       a.start(t);
       b.start(t);
       a.stop(t + len + 0.05);
@@ -343,7 +354,7 @@ window.HexaSound = (() => {
       const g = ctx.createGain();
       env(g, t, 0.16 * vel, 0.004, 0.26);
       chain(o, g, dry);
-      release(o, [o, g]);
+      release(o, [o, g], true);
       o.start(t);
       o.stop(t + 0.36);
       hit(t, { type: 'lowpass', freq: 1800, q: 0.7, gain: 0.12 * vel, decay: 0.015, dest: dry });
@@ -467,6 +478,8 @@ window.HexaSound = (() => {
       mus.gain.cancelScheduledValues(t);
       mus.gain.setValueAtTime(mus.gain.value, t);
       mus.gain.linearRampToValueAtTime(0, t + fade);
+      // Schon geplante Töne absagen, klingende nach dem Ausblenden beenden
+      planned.forEach(src => { try { src.stop(t + fade + 0.02); } catch (e) { /* noch nicht gestartet */ } });
       if (hiss) {
         try { hiss.stop(t + fade + 0.05); } catch (e) { /* schon gestoppt */ }
         hiss = null;
@@ -486,7 +499,7 @@ window.HexaSound = (() => {
   /* ---------- Freischalten, Einstellungen, Hintergrund ---------- */
   function unlock() {
     if (!build()) return;
-    if (ctx.state !== 'running' && document.visibilityState === 'visible') quiet(ctx.resume());
+    if (document.visibilityState === 'visible') wake();
     if (!unlocked) {
       unlocked = true;
       // iOS: ein kurzer stiller Ton gibt die Ausgabe frei
@@ -536,17 +549,38 @@ window.HexaSound = (() => {
   }
 
   ['pointerup', 'click', 'keydown'].forEach(type => document.addEventListener(type, unlock, true));
-  // Im Hintergrund pausieren, das spart Akku
+  // Im Hintergrund pausieren, das spart Akku. Erst kurz ausblenden, dann anhalten:
+  // Sofort angehalten bricht der Klang mitten im Ton ab, und auf dem iPhone ist ein fremder Ton zu hören.
+  let sleepTimer = 0;
+  function sleep() {
+    if (!ctx) return;
+    Music.stop(true);
+    const t = ctx.currentTime;
+    out.gain.cancelScheduledValues(t);
+    out.gain.setValueAtTime(out.gain.value, t);
+    out.gain.linearRampToValueAtTime(0, t + 0.06);
+    clearTimeout(sleepTimer);
+    sleepTimer = setTimeout(() => { if (document.visibilityState === 'hidden') quiet(ctx.suspend()); }, 150);
+  }
+  // Wieder da: weiterlaufen lassen und den Ton kurz einblenden
+  function wake() {
+    clearTimeout(sleepTimer);
+    if (ctx.state !== 'running') quiet(ctx.resume());
+    if (out.gain.value > 0.999) return;
+    const t = ctx.currentTime;
+    out.gain.cancelScheduledValues(t);
+    out.gain.setValueAtTime(out.gain.value, t);
+    out.gain.linearRampToValueAtTime(1, t + 0.08);
+  }
   document.addEventListener('visibilitychange', () => {
     if (!ctx) return;
-    if (document.visibilityState === 'hidden') {
-      Music.stop(true);
-      quiet(ctx.suspend());
-    } else if (unlocked) {
-      quiet(ctx.resume());
+    if (document.visibilityState === 'hidden') sleep();
+    else if (unlocked) {
+      wake();
       if (musicWanted()) Music.start();
     }
   });
+  window.addEventListener('pagehide', sleep);
 
   return { get: () => Object.assign({}, prefs), set, toggleAll, preview, roll, hold, score, fanfare, sparkle, cdHit, cdMiss };
 })();
