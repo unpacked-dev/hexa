@@ -13,7 +13,7 @@ Die Schriftdateien sind die unveränderten WOFF2-Dateien von Google Fonts (Archi
 
 ## Icons
 
-Einige Icons stammen aus [Lucide](https://lucide.dev) oder sind an Lucide-Icons angelehnt: Zahnrad (`settings`), Sonne (`sun`), Mond (`moon`), Halbkreis (`contrast`), Musik (`music`), Lautsprecher (`volume-2`), Globus (`globe`), Personen (`users`), Würfel (`dices`), Haus (`house`), Pokal (`trophy`), Handy (`smartphone`), Pause (`pause`), Zurücksetzen (`rotate-ccw`), Schließen (`x`), Pfeile (`arrow-up`, `arrow-down`) und Winkel (`chevron-down`, `chevron-left`, `chevron-right`). Sie sind als SVG direkt in `index.html` und `js/app.js` eingebaut.
+Einige Icons stammen aus [Lucide](https://lucide.dev) oder sind an Lucide-Icons angelehnt: Zahnrad (`settings`), Sonne (`sun`), Mond (`moon`), Halbkreis (`contrast`), Musik (`music`), Lautsprecher (`volume-2`), Globus (`globe`), Personen (`users`), Würfel (`dices`), Haus (`house`), Pokal (`trophy`), Handy (`smartphone`), Pause (`pause`), Roboter (`bot`), Schließen (`x`), Pfeile (`arrow-up`, `arrow-down`) und Winkel (`chevron-down`, `chevron-left`, `chevron-right`). Sie sind als SVG direkt in `index.html` und `js/app.js` eingebaut.
 
 Die übrigen Icons, das Logo, die App-Icons, die Klänge und die Musik sind Teil von HEXA.
 

@@ -217,8 +217,8 @@ button { touch-action: manipulation; }
 .turnbar { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; min-height: 54px; margin: 8px 0 14px; }
 .turn-who { min-width: 0; }
 .who {
-  overflow: hidden; font-size: 24px; font-weight: 800; font-stretch: 112%;
-  line-height: 1.15; white-space: nowrap; text-overflow: ellipsis;
+  display: -webkit-box; overflow: hidden; font-size: 24px; font-weight: 800; font-stretch: 112%;
+  line-height: 1.15; overflow-wrap: anywhere; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
 }
 .who-sub { margin-top: 3px; font-size: 14px; line-height: 1.35; color: var(--ink-2); }
 .meter { display: flex; flex: none; flex-direction: column; align-items: flex-end; gap: 6px; padding-bottom: 4px; }
@@ -295,15 +295,10 @@ button { touch-action: manipulation; }
   100% { transform: translate(0, 0) rotate(0); }
 }
 
-.controls { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; margin-top: 14px; }
+.controls { display: grid; margin-top: 14px; }
 .btn-roll { flex-direction: column; gap: 1px; min-height: 62px; }
 .btn-roll .rl { font-size: 18px; font-weight: 800; font-stretch: 110%; }
 .btn-roll small { font-size: 13px; font-weight: 600; opacity: .85; }
-.btn-reset { min-height: 62px; padding: 0 16px; }
-@media (max-width: 370px) {
-  .btn-reset { width: 62px; padding: 0; }
-  .btn-reset span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-}
 
 .cd-strip {
   display: grid; gap: 12px; margin-top: 14px;
@@ -463,6 +458,17 @@ button { touch-action: manipulation; }
 .ibtn:active { background: var(--sheet-2); }
 .ibtn:disabled { opacity: .25; cursor: default; }
 .ibtn-x { color: var(--danger); }
+
+/* ---------- Bots ---------- */
+.bot-ic { display: inline-block; flex: none; width: 1em; height: 1em; margin-right: .3em; vertical-align: -.12em; color: var(--ink-2); }
+.add-bot { width: 100%; margin-top: 10px; }
+.add-bot svg { width: 20px; height: 20px; }
+.pname-bot { display: flex; align-items: center; gap: 8px; padding: 8px; }
+.pname-bot .bot-ic { width: 20px; height: 20px; margin: 0; }
+.p-cell.is-bot { cursor: default; }
+.p-cell.is-bot:active { background-color: transparent; }
+.cd-bot { margin: 0; font-weight: 700; text-align: center; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .empty-box { margin-top: 16px; padding: 18px 18px 16px; border: 2px dashed var(--rule); border-radius: 18px; }
 .empty-box p { margin: 0 0 6px; }
 .empty-box ol { margin: 8px 0 0; padding-left: 20px; }

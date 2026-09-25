@@ -257,7 +257,15 @@
     return bestF;
   }
 
+  // Namen für Bots: Wortspiele rund ums Würfeln, die auf Deutsch und Englisch klappen.
+  const NAMES = [
+    'Randy', 'Alea', 'Tessa', 'Dado', 'Pip', 'Rollo', 'Hexi', 'Sixtus', 'Fortuna',
+    'Lady Luck', 'Mr. Chance', 'Dr. Wurf', 'Knobel-Knut', 'Pasch-Paula', 'Paschinator',
+    'Würfel-Willi', 'Kubus', 'Glücks-Gustav',
+  ];
+
   const api = {
+    NAMES,
     // Für die App: Feldnamen und Punkte oben wie im Spielstand
     hold: (freeKeys, upperSum, vals, rollsLeft) => holdFor(maskOf(freeKeys), upperSum, vals, rollsLeft),
     pick: (freeKeys, upperSum, vals) => KEYS[pickFor(maskOf(freeKeys), upperSum, vals)],

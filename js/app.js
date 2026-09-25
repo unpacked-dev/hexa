@@ -1,11 +1,12 @@
-/* HEXA – App: Startbildschirm, Spieler, Würfel, Spielblock, Countdown, Highscores.
-   Braucht js/i18n.js (window.HexaI18n, Texte aus lang/*.js), js/rules.js (window.HexaRules)
-   und js/sound.js (window.HexaSound). */
+/* HEXA – App: Startbildschirm, Spieler, Würfel, Spielblock, Countdown, Highscores, Bots.
+   Braucht js/i18n.js (window.HexaI18n, Texte aus lang/*.js), js/rules.js (window.HexaRules),
+   js/bot.js (window.HexaBot) und js/sound.js (window.HexaSound). */
 (() => {
   'use strict';
 
   const { UPPER, LOWER, FIELDS, F, NF, BONUS_MIN, BONUS_PTS, sum, countFaces, scoreFor } = window.HexaRules;
   const Sound = window.HexaSound;
+  const Bot = window.HexaBot;
   const I18n = window.HexaI18n;
   const tr = I18n.t;
   const trPts = n => tr('common.points', { n });
@@ -23,7 +24,6 @@
     return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + paths + '</svg>';
   }
   const ICON = {
-    reset: svg('<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>'),
     up: svg('<path d="M12 19V5"/><path d="m5.5 11.5 6.5-6.5 6.5 6.5"/>'),
     down: svg('<path d="M12 5v14"/><path d="m18.5 12.5-6.5 6.5-6.5-6.5"/>'),
     x: svg('<path d="M18 6 6 18"/><path d="m6 6 12 12"/>'),
@@ -39,7 +39,10 @@
     pause: svg('<rect x="14" y="4" width="4" height="16" rx="1"/><rect x="6" y="4" width="4" height="16" rx="1"/>'),
     trophy: svg('<path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/>'),
     globe: svg('<circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/>'),
+    bot: svg('<path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/>'),
   };
+  // Kleines Roboter-Zeichen vor Bot-Namen
+  const botMark = ICON.bot.replace('<svg ', '<svg class="bot-ic" ');
 
   /* ---------- Helfer ---------- */
   const $ = (s, r) => (r || document).querySelector(s);
@@ -82,7 +85,7 @@
     if (Array.isArray(raw.players)) {
       s.players = raw.players
         .filter(p => isObj(p) && typeof p.id === 'string')
-        .map(p => ({ id: p.id, name: String(p.name || tr('setup.fallback')).slice(0, 20) }));
+        .map(p => Object.assign({ id: p.id, name: String(p.name || tr('setup.fallback')).slice(0, 20) }, p.bot ? { bot: true } : {}));
     }
     // Ältere Spielstände kennen „started“ noch nicht: Wer Spieler hat, war mitten im Spiel.
     s.started = s.players.length > 0 && (typeof raw.started === 'boolean' ? raw.started : true);
@@ -136,6 +139,9 @@
 
   /* ---------- Spiel-Logik ---------- */
   const playerById = id => state.players.find(p => p.id === id) || null;
+  const isBot = id => { const p = playerById(id); return !!(p && p.bot); };
+  const humans = () => state.players.filter(p => !p.bot);
+  const hasBots = () => state.players.some(p => p.bot);
   const scoreOf = (pid, key) => {
     const s = state.scores[pid];
     const v = isObj(s) ? s[key] : undefined;
@@ -205,7 +211,7 @@
       const prev = state.history[state.gameId];
       state.history[state.gameId] = {
         t: isObj(prev) && prev.t ? prev.t : Date.now(),
-        r: state.players.map(p => ({ n: p.name, s: totals(p.id).total })),
+        r: humans().map(p => ({ n: p.name, s: totals(p.id).total })),   // Bots kommen nicht in die Highscores
       };
     } else if (state.history[state.gameId]) {
       delete state.history[state.gameId];
@@ -267,6 +273,7 @@
     if (setup) renderPlayers();
     if (shown('dice')) renderDice();
     if (shown('block')) renderBlock();
+    botKick();
   }
 
   function renderTop() {
@@ -296,10 +303,14 @@
   function renderPlayers() {
     const root = $('#view-players');
     const P = state.players;
+    // Bots haben einen festen Namen, Menschen tippen ihren direkt in die Liste.
+    const nameCell = (p, i) => (p.bot
+      ? `<span class="pname pname-bot">${botMark}<span>${esc(p.name)}</span><span class="sr">${tr('setup.botTag')}</span></span>`
+      : `<input class="pname" type="text" value="${esc(p.name)}" data-pid="${p.id}" maxlength="20" autocomplete="off" spellcheck="false" enterkeyhint="done" aria-label="${esc(tr('setup.nameOf', { n: i + 1 }))}">`);
     const rows = P.map((p, i) => `
-      <li class="prow">
+      <li class="prow${p.bot ? ' is-bot' : ''}">
         <span class="pnum">${i + 1}</span>
-        <input class="pname" type="text" value="${esc(p.name)}" data-pid="${p.id}" maxlength="20" autocomplete="off" spellcheck="false" enterkeyhint="done" aria-label="${esc(tr('setup.nameOf', { n: i + 1 }))}">
+        ${nameCell(p, i)}
         <span class="pacts">
           <button type="button" class="ibtn" data-act="up" data-pid="${p.id}" aria-label="${esc(tr('setup.up', { name: p.name }))}"${i === 0 ? ' disabled' : ''}>${ICON.up}</button>
           <button type="button" class="ibtn" data-act="down" data-pid="${p.id}" aria-label="${esc(tr('setup.down', { name: p.name }))}"${i === P.length - 1 ? ' disabled' : ''}>${ICON.down}</button>
@@ -318,7 +329,11 @@
            </ol>
          </div>`;
 
-    const off = P.length ? '' : ' disabled';
+    // Losgehen kann es, sobald mindestens ein Mensch dabei ist. Mit Bots nur mit App-Würfeln.
+    const ready = humans().length > 0;
+    const bots = hasBots();
+    const off = ready ? '' : ' disabled';
+    const freeBot = nextBotName();
     root.innerHTML = `
       <button type="button" class="back" data-act="home">${ICON.back}<span>${tr('setup.back')}</span></button>
       <h1 class="h-view" tabindex="-1">${tr('setup.title')}</h1>
@@ -327,17 +342,18 @@
         <input id="newName" class="input" type="text" maxlength="20" placeholder="${esc(tr('setup.placeholder'))}" autocomplete="off" spellcheck="false" enterkeyhint="done" aria-label="${esc(tr('setup.newName'))}">
         <button type="button" class="btn btn-pen" data-act="add">${tr('setup.add')}</button>
       </div>
+      <button type="button" class="btn btn-line add-bot" data-act="add-bot"${freeBot ? '' : ' disabled'}>${ICON.bot}<span>${tr(freeBot ? 'setup.addBot' : 'setup.botsFull')}</span></button>
       ${listHTML}
       <section class="via" aria-labelledby="via-h">
         <h2 class="h-sec" id="via-h">${tr('setup.viaTitle')}</h2>
-        <p class="via-note" id="via-note">${tr(P.length ? 'setup.viaNote' : 'setup.viaNeed')}</p>
+        <p class="via-note" id="via-note">${tr(!ready ? 'setup.viaNeed' : bots ? 'setup.viaBots' : 'setup.viaNote')}</p>
         <div class="choices">
           <button type="button" class="choice" data-act="start-game" data-via="app" aria-describedby="via-note"${off}>
             <span class="choice-ic">${ICON.phone}</span>
             <span class="choice-tx"><span class="choice-t">${tr('setup.app')}</span><span class="choice-s">${tr('setup.appSub')}</span></span>
             ${ICON.chev}
           </button>
-          <button type="button" class="choice" data-act="start-game" data-via="own" aria-describedby="via-note"${off}>
+          <button type="button" class="choice" data-act="start-game" data-via="own" aria-describedby="via-note"${ready && !bots ? '' : ' disabled'}>
             <span class="choice-ic">${ICON.dices}</span>
             <span class="choice-tx"><span class="choice-t">${tr('setup.own')}</span><span class="choice-s">${tr('setup.ownSub')}</span></span>
             ${ICON.chev}
@@ -348,13 +364,17 @@
 
   function rollState() {
     const d = state.dice;
+    const b = botActor();
+    if (b) return { label: tr('bot.button', { name: b.name }), sub: tr('bot.buttonSub'), off: true };
     if (turnDone()) {
       const cp = currentPlayer();
       return { label: tr('dice.roll'), sub: cp ? tr('dice.nextTurn', { name: cp.name }) : tr('dice.newTurn'), off: false };
     }
     if (!d.vals || !d.rolls) return { label: tr('dice.roll'), sub: tr('dice.allSix'), off: false };
     if (d.rolls >= 3) {
-      return { label: tr('dice.noMore'), sub: tr(d.owner && playerById(d.owner) ? 'dice.enterResult' : 'dice.resetFirst'), off: true };
+      // Ohne Person (nach dem Spielende) geht es mit einem frischen Wurf weiter.
+      if (!(d.owner && playerById(d.owner))) return { label: tr('dice.roll'), sub: tr('dice.allSix'), off: false };
+      return { label: tr('dice.noMore'), sub: tr('dice.enterResult'), off: true };
     }
     const free = d.held.filter(h => !h).length;
     if (!free) return { label: tr('dice.allHeld'), sub: tr('dice.tapToRelease'), off: true };
@@ -370,11 +390,17 @@
     const hasP = state.players.length > 0;
     const idle = !d.vals || !d.rolls;
     const vals = idle ? [1, 2, 3, 4, 5, 6] : d.vals;
-    const canHold = !idle && d.rolls < 3 && !done;
+    const bot = botActor();
+    const canHold = !idle && d.rolls < 3 && !done && !bot;
 
     let who = '';
     let sub = '';
-    if (!hasP) who = tr('dice.free');
+    if (bot) {
+      who = tr('dice.turn', { name: bot.name });
+      const busy = !idle && !done && d.owner === bot.id;   // mitten im Zug, etwa nach dem Neuladen
+      sub = tr('bot.' + (botStatus || (busy ? 'think' : 'ready')), { name: bot.name });
+    }
+    else if (!hasP) who = tr('dice.free');
     else if (!cur) who = tr('dice.over');
     else if (done) { who = tr('dice.turn', { name: cur.name }); sub = tr('dice.entered', { name: owner ? owner.name : '' }); }
     else if (!idle && owner) who = tr('dice.turn', { name: owner.name });
@@ -397,7 +423,8 @@
     }).join('');
 
     let hint;
-    if (idle) hint = tr('dice.hintIdle');
+    if (bot) hint = tr('bot.hint');
+    else if (idle) hint = tr('dice.hintIdle');
     else if (done) hint = tr('dice.hintDone');
     else if (d.rolls >= 3) hint = tr('dice.hintNoRolls');
     else hint = tr('dice.hintHold');
@@ -405,7 +432,8 @@
     const rs = rollState();
 
     let cdHTML = '';
-    if (cdPending()) {
+    // Den Countdown eines Bots spielt der Bot selbst.
+    if (cdPending() && !isBot(d.cd.owner)) {
       const g = state.cdGame;
       const cdOwner = d.cd.owner ? playerById(d.cd.owner) : null;
       let title;
@@ -428,7 +456,7 @@
     }
 
     let entryHTML = '';
-    if (owner && !idle && !done) {
+    if (owner && !owner.bot && !idle && !done) {
       const opts = FIELDS.filter(f => scoreOf(owner.id, f.key) === null).map(f => ({ f, p: scoreFor(f.key, d.vals) }));
       const good = opts.filter(o => o.p > 0);
       const zero = opts.filter(o => o.p === 0);
@@ -441,14 +469,13 @@
     }
 
     root.innerHTML = `${endHTML}
-      <div class="turnbar"><div class="turn-who"><div class="who">${esc(who)}</div>${subHTML}</div>${meter}</div>
+      <div class="turnbar"><div class="turn-who"><div class="who">${bot ? botMark : ''}${esc(who)}</div>${subHTML}</div>${meter}</div>
       <div class="tray">
         <div class="dice">${dice}</div>
         <div class="tray-foot"><span>${idle ? '' : tr('dice.sum', { n: sum(d.vals) })}</span><span class="hint">${hint}</span></div>
       </div>
       <div class="controls">
         <button type="button" class="btn btn-pen btn-roll" data-act="roll" aria-keyshortcuts="Space"${rs.off ? ' disabled' : ''}><span class="rl">${esc(rs.label)}</span><small>${esc(rs.sub)}</small></button>
-        <button type="button" class="btn btn-line btn-reset" data-act="reset" aria-label="${esc(tr('dice.resetLabel'))}"${idle ? ' disabled' : ''}>${ICON.reset}<span>${tr('dice.reset')}</span></button>
       </div>
       <p class="keys">${tr('dice.keys')}</p>
       ${cdHTML}
@@ -496,7 +523,7 @@
     const lab = (name, sub, icon) => `<div class="p-lab">${icon || ''}<span class="p-lt"><span class="p-nm">${name}</span>${sub ? `<span class="p-rq">${sub}</span>` : ''}</span></div>`;
     const cell = (p, f) => {
       const v = scoreOf(p.id, f.key);
-      const cls = 'p-cell' + turn(p) + (v === null ? ' empty' : v === 0 ? ' zero' : '');
+      const cls = 'p-cell' + turn(p) + (v === null ? ' empty' : v === 0 ? ' zero' : '') + (p.bot ? ' is-bot' : '');
       const inner = v === null ? '<span class="p-dot"></span>' : `<span class="p-w">${v}</span>`;
       const field = fieldName(f.key);
       const label = v === null ? tr('block.cellEmpty', { name: p.name, field }) : tr('block.cellValue', { name: p.name, field, pts: trPts(v) });
@@ -520,7 +547,7 @@
       const t = T[p.id];
       const has = t.list.length > 0;
       const label = tr('block.cellValue', { name: p.name, field: tr('block.countdown'), pts: trPts(t.cd) });
-      return `<button type="button" class="p-cell${turn(p)}${has ? '' : ' empty'}" data-act="cd-cell" data-pid="${p.id}" aria-label="${esc(label)}">${has ? `<span class="p-w">${t.cd}</span>` : '<span class="p-dot"></span>'}</button>`;
+      return `<button type="button" class="p-cell${turn(p)}${has ? '' : ' empty'}${p.bot ? ' is-bot' : ''}" data-act="cd-cell" data-pid="${p.id}" aria-label="${esc(label)}">${has ? `<span class="p-w">${t.cd}</span>` : '<span class="p-dot"></span>'}</button>`;
     }).join('')}</div>`;
     rows += `<div class="p-row total">${lab(tr('block.total'))}${P.map(p => val(p, T[p.id].total, started && best > 0 && T[p.id].total === best ? 'is-lead' : '')).join('')}</div>`;
 
@@ -531,7 +558,7 @@
         <div class="pad-top" aria-hidden="true"></div>
         <div class="pad-head">
           <div class="pad-corner"></div>
-          <div class="pad-vp"><div class="pad-names">${P.map(p => `<button type="button" class="pad-name${turn(p)}" data-act="player" data-pid="${p.id}" title="${esc(p.name)}" aria-label="${esc(tr('block.editName', { name: p.name }))}">${esc(p.name)}</button>`).join('')}</div></div>
+          <div class="pad-vp"><div class="pad-names">${P.map(p => `<button type="button" class="pad-name${turn(p)}" data-act="player" data-pid="${p.id}" title="${esc(p.name)}" aria-label="${esc(tr(p.bot ? 'block.botName' : 'block.editName', { name: p.name }))}">${p.bot ? botMark : ''}${esc(p.name)}</button>`).join('')}</div></div>
         </div>
         <div class="p-body"><div class="p-grid">${rows}</div></div>
       </div>
@@ -566,8 +593,10 @@
 
     let msg;
     if (g.status === 'play') {
-      const need = tr('cd.need', { stage: g.stage + 1, n: target });
-      const how = tr('cd.rollWith', { dice: tr('cd.diceWith', { n: target }), p: odds(target) });
+      // Spielt ein Bot, wird er beim Namen genannt statt mit „du“.
+      const botName = owner && owner.bot ? esc(owner.name) : null;
+      const need = botName ? tr('bot.cdNeed', { stage: g.stage + 1, n: target, name: botName }) : tr('cd.need', { stage: g.stage + 1, n: target });
+      const how = tr(botName ? 'bot.cdRollWith' : 'cd.rollWith', { dice: tr('cd.diceWith', { n: target }), p: odds(target) });
       msg = g.last && g.hit >= 0
         ? `<strong>${tr('cd.hit')}</strong><span>${need} ${how}</span>`
         : `<strong>${need}</strong><span>${how}</span>`;
@@ -584,7 +613,11 @@
       : Array.from({ length: target }, (_, i) => `<div class="die blank" style="--k:${i}">${faceHTML(0)}</div>`).join('');
 
     let foot;
-    if (g.status === 'play') {
+    if (owner && owner.bot) {
+      foot = g.status === 'play'
+        ? `<p class="cd-bot">${esc(tr('bot.cdPlays', { name: owner.name }))}</p>`
+        : `<div class="cd-res"><div class="cd-big">${g.pts}</div><p>${tr(g.pts ? 'cd.result' : 'cd.none')}</p></div>`;
+    } else if (g.status === 'play') {
       foot = `<button type="button" class="btn btn-marker btn-roll" data-act="cd-roll"><span class="rl">${tr('cd.roll')}</span><small>${tr('cd.rollSub', { n: target })}</small></button>`;
     } else {
       const P = state.players;
@@ -623,7 +656,8 @@
     $('.t-undo', el).hidden = !undoSnap;
     el.classList.add('show');
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => { el.classList.remove('show'); undoSnap = null; }, undoSnap ? 5000 : 2200);
+    const keep = undoSnap ? (botActor() ? 3500 : 5000) : 2200;
+    toastTimer = setTimeout(() => { el.classList.remove('show'); undoSnap = null; }, keep);
   }
 
   function undo() {
@@ -717,13 +751,15 @@
     }, 70);
   }
 
-  function roll() {
-    if (rolling) return;
+  function roll(byBot) {
+    if (rolling || (!byBot && botActor())) return;
     if (turnDone()) {
       if (cdPending()) { askCountdown(); return; }
       state.dice = freshDice();
       state.cdGame = null;
     }
+    // Freies Würfeln ohne Person (nach dem Spielende): nach drei Würfen geht es frisch los.
+    if (state.dice.rolls >= 3 && !(state.dice.owner && playerById(state.dice.owner))) state.dice = freshDice();
     const d = state.dice;
     if (d.rolls >= 3) return;
     const first = !d.vals || !d.rolls;
@@ -761,9 +797,9 @@
     });
   }
 
-  function toggleHold(i) {
+  function toggleHold(i, byBot) {
     const d = state.dice;
-    if (rolling || !d.vals || !d.rolls || d.rolls >= 3 || turnDone()) return;
+    if (rolling || !d.vals || !d.rolls || d.rolls >= 3 || turnDone() || (!byBot && botActor())) return;
     d.held[i] = !d.held[i];
     save();
     const el = $('#view-dice .die[data-i="' + i + '"]');
@@ -797,14 +833,6 @@
     }, tr('askCd.title'));
   }
 
-  function resetDice() {
-    if (rolling) return;
-    if (cdPending()) { askCountdown(); return; }
-    state.dice = freshDice();
-    save();
-    render();
-  }
-
   function showResultIfOver() {
     if (!isOver() || (state.tab !== 'block' && !duoOn())) return;
     try { window.scrollTo({ top: 0, behavior: reduced() ? 'auto' : 'smooth' }); } catch (e) { /* egal */ }
@@ -821,7 +849,7 @@
     const d = state.dice;
     const owner = d.owner ? playerById(d.owner) : null;
     const f = F[key];
-    if (!f || !owner || !d.vals || !d.rolls || turnDone() || scoreOf(owner.id, key) !== null) return;
+    if (!f || !owner || owner.bot || !d.vals || !d.rolls || turnDone() || scoreOf(owner.id, key) !== null) return;
     const pts = scoreFor(key, d.vals);
     const name = fieldName(key);
     openSheet(`
@@ -851,6 +879,7 @@
     const p = playerById(pid);
     const f = F[key];
     if (!p || !f) return;
+    if (p.bot) { toast(tr('bot.cell', { name: p.name })); return; }
     const cur = scoreOf(pid, key);
     const d = state.dice;
     const match = d.vals && d.rolls && !turnDone() && d.owner === pid ? scoreFor(key, d.vals) : null;
@@ -912,6 +941,7 @@
   function openCdSheet(pid) {
     const p = playerById(pid);
     if (!p) return;
+    if (p.bot) { toast(tr('bot.cell', { name: p.name })); return; }
     const list = cdList(pid);
     let so;
     if (!list.length) so = tr('cdSheet.none');
@@ -981,9 +1011,9 @@
     render();
   }
 
-  function cdRoll() {
+  function cdRoll(byBot) {
     const g = state.cdGame;
-    if (!g || g.status !== 'play' || rolling) return;
+    if (!g || g.status !== 'play' || rolling || (!byBot && isBot(g.owner))) return;
     const n = 6 - g.stage;
     const vals = Array.from({ length: n }, () => d6());
     const hit = vals.indexOf(n);
@@ -1018,11 +1048,15 @@
     });
   }
 
-  function cdSave(discard) {
+  // byBot: Ein Bot trägt seinen eigenen Countdown ein. Das lässt sich nicht rückgängig machen.
+  function cdSave(discard, byBot) {
     const g = state.cdGame;
     if (!g || g.status === 'play') return;
-    const pid = !discard && g.pts > 0 && cdPick && playerById(cdPick) ? cdPick : null;
-    const snap = snapshot();
+    const botCd = isBot(g.owner);
+    if (botCd && !byBot) return;
+    let pid = !discard && g.pts > 0 && cdPick && playerById(cdPick) ? cdPick : null;
+    if (botCd) pid = g.pts > 0 ? g.owner : null;
+    const snap = botCd ? null : snapshot();
     if (pid) state.cds[pid] = cdList(pid).concat(g.pts);
     if (state.dice.cd) state.dice.cd.played = true;
     state.cdGame = null;
@@ -1032,6 +1066,152 @@
     if (pid) toast(tr('cd.saved', { pts: trPts(g.pts), name: playerById(pid).name }), snap);
     else toast(tr('cd.ended'));
   }
+
+  /* ---------- Bots ---------- */
+  // Bots spielen sichtbar wie Menschen: würfeln, kurz überlegen, Würfel liegen lassen, eintragen.
+  // Vor jedem Schritt schaut der Bot auf den Spielstand. Hat der sich geändert (Rückgängig, jemand
+  // entfernt, Spiel abgebrochen), macht er mit dem neuen Stand weiter. Ein offenes Fenster, der
+  // Startbildschirm oder eine versteckte Seite halten ihn an. Solange „Rückgängig“ angeboten wird,
+  // wartet er auch, damit niemand seinen Wurf zurückdrehen kann.
+  const BOT_MS = { start: 800, land: 600, think: 900, hold: 260, roll: 400, enter: 700, after: 1200, cd: 900 };
+  let botTimer = 0;
+  let botStatus = null;   // was der Bot gerade tut: ready, think, roll, enter
+
+  // Ist gerade ein Bot am Zug, dann dieser Bot, sonst null.
+  // Ein offener Countdown eines Menschen geht vor: So lange wartet der nächste Bot.
+  function botActor() {
+    if (!state.started || gameDone()) return null;
+    const d = state.dice;
+    const g = state.cdGame;
+    if (g && isBot(g.owner)) return playerById(g.owner);
+    if (cdPending() && turnDone()) return isBot(d.cd.owner) ? playerById(d.cd.owner) : null;
+    if (d.rolls && d.owner && !turnDone()) return isBot(d.owner) ? playerById(d.owner) : null;
+    const c = currentPlayer();
+    return c && c.bot ? c : null;
+  }
+
+  function botNext() {
+    const b = botActor();
+    if (!b) return null;
+    const d = state.dice;
+    if (state.cdGame || (cdPending() && turnDone())) return 'cd';
+    return d.rolls && d.owner === b.id && !turnDone() ? 'turn' : 'start';
+  }
+
+  function botPaused() {
+    const g = state.cdGame;
+    const humanCd = !$('#cd').hidden && !(g && isBot(g.owner));
+    return atStart || document.hidden || rolling || !!undoSnap || !$('#sheet').hidden || humanCd;
+  }
+
+  // Fingerabdruck des Spielstands: Ändert er sich, ist der geplante Schritt hinfällig.
+  function botSig() {
+    const d = state.dice;
+    const g = state.cdGame;
+    return [state.gameId, state.started, d.owner, d.rolls, d.owner ? filled(d.owner) : -1, g ? g.stage + g.status : '-'].join('|');
+  }
+
+  function botLater(ms, fn) {
+    clearTimeout(botTimer);
+    const sig = botSig();
+    const run = () => {
+      if (botPaused()) { botTimer = setTimeout(run, 300); return; }
+      botTimer = 0;
+      if (fn && botSig() === sig) fn();
+      else botStep();
+    };
+    botTimer = setTimeout(run, ms);
+  }
+
+  function botKick() {
+    if (botTimer) return;
+    if (!botNext()) { botStatus = null; return; }
+    botLater(BOT_MS.start);
+  }
+
+  function setBotStatus(st) {
+    botStatus = st;
+    const b = botActor();
+    const el = $('#view-dice .who-sub');
+    if (b && el) el.textContent = tr('bot.' + (st || 'ready'), { name: b.name });
+  }
+
+  function botStep() {
+    const what = botNext();
+    if (!what) { botStatus = null; return; }
+    if (what === 'start') botRoll();
+    else if (what === 'turn') botDecide();
+    else botCountdown();
+  }
+
+  function botRoll() {
+    setBotStatus('roll');
+    roll(true);
+    botLater(BOT_MS.land, () => {
+      setBotStatus('think');
+      botLater(BOT_MS.think, botDecide);
+    });
+  }
+
+  function botDecide() {
+    const d = state.dice;
+    const p = d.owner ? playerById(d.owner) : null;
+    if (!p || !p.bot || !d.vals || turnDone()) { botStep(); return; }
+    const free = FIELDS.filter(f => scoreOf(p.id, f.key) === null).map(f => f.key);
+    const up = totals(p.id).upper;
+    if (d.rolls < 3) {
+      const want = Bot.hold(free, up, d.vals, 3 - d.rolls);
+      if (!want.every(Boolean)) {
+        botHold([0, 1, 2, 3, 4, 5].filter(i => want[i] !== d.held[i]));
+        return;
+      }
+    }
+    const key = Bot.pick(free, up, d.vals);
+    setBotStatus('enter');
+    botLater(BOT_MS.enter, () => botEnter(key));
+  }
+
+  // Würfel einzeln liegen lassen oder lösen, danach wird nachgewürfelt.
+  function botHold(list) {
+    if (!list.length) { botLater(BOT_MS.roll, botRoll); return; }
+    toggleHold(list[0], true);
+    botLater(BOT_MS.hold, () => botHold(list.slice(1)));
+  }
+
+  function botEnter(key) {
+    const d = state.dice;
+    const p = d.owner ? playerById(d.owner) : null;
+    if (!p || !p.bot || !d.vals || turnDone() || scoreOf(p.id, key) !== null) { botStep(); return; }
+    const pts = scoreFor(key, d.vals);
+    const wasOver = isOver();
+    setScore(p.id, key, pts);
+    botStatus = null;
+    save();
+    render();
+    Sound.score(pts);
+    if (!wasOver && isOver()) Sound.fanfare(0.35);
+    const field = fieldName(key);
+    toast(pts ? tr('bot.entered', { name: p.name, field, pts: trPts(pts) }) : tr('bot.struck', { name: p.name, field }));
+    botLater(BOT_MS.after);
+  }
+
+  // Den Countdown spielt der Bot im Countdown-Fenster, damit man zuschauen kann.
+  function botCountdown() {
+    const g = state.cdGame;
+    if (!g) {
+      startCountdown();
+      botLater(BOT_MS.cd);
+      return;
+    }
+    if (g.status === 'play') {
+      cdRoll(true);
+      botLater(BOT_MS.land + BOT_MS.cd);
+      return;
+    }
+    botLater(BOT_MS.after, () => cdSave(false, true));
+  }
+
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) botKick(); });
 
   /* ---------- Spieler ---------- */
   const cleanName = v => String(v).replace(/\s+/g, ' ').trim().slice(0, 20);
@@ -1054,6 +1234,25 @@
     renderTop();
     const n = $('#newName');
     if (n) n.focus();
+  }
+
+  // Ein Name aus der Bot-Liste, den noch niemand hat. Sind alle vergeben, gibt es keinen Bot mehr.
+  function nextBotName() {
+    const taken = state.players.map(p => p.name.toLowerCase());
+    const free = Bot.NAMES.filter(n => taken.indexOf(n.toLowerCase()) < 0);
+    return free.length ? free[Math.floor(Math.random() * free.length)] : null;
+  }
+
+  function addBot() {
+    const name = nextBotName();
+    if (!name) return;
+    state.players.push({ id: uid(), name, bot: true });
+    dropStrayRoll();
+    save();
+    renderPlayers();
+    renderTop();
+    const b = $('#view-players [data-act="add-bot"]');
+    if (b) b.focus();
   }
 
   function removePlayer(pid) {
@@ -1091,7 +1290,19 @@
   function openPlayerSheet(pid) {
     const p = playerById(pid);
     if (!p) return;
-    const alone = state.players.length < 2;
+    if (p.bot) {
+      openSheet(`
+        <h3 class="s-title">${botMark}${esc(p.name)}</h3>
+        <p class="s-note">${esc(tr('player.botText', { name: p.name }))}</p>
+        <div class="s-acts">
+          <button type="button" class="btn btn-line btn-warn" data-act="sheet-do" data-do="remove">${tr('player.remove')}</button>
+          <button type="button" class="btn btn-quiet" data-act="sheet-close">${tr('common.cancel')}</button>
+        </div>`, {
+        remove: () => askRemove(pid),
+      }, tr('player.label'));
+      return;
+    }
+    const alone = humans().length < 2;
     openSheet(`
       <h3 class="s-title">${esc(p.name)}</h3>
       <label class="s-lab" for="renameInp">${tr('player.name')}</label>
@@ -1126,7 +1337,7 @@
   // Stehen schon Punkte im Block, wird vorher nachgefragt.
   function askRemove(pid) {
     const p = playerById(pid);
-    if (!p || state.players.length < 2) return;
+    if (!p || (!p.bot && humans().length < 2)) return;
     const n = filled(pid);
     if (!n && !cdList(pid).length) { removePlayer(pid); return; }
     const what = n ? tr('player.fields', { n }) : tr('player.aCountdown');
@@ -1159,8 +1370,8 @@
 
   // Mit App-Würfeln geht es zum Würfeln, mit eigenen Würfeln direkt in den Block.
   function startGame(via) {
-    if (!state.players.length) return;
-    state.via = via === 'own' ? 'own' : 'app';
+    if (!humans().length) return;
+    state.via = via === 'own' && !hasBots() ? 'own' : 'app';
     state.started = true;
     state.tab = viaTab();
     state.dice = freshDice();
@@ -1223,7 +1434,7 @@
     let last = null;
     const items = ranking.map((r, i) => {
       if (r.s !== last) { place = i + 1; last = r.s; }
-      return `<li${place === 1 ? ' class="win"' : ''}><span class="pl">${place}.</span><span class="pn">${esc(r.p.name)}${r.s === record ? recChip : ''}</span><span class="ps">${r.s}</span></li>`;
+      return `<li${place === 1 ? ' class="win"' : ''}><span class="pl">${place}.</span><span class="pn">${r.p.bot ? botMark : ''}${esc(r.p.name)}${r.s === record && !r.p.bot ? recChip : ''}</span><span class="ps">${r.s}</span></li>`;
     }).join('');
     let title;
     let note;
@@ -1237,7 +1448,8 @@
       title = tr('result.wins', { name: winners[0] });
       note = tr('result.winsText', { n: top });
     }
-    const saved = state.skipHist === state.gameId ? tr('result.notSaved') : tr(P.length === 1 ? 'result.savedOne' : 'result.savedMany');
+    let saved = state.skipHist === state.gameId ? tr('result.notSaved') : tr(humans().length === 1 ? 'result.savedOne' : 'result.savedMany');
+    if (hasBots()) saved += ' ' + tr('result.botsNot');
     openSheet(`
       <div class="res-top"><span class="res-ic">${ICON.trophy}</span>${P.length === 1 && record !== null ? recChip : ''}</div>
       <h3 class="s-title">${esc(title)}</h3>
@@ -1610,12 +1822,12 @@
       case 'soon': toast(tr('start.onlineSoon')); break;
       case 'set-lang': setLang(t.dataset.v); break;
       case 'roll': roll(); break;
-      case 'reset': resetDice(); break;
       case 'hold': toggleHold(Number(t.dataset.i)); break;
       case 'quick': openQuick(t.dataset.key); break;
       case 'cell': openFieldSheet(t.dataset.pid, t.dataset.key); break;
       case 'cd-cell': openCdSheet(t.dataset.pid); break;
       case 'add': addPlayer(); break;
+      case 'add-bot': addBot(); break;
       case 'start-game': startGame(t.dataset.via); break;
       case 'player': openPlayerSheet(t.dataset.pid); break;
       case 'end-game': openResult(); break;
