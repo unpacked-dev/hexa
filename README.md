@@ -6,7 +6,7 @@
 
 **Sechs Würfel. Drei Würfe. Ein Countdown.**
 
-Das Würfelspiel für eine oder mehr Personen – Würfel, Spielblock und Regeln in einer App.<br>
+Das Würfelspiel für eine oder mehr Personen, auch gegen Bots – Würfel, Spielblock und Regeln in einer App.<br>
 Läuft direkt im Browser, auf dem Handy wie am Laptop. Ohne Installation, ohne Konto, ohne Abhängigkeiten.
 
 ### [▶&nbsp;Jetzt spielen](https://unpacked-dev.github.io/hexa/)
@@ -36,15 +36,15 @@ Die App ersetzt Würfel, Becher, Block und Stift. Ihr gebt einfach das Handy rei
 
 ## So läuft ein Spiel
 
-1. Im Hauptmenü **Lokal** wählen und eintragen, wer mitspielt.
-2. Entscheiden, **womit ihr würfelt**: mit der App oder mit euren eigenen Würfeln. Den Spielblock führt die App in beiden Fällen.
+1. Im Hauptmenü **Lokal** wählen und eintragen, wer mitspielt. Mit **Bot hinzufügen** kommen Computergegner dazu.
+2. Entscheiden, **womit ihr würfelt**: mit der App oder mit euren eigenen Würfeln. Den Spielblock führt die App in beiden Fällen. Mit Bots würfelt immer die App.
 3. Reihum spielen. Über **Menü** könnt ihr jederzeit pausieren und später weitermachen.
 4. Nach 15 Runden auf **Spiel beenden** tippen. Das Ergebnis zeigt die Platzierung, die Punkte landen in den **Highscores**.
 
 <div align="center">
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/flow-dark.webp">
-  <img src="docs/screenshots/flow-light.webp" width="880" alt="HEXA auf dem Handy: Spieler-Auswahl mit App- oder eigenen Würfeln, Ergebnis mit neuem Rekord und die Highscores">
+  <img src="docs/screenshots/flow-light.webp" width="880" alt="HEXA auf dem Handy: Spieler-Auswahl mit einem Bot, Ergebnis mit neuem Rekord und die Highscores">
 </picture>
 </div>
 
@@ -56,6 +56,7 @@ Die App ersetzt Würfel, Becher, Block und Stift. Ihr gebt einfach das Handy rei
 - **Spielblock, der mitrechnet** – Summen, Bonus und Endstand werden automatisch berechnet. Nach jedem Wurf zeigt die App, wie viele Punkte jedes freie Feld bringen würde.
 - **Countdown als Bonusspiel** – wird automatisch freigeschaltet und direkt nach dem Zug gestartet.
 - **Mehrere Personen oder solo** – Reihenfolge vor dem Spiel festlegen. Im Spiel lassen sich Namen ändern und Personen entfernen.
+- **Bots als Gegner** – Computergegner mit Namen wie Pasch-Paula oder Dr. Wurf. Sie spielen sichtbar Zug für Zug und fast perfekt: im Schnitt 322 Punkte, perfektes Spiel bringt 324. In die Highscores kommen nur Menschen.
 - **Spielende und Highscores** – das Ergebnis zeigt alle Platzierungen und neue Rekorde. Die zehn besten Ergebnisse bleiben auf dem Gerät gespeichert, Online-Highscores kommen bald.
 - **Nichts geht verloren** – Spiele lassen sich pausieren und bleiben auch nach dem Schließen erhalten. Einträge, entfernte Personen oder ein abgebrochenes Spiel lassen sich mit einem Tipp rückgängig machen.
 - **Regeln eingebaut** – Kurzübersicht, Beispiele und Wahrscheinlichkeiten für Neugierige.
@@ -147,6 +148,7 @@ HEXA ist bewusst einfach gebaut: **reines HTML, CSS und JavaScript** – kein Fr
 
 - **Ton aus dem Browser:** Alle Effekte und die Lo-Fi-Musik entstehen live mit der Web Audio API. Es wird keine einzige Audiodatei geladen.
 - **Faire Würfel:** Zufallszahlen kommen aus `crypto.getRandomValues`, ohne Modulo-Verzerrung.
+- **Bots mit Mathe statt KI:** Ein Bot rechnet jeden Zug exakt durch. Für jede Möglichkeit, Würfel liegen zu lassen, kennt er die Wahrscheinlichkeit jedes Ergebnisses. Was ein Feld für den Rest des Spiels wert ist, schätzt er mit rund 170 Zahlen. Die stammen aus dem perfekten Spiel, das die Werkzeuge in `tools/` für alle 1,65 Millionen Spielstände ausrechnen.
 - **Alles bleibt auf dem Gerät:** Spielstand, Highscores, Design und Ton werden im `localStorage` deines Browsers gespeichert und nie übertragen. Es gibt kein Konto und kein Backend.
 - **Keine fremden Server:** Schriften und Icons liegen im Repository. Beim Spielen wird nichts von Google oder anderen Anbietern geladen. Es gibt keine Cookies und kein Tracking.
 - **Barrierearm:** Bedienbar per Tastatur, mit Screenreader-Beschriftungen, sichtbarem Fokus und Rücksicht auf *reduzierte Bewegung*.
@@ -163,6 +165,7 @@ hexa/
 ├── js/
 │   ├── theme-init.js      # setzt das gewählte Design vor dem ersten Zeichnen
 │   ├── rules.js           # Felder, Punkte und Wertung
+│   ├── bot.js             # Computergegner: welche Würfel liegen bleiben, welches Feld
 │   ├── sound.js           # Effekte und Lo-Fi-Musik (Web Audio)
 │   ├── i18n.js            # wählt die Sprache und liefert die Texte
 │   └── app.js             # Spielablauf, Darstellung, Eingaben
@@ -174,17 +177,29 @@ hexa/
 ├── manifest.webmanifest   # macht HEXA installierbar
 ├── tests/
 │   ├── rules.test.js      # Tests für die Wertung
-│   └── lang.test.js       # prüft, dass beide Sprachen vollständig sind
-├── docs/                  # Screenshots und Vorschaubild
+│   ├── lang.test.js       # prüft, dass beide Sprachen vollständig sind
+│   └── bot.test.js        # Tests für die Bots
+├── tools/
+│   ├── bot-optimal.js     # rechnet das perfekte Spiel für alle Spielstände aus
+│   ├── bot-fit.js         # leitet daraus die Werte für die Bots ab
+│   └── bot-sim.js         # lässt Bots viele Partien spielen und zeigt die Zahlen
+├── docs/                  # Screenshots, Vorschaubild und Konzept für den Online-Modus
 └── THIRD-PARTY-NOTICES.md # Lizenzen von Schriften und Icons
 ```
 
 ### Tests
 
-Die Wertung aller 15 Felder ist mit dem eingebauten Test-Runner von Node.js abgedeckt (Node 18 oder neuer, keine Installation nötig):
+Wertung, Sprachen und Bots sind mit dem eingebauten Test-Runner von Node.js abgedeckt (Node 18 oder neuer, keine Installation nötig):
 
 ```bash
 node --test
+```
+
+Wer die Bots selbst nachrechnen möchte:
+
+```bash
+node tools/bot-optimal.js                  # perfektes Spiel ausrechnen (rund 30 s, legt 9 MB in tools/out/ ab)
+node tools/bot-sim.js 100000 bot,perfekt   # 100.000 Partien simulieren und vergleichen
 ```
 
 ## Lizenz

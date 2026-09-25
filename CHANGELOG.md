@@ -3,6 +3,25 @@
 Alle wichtigen Änderungen an HEXA stehen hier.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), die Versionen folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.5.0] – 2026-09-25
+
+Computergegner: Jetzt könnt ihr gegen Bots spielen.
+
+### Neu
+
+- **Bots:** In der Spieler-Auswahl holt „Bot hinzufügen“ einen Computergegner dazu, mit Namen wie Randy, Pasch-Paula oder Dr. Wurf. Bots spielen sichtbar Zug für Zug: Sie würfeln, überlegen, lassen Würfel liegen, tragen ein und spielen ihren Countdown.
+- **Fast perfektes Spiel:** Bots rechnen jeden Zug exakt durch. In 100.000 Testspielen holen sie im Schnitt 322,5 Punkte, perfektes Spiel bringt 323,7.
+- **Werkzeuge für die Bots:** `tools/` rechnet das perfekte Spiel für alle 1,65 Millionen Spielstände aus, leitet daraus die Bot-Werte ab und simuliert Partien.
+- **Konzept für den Online-Modus:** steht in `docs/online-konzept.md`.
+
+### Geändert
+
+- **Mit Bots nur App-Würfel:** Ihre Spalten im Block sind gesperrt, während ihres Zugs kann niemand für sie würfeln. In die Highscores kommen nur Menschen.
+- **Rückgängig mit Bots:** Ist als Nächstes ein Bot dran, bleibt „Rückgängig“ 3,5 statt 5 Sekunden, und der Bot wartet so lange.
+- **Zurücksetzen-Knopf im Würfel-Tab entfernt:** Schlechte Würfe lassen sich nicht mehr einfach wegwerfen. Nach dem Spielende geht freies Würfeln trotzdem weiter.
+- **Lange Namen** brechen im Würfel-Tab in zwei Zeilen um, statt abgeschnitten zu werden.
+- **Screenshots** im README zeigen den neuen Stand.
+
 ## [1.4.0] – 2026-09-25
 
 HEXA spricht jetzt auch Englisch.
@@ -90,6 +109,7 @@ Die erste Version von HEXA.
 - **Web-App:** installierbar auf dem Home-Bildschirm, Bildschirm bleibt während des Spiels an.
 - **Tests:** Wertung aller Felder mit `node --test` abgedeckt.
 
+[1.5.0]: https://github.com/unpacked-dev/hexa/releases/tag/v1.5.0
 [1.4.0]: https://github.com/unpacked-dev/hexa/releases/tag/v1.4.0
 [1.3.0]: https://github.com/unpacked-dev/hexa/releases/tag/v1.3.0
 [1.2.0]: https://github.com/unpacked-dev/hexa/releases/tag/v1.2.0
