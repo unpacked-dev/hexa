@@ -28,6 +28,7 @@
     auto: svg('<circle cx="12" cy="12" r="10"/><path d="M12 18a6 6 0 0 0 0-12v12z"/>'),
     music: svg('<path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>'),
     volume: svg('<path d="M11 4.702a.705.705 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.705.705 0 0 0 11 19.298z"/><path d="M16 9a5 5 0 0 1 0 6"/><path d="M19.364 18.364a9 9 0 0 0 0-12.728"/>'),
+    dices: svg('<rect width="12" height="12" x="2" y="10" rx="2" ry="2"/><path d="m17.92 14 3.5-3.5a2.24 2.24 0 0 0 0-3l-5-4.92a2.24 2.24 0 0 0-3 0L10 6"/><path d="M6 18h.01"/><path d="M10 14h.01"/><path d="M15 6h.01"/><path d="M18 9h.01"/>'),
     language: svg('<path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/>'),
   };
 
@@ -1153,6 +1154,57 @@
     apply();
   }
 
+  /* ---------- Fallende Würfel im Hintergrund ---------- */
+  const SKY_KEY = 'hexa-sky';
+  let skyOn = true;
+  try { skyOn = localStorage.getItem(SKY_KEY) !== 'off'; } catch (e) { /* Speicher gesperrt */ }
+  const rand = (a, b) => a + Math.random() * (b - a);
+
+  // Jeder Würfel bekommt Platz, Tiefe, Drehung und Tempo. Nahe Würfel sind größer,
+  // deutlicher und schneller, ferne kleiner, blasser und langsamer. Die Bewegung macht CSS.
+  function fillSky(box, felt) {
+    const n = Math.round(Math.min(felt ? 26 : 14, Math.max(felt ? 12 : 8, window.innerWidth / (felt ? 38 : 95))));
+    if (box.childElementCount === n) return;
+    const dice = [];
+    for (let i = 0; i < n; i++) {
+      const z = felt ? rand(0.35, 1.1) : rand(0.55, 1);
+      const dur = felt ? rand(16, 24) * (1.45 - z * 0.5) : rand(32, 50);
+      const r0 = rand(-180, 180);
+      const turn = rand(90, 240) * (Math.random() < 0.5 ? -1 : 1);
+      const style = [
+        '--x:' + ((i + rand(0.1, 0.9)) / n * 100).toFixed(1) + '%',
+        '--z:' + z.toFixed(2),
+        '--dur:' + dur.toFixed(1) + 's',
+        '--delay:' + (-rand(0, dur)).toFixed(1) + 's',
+        '--r0:' + r0.toFixed(0) + 'deg',
+        '--r1:' + (r0 + turn).toFixed(0) + 'deg',
+        '--dx:' + rand(-6, 6).toFixed(1) + 'vw',
+        '--y:' + rand(-5, 95).toFixed(0) + 'vh',
+        '--o:' + (felt ? 0.14 + z * 0.3 : rand(0.1, 0.17)).toFixed(2),
+        '--b:' + (felt && z < 0.6 ? 1.2 : 0) + 'px',
+      ].join(';');
+      const face = faceHTML(1 + Math.floor(Math.random() * 6));
+      dice.push({ z, html: `<div class="fall" style="${style}">${felt ? `<div class="die">${face}</div>` : `<span class="mdie">${face}</span>`}</div>` });
+    }
+    // Nahe Würfel liegen vorne
+    box.innerHTML = dice.sort((a, b) => a.z - b.z).map(d => d.html).join('');
+  }
+
+  function syncSky() {
+    $('#startSky').hidden = !skyOn;
+    $('#appSky').hidden = !skyOn || atStart;
+    if (!skyOn) return;
+    fillSky($('#startSky'), true);
+    fillSky($('#appSky'), false);
+  }
+
+  function setSky(on) {
+    skyOn = !!on;
+    try { localStorage.setItem(SKY_KEY, skyOn ? 'on' : 'off'); } catch (e) { /* Speicher gesperrt */ }
+    syncSky();
+    syncSettings();
+  }
+
   /* ---------- Einstellungen ---------- */
   const pct = v => Math.round(v * 100);
 
@@ -1176,6 +1228,13 @@
         <h4 class="set-h" id="set-h-design">Design</h4>
         <div class="seg" role="group" aria-labelledby="set-h-design">
           ${THEMES.map(([v, label, icon]) => `<button type="button" class="seg-b" data-act="set-theme" data-v="${v}" aria-pressed="${themeChoice === v}">${ICON[icon]}<span>${label}</span></button>`).join('')}
+        </div>
+        <div class="set-card">
+          <div class="set-line">
+            <span class="set-ic">${ICON.dices}</span>
+            <span class="set-lab" id="lab-sky">Fallende Würfel</span>
+            <button type="button" class="sw" id="sw-sky" role="switch" aria-checked="${skyOn}" aria-labelledby="lab-sky" data-act="set-sky"><i></i></button>
+          </div>
         </div>
       </section>
       <section class="set-grp" aria-labelledby="set-h-sound">
@@ -1204,6 +1263,7 @@
     const box = $('#sheet');
     if (box.hidden || !$('.seg', box)) return;
     $$('.seg-b', box).forEach(b => b.setAttribute('aria-pressed', b.dataset.v === themeChoice ? 'true' : 'false'));
+    $('#sw-sky', box).setAttribute('aria-checked', skyOn ? 'true' : 'false');
     const s = Sound.get();
     [['music', s.music, s.musicVol], ['fx', s.fx, s.fxVol]].forEach(([ch, on, vol]) => {
       $('#sw-' + ch, box).setAttribute('aria-checked', on ? 'true' : 'false');
@@ -1262,6 +1322,7 @@
     $('.app').hidden = true;
     $('.tabbar').hidden = true;
     $('#start').hidden = false;
+    syncSky();
     rollStartDice();
     syncTheme();
     const b = $('#start [data-act="local"]');
@@ -1275,6 +1336,7 @@
     $('#start').hidden = true;
     $('.app').hidden = false;
     $('.tabbar').hidden = false;
+    syncSky();
     render();
     syncTheme();
     try { window.scrollTo(0, 0); } catch (e) { /* egal */ }
@@ -1325,6 +1387,7 @@
       case 'settings': openSettings(); break;
       case 'set-theme': setTheme(t.dataset.v); break;
       case 'set-sound': toggleChannel(t.dataset.ch); break;
+      case 'set-sky': setSky(!skyOn); break;
       case 'soon': toast(SOON[t.dataset.what] || 'Kommt bald.'); break;
       case 'roll': roll(); break;
       case 'reset': resetDice(); break;
@@ -1502,7 +1565,15 @@
     else if (wideMQ.addListener) wideMQ.addListener(onWidth);
   }
 
+  // Breiteres oder schmaleres Fenster: Anzahl der fallenden Würfel anpassen
+  let skyTimer = 0;
+  window.addEventListener('resize', () => {
+    clearTimeout(skyTimer);
+    skyTimer = setTimeout(() => { if (skyOn) syncSky(); }, 300);
+  });
+
   render();
   renderStart();
+  syncSky();
   rollStartDice();
 })();
