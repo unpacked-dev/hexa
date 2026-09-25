@@ -3,25 +3,27 @@
 (function (root) {
   'use strict';
 
+  // Namen und Voraussetzungen der Felder stehen in den Sprachdateien (lang/*.js, Abschnitt „fields“).
   const UPPER = [
-    { key: 'u1', n: 1, name: 'Einser', plural: 'Einsen' },
-    { key: 'u2', n: 2, name: 'Zweier', plural: 'Zweien' },
-    { key: 'u3', n: 3, name: 'Dreier', plural: 'Dreien' },
-    { key: 'u4', n: 4, name: 'Vierer', plural: 'Vieren' },
-    { key: 'u5', n: 5, name: 'Fünfer', plural: 'Fünfen' },
-    { key: 'u6', n: 6, name: 'Sechser', plural: 'Sechsen' },
+    { key: 'u1', n: 1 },
+    { key: 'u2', n: 2 },
+    { key: 'u3', n: 3 },
+    { key: 'u4', n: 4 },
+    { key: 'u5', n: 5 },
+    { key: 'u6', n: 6 },
   ].map(f => Object.assign(f, { type: 'upper' }));
 
+  // Tiefflug und Höhenflug heißen auf Englisch Low Roll und High Roll.
   const LOWER = [
-    { key: 'pasch5', name: 'Fünferpasch', pts: 40, req: 'mind. 5 gleiche' },
-    { key: 'pasch6', name: 'Sechserpasch', pts: 75, req: '6 gleiche' },
-    { key: 'paare', name: 'Drei Paare', pts: 30, req: '3 Paare' },
-    { key: 'drillinge', name: 'Zwei Drillinge', pts: 40, req: '2 Drillinge' },
-    { key: 'kstrasse', name: 'Kleine Straße', pts: 25, req: '5 in Folge' },
-    { key: 'gstrasse', name: 'Große Straße', pts: 40, req: '1 bis 6' },
-    { key: 'tief', name: 'Tiefflug', pts: 25, req: 'nur 1 bis 3' },
-    { key: 'hoch', name: 'Höhenflug', pts: 25, req: 'nur 4 bis 6' },
-    { key: 'chance', name: 'Chance', pts: 0, req: 'Augensumme' },
+    { key: 'pasch5', pts: 40 },     // Fünferpasch: mindestens 5 gleiche
+    { key: 'pasch6', pts: 75 },     // Sechserpasch: 6 gleiche
+    { key: 'paare', pts: 30 },      // Drei Paare
+    { key: 'drillinge', pts: 40 },  // Zwei Drillinge
+    { key: 'kstrasse', pts: 25 },   // Kleine Straße: 5 in Folge
+    { key: 'gstrasse', pts: 40 },   // Große Straße: 1 bis 6
+    { key: 'tief', pts: 25 },       // Tiefflug: nur 1 bis 3
+    { key: 'hoch', pts: 25 },       // Höhenflug: nur 4 bis 6
+    { key: 'chance', pts: 0 },      // Chance: Augensumme
   ].map(f => Object.assign(f, { type: f.key === 'chance' ? 'chance' : 'fixed' }));
 
   const FIELDS = UPPER.concat(LOWER);
