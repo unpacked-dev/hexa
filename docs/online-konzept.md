@@ -11,7 +11,7 @@ Der Server würfelt, prüft jeden Zug und achtet auf die Zugzeit von 60 Sekunden
 ## Schon entschieden
 
 - Der Server kommt ins selbe Repo, in den Ordner `server/`. Er ist open source wie der Rest.
-- Keine Konten, nur Spitznamen.
+- Keine Konten, nur Spitznamen. Die bestehen nur aus Buchstaben, Zahlen und ein paar Sonderzeichen, ohne Emojis.
 - Beitritt nur per Code, ohne Einladungslink. Später soll es auch eine Handy-App geben.
 - Der Code hat 4 Buchstaben. Beim Erstellen prüft der Server, ob er noch frei ist.
 - „Online“ im Hauptmenü führt zu: Lobby erstellen oder Lobby beitreten.
@@ -134,6 +134,34 @@ Alle anderen sehen die Reihenfolge ohne Pfeile und statt des Knopfs: „Warte, b
 - **Wieder frei:** Ist eine Lobby gelöscht, kann ihr Code neu vergeben werden.
 - **Kein Durchprobieren:** Von derselben Internetverbindung aus gehen nur wenige Beitrittsversuche pro Minute. Beitreten geht ohnehin nur vor dem Start, und der Host kann Fremde entfernen.
 
+## Spitznamen
+
+Online-Namen dürfen nur diese Zeichen enthalten:
+
+| Was | Erlaubt |
+|---|---|
+| Buchstaben | A bis Z und a bis z, dazu Ä, Ö, Ü, ä, ö, ü und ß |
+| Zahlen | 0 bis 9 |
+| Sonderzeichen | Leerzeichen, Bindestrich `-`, Unterstrich `_`, Punkt `.`, `!` und `?` |
+
+- **Länge:** 1 bis 20 Zeichen, darunter mindestens ein Buchstabe oder eine Zahl. „...“ allein geht also nicht.
+- **Leerzeichen** am Anfang und Ende fallen weg, mehrere hintereinander werden zu einem. So macht es auch das lokale Spiel.
+- **Nicht erlaubt** sind Emojis, Akzente wie é oder ñ, andere Schriften und alle übrigen Sonderzeichen. Vor allem die Zeichen `< > & " '`, mit denen man HTML bauen könnte, gehen nie. Selbst wenn irgendwo das Maskieren vergessen würde, könnte ein Name so kein Skript einschleusen.
+- **Beim Tippen** lässt die App nur erlaubte Zeichen zu und sagt kurz, was geht. Aus eingefügtem Text entfernt sie den Rest.
+- **Der Server prüft trotzdem jeden Namen** und lehnt alles andere ab. Vorher vereinheitlicht er die Schreibweise (Unicode NFC), damit ein ü immer als ü ankommt, egal von welcher Tastatur.
+- **Nur online:** Im lokalen Spiel bleibt jeder Name erlaubt. Er verlässt das Gerät ja nie.
+
+| Erlaubt | Abgelehnt |
+|---|---|
+| `Jürgen`, `Anna-Lena`, `dice_master`, `Dr. Würfel`, `Wer?!` | `Zoë`, `José`, `Lena😀`, `O'Brien`, `<script>`, `...` |
+
+Die Regel steht an einer Stelle, die App und Server beide laden (zum Beispiel in `js/rules.js`), damit sie nie auseinanderläuft:
+
+```js
+// Vorher: Schreibweise vereinheitlichen (NFC), Leerzeichen zusammenfassen und außen abschneiden
+const NAME_OK = /^(?=.*[A-Za-z0-9ÄÖÜäöüß])[A-Za-z0-9ÄÖÜäöüß _.!?-]{1,20}$/;
+```
+
 ## Wer ist dran? Die Zugleiste
 
 - Oben im Spiel, in allen Tabs: „Tim ist dran“, die Restzeit und ein Balken, der abläuft.
@@ -201,7 +229,7 @@ Handys trennen die Verbindung oft, sobald der Bildschirm ausgeht oder man kurz e
 
 Spitznamen sind fremde Eingaben: Schon in der Lobby siehst du Namen, die jemand auf einem anderen Gerät getippt hat. Darum gilt:
 
-- **Der Server prüft jeden Namen:** 1 bis 20 Zeichen, Leerzeichen zusammengefasst wie im lokalen Spiel. Steuerzeichen, unsichtbare Zeichen und Zeichen, die die Schreibrichtung umdrehen, fliegen raus.
+- **Der Server prüft jeden Namen** gegen die feste Zeichenliste aus [Spitznamen](#spitznamen). HTML-Zeichen wie `<` oder `"` sind gar nicht erst erlaubt, unsichtbare Zeichen und Emojis auch nicht.
 - **Die App zeigt Namen nie als HTML an,** sondern immer maskiert (`esc()`) oder als reinen Text. So macht sie es schon heute im lokalen Spiel. Tests spielen mit Namen wie `<img src=x onerror=alert(1)>`, um das abzusichern.
 - **Nur bekannte Nachrichten:** Der Server nimmt nur die Nachrichten aus der Liste unten an, prüft jedes Feld und verwirft alles andere. Jede Nachricht darf nur wenige KB groß sein.
 - **Bremsen:** Lobbys erstellen und beitreten geht nur ein paar Mal pro Minute.
@@ -341,7 +369,7 @@ hexa/
 
 ### Testen
 
-- `deno test`: Spielablauf mit festgelegten Würfeln, Zugzeit, Streichen bei Zeitablauf, Reihenfolge, Countdown, Revanche und Verlassen. Dazu doppelte Codes und kaputte Namen.
+- `deno test`: Spielablauf mit festgelegten Würfeln, Zugzeit, Streichen bei Zeitablauf, Reihenfolge, Countdown, Revanche und Verlassen. Dazu doppelte Codes und Namen mit verbotenen Zeichen.
 - Zwei simulierte Apps spielen gegen den lokalen Server (`deno task dev`).
 - Playwright: Zwei Browserfenster spielen ein ganzes Spiel, eines davon mit einem Namen voller HTML.
 
@@ -359,7 +387,7 @@ hexa/
 
 Den Tab „Online“ bei den Highscores gibt es schon als Platzhalter. Er bleibt vorerst so. Ob wir eine Bestenliste bauen, entscheiden wir später.
 
-Die Punkte wären echt, weil der Server würfelt. Das Problem sind die Namen: Anders als in der Lobby sähe sie jeder, und sie blieben dauerhaft gespeichert. Ideen, falls wir es machen:
+Die Punkte wären echt, weil der Server würfelt. Das Problem sind die Namen: Anders als in der Lobby sähe sie jeder, und sie blieben dauerhaft gespeichert. Die feste Zeichenliste hilft auch dort, gegen beleidigende Namen reicht sie aber nicht. Ideen, falls wir es machen:
 
 - nur Punkte und Datum, ganz ohne Namen
 - Namen erst nach deiner Freigabe
