@@ -1,0 +1,52 @@
+name: Release
+
+# Ein Tag wie v1.2.0 erzeugt automatisch ein GitHub-Release
+# mit den passenden Notizen aus CHANGELOG.md und einer spielfertigen ZIP-Datei.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Wertung testen
+        run: node --test
+
+      - name: Spielfertiges Paket bauen
+        run: |
+          mkdir -p dist/hexa
+          cp -r index.html favicon.svg manifest.webmanifest css js icons LICENSE dist/hexa/
+          (cd dist && zip -qr "../hexa-${GITHUB_REF_NAME}.zip" hexa)
+
+      - name: Notizen aus CHANGELOG.md holen
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          awk -v v="$VERSION" '
+            /^## \[/ { f = index($0, "[" v "]") > 0; next }
+            /^\[[^]]+\]: / { f = 0 }
+            f
+          ' CHANGELOG.md > notes.md
+          if [ ! -s notes.md ]; then echo "Kein Eintrag für $VERSION in CHANGELOG.md" >&2; exit 1; fi
+          {
+            echo
+            echo "---"
+            echo
+            echo "**▶ [Jetzt spielen](https://unpacked-dev.github.io/hexa/)** · Offline: \`hexa-${GITHUB_REF_NAME}.zip\` herunterladen, entpacken und \`index.html\` öffnen."
+          } >> notes.md
+
+      - name: Release erstellen
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" "hexa-${GITHUB_REF_NAME}.zip" \
+            --title "HEXA ${GITHUB_REF_NAME}" \
+            --notes-file notes.md \
+            --verify-tag
