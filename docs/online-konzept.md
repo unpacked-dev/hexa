@@ -4,7 +4,7 @@
 
 ## Kurz gesagt
 
-Mehrere Leute spielen HEXA zusammen, jede Person am eigenen Gerät. Eine Person erstellt eine Lobby und bekommt einen Code. Die anderen treten mit diesem Code bei. Man kann auch allein online spielen. Es gibt keine Konten, nur Spitznamen.
+Mehrere Leute spielen HEXA zusammen, jede Person am eigenen Gerät. Eine Person erstellt eine Lobby und bekommt einen Code aus 4 Buchstaben. Die anderen treten mit diesem Code bei. Man kann auch allein online spielen. Es gibt keine Konten, nur Spitznamen.
 
 Der Server würfelt, prüft jeden Zug und achtet auf die Zugzeit von 60 Sekunden. Er läuft mit Deno auf Deno Deploy und speichert alles in Deno KV.
 
@@ -13,12 +13,17 @@ Der Server würfelt, prüft jeden Zug und achtet auf die Zugzeit von 60 Sekunden
 - Der Server kommt ins selbe Repo, in den Ordner `server/`. Er ist open source wie der Rest.
 - Keine Konten, nur Spitznamen.
 - Beitritt nur per Code, ohne Einladungslink. Später soll es auch eine Handy-App geben.
+- Der Code hat 4 Buchstaben. Beim Erstellen prüft der Server, ob er noch frei ist.
 - „Online“ im Hauptmenü führt zu: Lobby erstellen oder Lobby beitreten.
 - Online wird nur mit App-Würfeln gespielt.
 - Man kann auch allein online spielen.
+- Keine feste Grenze, wie viele mitspielen.
+- Der Host legt die Reihenfolge fest, wie im Spieler-Tab des lokalen Spiels.
 - Jeder Zug hat 60 Sekunden. Man sieht immer, wer dran ist.
 - Kurz vor Schluss blinkt die Zeit, ab 10 Sekunden tickt es.
 - Ist die Zeit um, streicht der Server ein zufälliges freies Feld.
+- Nach dem Spiel gibt es eine Revanche in derselben Lobby.
+- Eine Online-Bestenliste gibt es vorerst nicht. Ob sie kommt, entscheiden wir später.
 - Server mit Deno, Datenbank Deno KV.
 
 ## Grundsätze (Vorschlag)
@@ -27,15 +32,15 @@ Der Server würfelt, prüft jeden Zug und achtet auf die Zugzeit von 60 Sekunden
 2. **Immer der ganze Stand.** Nach jeder Änderung schickt der Server den kompletten Spielstand, nicht nur die Änderung. Das sind nur ein paar KB. Wer kurz weg war, ist nach dem Wiederverbinden sofort auf dem neuesten Stand.
 3. **Gleiche Form wie lokal.** Der Online-Stand hat dieselben Teile wie der lokale (`players`, `scores`, `cds`, `dice`, `cdGame`). So können Block, Würfel, Countdown und Ergebnis fast unverändert bleiben.
 4. **Lokal bleibt lokal.** Erst wenn jemand auf „Online“ tippt, verbindet sich die App mit dem Server. Der lokale Modus und die ZIP-Version laufen weiter ohne Internet.
-5. **So wenig Daten wie möglich.** Gespeichert werden der Spitzname, ein zufälliger Geräteschlüssel und der Spielstand. Lobbys und Spiele löschen sich von selbst.
+5. **So wenig Daten wie möglich.** Gespeichert werden der Spitzname, ein zufälliger Geräteschlüssel und der Spielstand. Dauerhaft bleibt nichts: Lobbys und Spiele löschen sich von selbst.
 
 ## Begriffe
 
 | Begriff | Bedeutung |
 |---|---|
 | **Lobby** | Der Raum, in dem man sich vor dem Spiel sammelt. |
-| **Code** | 6 Ziffern, z. B. `482 913`. Damit treten die anderen bei. |
-| **Host** | Wer die Lobby erstellt hat. Startet das Spiel. |
+| **Code** | 4 Buchstaben, z. B. `KXMP`. Damit treten die anderen bei. |
+| **Host** | Wer die Lobby erstellt hat. Legt die Reihenfolge fest und startet das Spiel. |
 | **Zugzeit** | 60 Sekunden pro Zug. Bewusst nicht „Countdown“, denn so heißt in HEXA schon das Bonusspiel. |
 
 ## So läuft es ab
@@ -45,20 +50,21 @@ flowchart LR
   S[Hauptmenü] --> O[Online]
   O --> E[Lobby erstellen]
   O --> B[Lobby beitreten<br/>Code eingeben]
-  E --> L[Lobby<br/>Code und Personen]
+  E --> L[Lobby<br/>Code, Personen, Reihenfolge]
   B --> L
   L -->|Host startet| G[Spiel<br/>Würfel · Block · Regeln]
   G --> R[Ergebnis]
-  R --> S
+  R -->|Nochmal| L
+  R -->|Zum Hauptmenü| S
 ```
 
 1. **Hauptmenü → Online.** Einmal einen Spitznamen eingeben, die App merkt ihn sich. Dann wählen: Lobby erstellen oder beitreten.
-2. **Lobby erstellen.** Der Server vergibt einen Code. Den sagt man den anderen, zum Beispiel am Tisch oder im Videocall.
-3. **Lobby beitreten.** Code eintippen, fertig. Das Handy zeigt dafür den Ziffernblock.
-4. **In der Lobby** sehen alle live, wer schon da ist. Der Host startet, wenn alle da sind. Allein geht es sofort los.
-5. **Beim Start** lost der Server die Reihenfolge aus. Danach kann niemand mehr beitreten, wie im lokalen Spiel.
+2. **Lobby erstellen.** Der Server vergibt einen freien Code. Den sagt man den anderen, zum Beispiel am Tisch oder im Videocall.
+3. **Lobby beitreten.** Code eintippen, fertig. Die Eingabe wird automatisch großgeschrieben.
+4. **In der Lobby** sehen alle live, wer schon da ist. Der Host ändert die Reihenfolge mit Pfeilen, wie im Spieler-Tab des lokalen Spiels. Mit einem Tipp auf einen Namen kann der Host die Person entfernen. Gestartet wird, wenn alle da sind. Allein geht es sofort los.
+5. **Beim Start** schließt sich die Lobby. Danach kann niemand mehr beitreten, wie im lokalen Spiel.
 6. **Im Spiel** gibt es die gewohnten Tabs: Würfel, Block, Regeln und Menü. Wer dran ist, würfelt. Alle anderen sehen die Würfel live mit.
-7. **Am Ende** kommt das bekannte Ergebnis-Popup mit allen Punkten.
+7. **Am Ende** kommt das bekannte Ergebnis-Popup mit allen Punkten. Mit „Nochmal“ geht es zurück in dieselbe Lobby, siehe [Revanche](#revanche).
 
 ### Entwürfe
 
@@ -89,13 +95,13 @@ flowchart LR
 │ < Lobby verlassen              │
 │                                │
 │           LOBBY-CODE           │
-│            482 913             │
+│            K X M P             │
 │   Sag den anderen den Code.    │
 │                                │
-│ Dabei: 3 von 6                 │
-│   Lena (du, Host)              │
-│   Tim                          │
-│   Mia                          │
+│ Reihenfolge                    │
+│ 1. Lena (du, Host)     [^] [v] │
+│ 2. Tim                 [^] [v] │
+│ 3. Mia                 [^] [v] │
 │                                │
 │ 60 Sekunden pro Zug            │
 │                                │
@@ -103,7 +109,7 @@ flowchart LR
 └────────────────────────────────┘
 ```
 
-Alle anderen sehen statt des Knopfs: „Warte, bis Lena startet …“ Ist noch niemand beigetreten, heißt der Knopf „Allein starten“.
+Alle anderen sehen die Reihenfolge ohne Pfeile und statt des Knopfs: „Warte, bis Lena startet …“ Ist noch niemand beigetreten, heißt der Knopf „Allein starten“.
 
 **Im Spiel mit der Zugleiste oben**
 
@@ -119,6 +125,13 @@ Alle anderen sehen statt des Knopfs: „Warte, bis Lena startet …“ Ist noch 
 │ Tim würfelt ...                │
 └────────────────────────────────┘
 ```
+
+## Der Code
+
+- **4 Buchstaben, nur Konsonanten**, z. B. `KXMP`. Ohne A, E, I, O, U und Y entstehen kaum echte oder unschöne Wörter. Außerdem klingen E und I auf Deutsch und Englisch nicht verwechselbar. Mit den übrigen 20 Buchstaben gibt es 160.000 Codes.
+- **Nie doppelt:** Der Server legt eine Lobby nur an, wenn es den Code noch nicht gibt. Prüfen und Anlegen passieren in einem einzigen Schritt (atomar in Deno KV). Ziehen zwei Leute im selben Moment denselben Code, bekommt ihn nur eine Person. Die andere bekommt automatisch einen neuen. Das habe ich lokal schon ausprobiert.
+- **Wieder frei:** Ist eine Lobby gelöscht, kann ihr Code neu vergeben werden.
+- **Kein Durchprobieren:** Von derselben Internetverbindung aus gehen nur wenige Beitrittsversuche pro Minute. Beitreten geht ohnehin nur vor dem Start, und der Host kann Fremde entfernen.
 
 ## Wer ist dran? Die Zugleiste
 
@@ -149,6 +162,14 @@ Alle anderen sehen statt des Knopfs: „Warte, bis Lena startet …“ Ist noch 
 - Eine Sekunde Puffer: Ein Tipp in letzter Sekunde zählt auch bei langsamem Netz noch.
 - Ist niemand mehr verbunden, bleibt das Spiel einfach stehen.
 
+## Revanche
+
+- Nach dem Spiel geht die Lobby automatisch zurück in den Wartezustand, mit demselben Code, denselben Leuten und derselben Reihenfolge.
+- Im Ergebnis-Popup gibt es „Nochmal“ (zurück in die Lobby) und „Zum Hauptmenü“ (Lobby verlassen).
+- Der Host kann die Reihenfolge wieder ändern und startet die Revanche. Wer noch das Ergebnis anschaut, ist trotzdem dabei.
+- In der Pause können auch neue Leute mit dem Code dazukommen.
+- Dein eigenes Ergebnis landet zusätzlich in deinen lokalen Highscores, das der anderen nicht.
+
 ## Verbindung weg, App zu, Handy gesperrt
 
 Handys trennen die Verbindung oft, sobald der Bildschirm ausgeht oder man kurz eine andere App öffnet. Das ist der Normalfall, kein Sonderfall.
@@ -165,28 +186,30 @@ Handys trennen die Verbindung oft, sobald der Bildschirm ausgeht oder man kurz e
 | Der Host geht | Die nächste Person wird Host. |
 | Alle sind weg | Das Spiel bleibt stehen. Nach 24 Stunden wird es gelöscht. |
 | Server-Update | Verbindungen können kurz abreißen, die Apps verbinden neu. |
-| Code falsch, Lobby voll, Spiel läuft schon | Eine klare Meldung in der App |
+| Jemand Fremdes tritt bei | Der Host entfernt die Person in der Lobby. |
+| Code falsch oder Spiel läuft schon | Eine klare Meldung in der App |
 | Name schon vergeben | Der Server hängt eine Zahl an: „Lena 2“. |
 | Alte App-Version, z. B. aus einer alten ZIP | Meldung „Bitte HEXA aktualisieren“ |
 
-## Online-Highscores
+## Sicherheit
 
-Den Tab „Online“ bei den Highscores gibt es schon als Platzhalter.
+Spitznamen sind fremde Eingaben: Schon in der Lobby siehst du Namen, die jemand auf einem anderen Gerät getippt hat. Darum gilt:
 
-- In die Liste kommen nur fertige Online-Spiele, auch Solo-Spiele. Weil der Server würfelt, sind alle Punkte echt.
-- Ein Eintrag besteht aus Spitzname, Punkten und Datum. Vorschlag: die Top 10 aller Zeiten.
-- Beim Spitznamen steht ein Hinweis: Er kann öffentlich in der Bestenliste stehen, also lieber nicht den vollen Namen nehmen.
-- In den Einstellungen gibt es „Meine Online-Einträge löschen“. Das klappt auch ohne Konto, über den Geräteschlüssel.
-- Ein einfacher Wortfilter hält die schlimmsten Namen draußen. Als Betreiber kannst du Einträge löschen.
-- Dein eigenes Ergebnis kommt zusätzlich in deine lokalen Highscores, das der anderen nicht.
+- **Der Server prüft jeden Namen:** 1 bis 20 Zeichen, Leerzeichen zusammengefasst wie im lokalen Spiel. Steuerzeichen, unsichtbare Zeichen und Zeichen, die die Schreibrichtung umdrehen, fliegen raus.
+- **Die App zeigt Namen nie als HTML an,** sondern immer maskiert (`esc()`) oder als reinen Text. So macht sie es schon heute im lokalen Spiel. Tests spielen mit Namen wie `<img src=x onerror=alert(1)>`, um das abzusichern.
+- **Nur bekannte Nachrichten:** Der Server nimmt nur die Nachrichten aus der Liste unten an, prüft jedes Feld und verwirft alles andere. Jede Nachricht darf nur wenige KB groß sein.
+- **Bremsen:** Lobbys erstellen und beitreten geht nur ein paar Mal pro Minute.
+- **Technische Obergrenze:** Eine Grenze fürs Spiel gibt es nicht. Damit aber niemand eine Lobby mit Tausenden Fake-Personen fluten kann, ist bei 50 Schluss. Ein Eintrag in Deno KV darf höchstens 64 KB groß sein. 50 Personen brauchen etwa 15 KB, bei rund 200 wäre die Grenze erreicht.
+- **Geräteschlüssel:** Auf dem Server liegt nur ein Hash davon, und an andere Apps geht er nie.
+- **Zweites Netz (prüfen):** eine Content Security Policy, die fremde Skripte blockiert. Vorher testen, ob die ZIP-Version damit noch läuft.
 
 ## Datenschutz und Recht
 
 Das muss vor dem Start fertig sein:
 
 - **Impressum und Datenschutzerklärung**, erreichbar aus der App und auf der Seite.
-- **Nur das Nötigste speichern:** Spitzname, zufälliger Geräteschlüssel (auf dem Server nur als Hash), Spielstand und Online-Highscores. Keine E-Mail, kein Konto. IP-Adressen kommen nicht in die Datenbank. Der Schutz vor zu vielen Versuchen arbeitet nur im Arbeitsspeicher.
-- **Automatisch löschen:** Deno KV kann Einträge mit Ablaufzeit speichern. Eine Lobby ohne Start verschwindet nach 1 Stunde, ein Spiel 24 Stunden nach der letzten Aktion.
+- **Nur das Nötigste speichern:** Spitzname, zufälliger Geräteschlüssel (nur als Hash) und Spielstand. Keine E-Mail, kein Konto. IP-Adressen kommen nicht in die Datenbank. Die Bremse gegen zu viele Versuche merkt sie sich nur kurz im Arbeitsspeicher.
+- **Automatisch löschen:** Deno KV kann Einträge mit Ablaufzeit speichern. Eine Lobby ohne Start verschwindet nach 1 Stunde, ein Spiel 24 Stunden nach der letzten Aktion. Ohne Bestenliste speichert der Server nichts dauerhaft.
 - **Deno als Dienstleister:** Deno ist ein US-Anbieter. Vor dem Start klären: Gibt es einen Vertrag zur Auftragsverarbeitung (AVV)? Wo liegen die Daten? Was protokolliert Deno selbst, zum Beispiel IP-Adressen?
 
 ## Technik
@@ -236,7 +259,7 @@ Von der App an den Server:
 | `hello` | Verbinden, mit Protokollversion und Geräteschlüssel. Bringt dich zurück in dein Spiel. |
 | `create` | Lobby erstellen, mit Spitzname |
 | `join` | Beitreten, mit Code und Spitzname |
-| `start`, `kick` | Nur für den Host in der Lobby: starten, jemanden entfernen |
+| `start`, `move`, `kick` | Nur für den Host in der Lobby: starten, Reihenfolge ändern, jemanden entfernen |
 | `roll`, `hold`, `enter` | Würfeln, einen Würfel halten oder loslassen, ein Feld eintragen |
 | `cdRoll` | Eine Stufe im Countdown würfeln |
 | `expired` | „Bei mir ist die Zeit um.“ Der Server prüft selbst. |
@@ -247,7 +270,7 @@ Vom Server an die App:
 | Nachricht | Inhalt |
 |---|---|
 | `state` | Der ganze Stand, wer du bist und die Uhrzeit des Servers |
-| `error` | Ein Fehlercode wie `room-not-found`, `room-full`, `not-your-turn` oder `update-needed`. Die App übersetzt ihn ins Deutsche oder Englische. |
+| `error` | Ein Fehlercode wie `room-not-found`, `game-running`, `not-your-turn` oder `update-needed`. Die App übersetzt ihn ins Deutsche oder Englische. |
 
 Jede Aktion schickt die Nummer des Stands mit, auf den sie sich bezieht. Ein doppelter Tipp auf „Eintragen“ wird so einfach ignoriert.
 
@@ -255,20 +278,19 @@ Jede Aktion schickt die Nummer des Stands mit, auf den sie sich bezieht. Ein dop
 
 | Schlüssel | Inhalt | Wie lange |
 |---|---|---|
-| `["room", "482913"]` | Lobby oder Spiel: Status, Host, Personen, Block, Würfel, Countdown, Deadline | 1 Stunde ohne Start, sonst 24 Stunden nach der letzten Aktion |
-| `["best", …]` | Online-Highscores. Die Punkte stecken im Schlüssel, so liefert KV die Liste schon sortiert. | dauerhaft |
+| `["room", "KXMP"]` | Lobby oder Spiel: Status, Host, Personen in ihrer Reihenfolge, Block, Würfel, Countdown, Deadline, letztes Ergebnis | 1 Stunde ohne Start, sonst 24 Stunden nach der letzten Aktion |
 
 So könnte eine Lobby mitten im Spiel aussehen (Runde 3, Tim ist dran):
 
 ```js
 {
   v: 1,                     // Format-Version
-  code: '482913',
-  status: 'playing',        // lobby | playing | done
+  code: 'KXMP',
+  status: 'playing',        // lobby | playing
   host: 'p1',
   seq: 42,                  // zählt bei jeder Änderung hoch
   deadline: 1790000000000,  // Ende des aktuellen Zugs
-  players: [
+  players: [                // in der Reihenfolge, die der Host festgelegt hat
     { id: 'p1', name: 'Lena', key: '<Hash>', online: true, missed: 0 },
     { id: 'p2', name: 'Tim', key: '<Hash>', online: true, missed: 0 },
     { id: 'p3', name: 'Mia', key: '<Hash>', online: false, missed: 1 },
@@ -282,6 +304,7 @@ So könnte eine Lobby mitten im Spiel aussehen (Runde 3, Tim ist dran):
   cds: { p1: [20] },
   dice: { vals: [2, 3, 3, 5, 5, 6], held: [false, true, true, false, false, false], rolls: 2, owner: 'p2' },
   cdGame: null,
+  last: null,               // Ergebnis der letzten Partie, für das Popup bei der Revanche
 }
 ```
 
@@ -297,7 +320,7 @@ hexa/
 │   ├── online.js             neu: Verbindung zum Server, Online-Ansichten
 │   └── app.js                bekommt Anschlüsse für den Online-Modus
 └── server/                   neu
-    ├── main.ts               Einstieg für Deno Deploy: WebSocket, Highscores
+    ├── main.ts               Einstieg für Deno Deploy: WebSocket
     ├── game.ts               Spielablauf: würfeln, prüfen, Zugzeit, Streichen
     ├── store.ts              alles rund um Deno KV
     ├── deno.json             Befehle wie dev und test
@@ -312,20 +335,34 @@ hexa/
 
 ### Testen
 
-- `deno test`: Spielablauf mit festgelegten Würfeln, Zugzeit, Streichen bei Zeitablauf, Reihenfolge, Countdown und Verlassen.
+- `deno test`: Spielablauf mit festgelegten Würfeln, Zugzeit, Streichen bei Zeitablauf, Reihenfolge, Countdown, Revanche und Verlassen. Dazu doppelte Codes und kaputte Namen.
 - Zwei simulierte Apps spielen gegen den lokalen Server (`deno task dev`).
-- Playwright: Zwei Browserfenster spielen ein ganzes Spiel.
+- Playwright: Zwei Browserfenster spielen ein ganzes Spiel, eines davon mit einem Namen voller HTML.
 
 ## Umsetzung in Schritten
 
 0. **Technik-Check zuerst, klein:** ein Mini-Server auf Deno Deploy mit WebSocket und `kv.watch()`, dazu zwei Handys. Wir messen, wie schnell Änderungen ankommen und was beim Sperren des Bildschirms passiert. Lokal klappt alles schon. Offen ist nur, ob `kv.watch()` auf dem neuen Deno Deploy genauso läuft, denn beschrieben ist es bisher nur für die alte Plattform. Plan B wäre, dass die Apps regelmäßig nachfragen. Das kostet aber viel mehr Anfragen.
 1. **Spielablauf auf dem Server** (`game.ts`) mit Tests, noch ohne Netz.
-2. **Server fertig:** WebSocket, KV, Zugzeit, Wiederverbinden, Schutz vor Missbrauch.
-3. **App:** Online-Start, Lobby, Zugleiste mit Blinken und Ticken, Spiel und Ergebnis. Alle Texte auf Deutsch und Englisch.
-4. **Online-Highscores.**
-5. **Vor dem Start:** Impressum, Datenschutz, AVV, Limits des kostenlosen Tarifs prüfen, README, Changelog, Release.
+2. **Server fertig:** WebSocket, KV, Codes, Zugzeit, Wiederverbinden, Revanche, Sicherheit.
+3. **App:** Online-Start, Lobby mit Reihenfolge, Zugleiste mit Blinken und Ticken, Spiel, Ergebnis und Revanche. Alle Texte auf Deutsch und Englisch.
+4. **Vor dem Start:** Impressum, Datenschutz, AVV, Limits des kostenlosen Tarifs prüfen, README, Changelog, Release.
 
-Später vielleicht: Handy-App, Push-Nachricht „Du bist dran“, Emoji-Reaktionen, Zuschauen.
+## Später, vielleicht
+
+### Online-Bestenliste
+
+Den Tab „Online“ bei den Highscores gibt es schon als Platzhalter. Er bleibt vorerst so. Ob wir eine Bestenliste bauen, entscheiden wir später.
+
+Die Punkte wären echt, weil der Server würfelt. Das Problem sind die Namen: Anders als in der Lobby sähe sie jeder, und sie blieben dauerhaft gespeichert. Ideen, falls wir es machen:
+
+- nur Punkte und Datum, ganz ohne Namen
+- Namen erst nach deiner Freigabe
+- Wortfilter, dazu kannst du Einträge löschen
+- „Meine Einträge löschen“ in den Einstellungen, über den Geräteschlüssel
+
+### Weitere Ideen
+
+Handy-App, Push-Nachricht „Du bist dran“, Emoji-Reaktionen, Zuschauen.
 
 ## Bewusst nicht dabei
 
@@ -339,12 +376,7 @@ Später vielleicht: Handy-App, Push-Nachricht „Du bist dran“, Emoji-Reaktion
 
 ## Offene Fragen
 
-1. **Personen pro Lobby:** Ich plane mit höchstens 6, sonst dauert ein Spiel sehr lange. Passt das?
-2. **Countdown bei Zeitablauf:** Passt der [Vorschlag oben](#zugzeit) mit eigenen 30 Sekunden, bei dem die geschafften Stufen zählen?
-3. **Reihenfolge:** auslosen? Oder soll der Host sie in der Lobby festlegen können?
-4. **Code:** 6 Ziffern? Die sind auf dem Ziffernblock schnell getippt und auf Deutsch und Englisch gleich leicht vorzulesen. Die Alternative wären 4 Buchstaben wie `KXMP`.
-5. **Revanche:** Nach dem Spiel „Nochmal“ in derselben Lobby mit denselben Leuten?
-6. **Bestenliste:** nur „aller Zeiten“ oder zusätzlich „dieser Monat“?
+1. **Countdown bei Zeitablauf:** Passt der [Vorschlag oben](#zugzeit) mit eigenen 30 Sekunden, bei dem die geschafften Stufen zählen?
 
 ## Quellen
 
