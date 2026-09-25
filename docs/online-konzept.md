@@ -1,6 +1,6 @@
 # Online-Modus – Konzept
 
-> **Entwurf zum Brainstormen.** Noch ist nichts davon gebaut. Stand: 25. September 2026.
+> **Konzept, alle Fragen geklärt.** Noch ist nichts davon gebaut. Stand: 25. September 2026.
 
 ## Kurz gesagt
 
@@ -22,6 +22,7 @@ Der Server würfelt, prüft jeden Zug und achtet auf die Zugzeit von 60 Sekunden
 - Jeder Zug hat 60 Sekunden. Man sieht immer, wer dran ist.
 - Kurz vor Schluss blinkt die Zeit, ab 10 Sekunden tickt es.
 - Ist die Zeit um, streicht der Server ein zufälliges freies Feld.
+- Ein freigeschalteter Countdown hat eigene 30 Sekunden, auch nach einem gestrichenen Zug. Wer darin nicht würfelt, bekommt 0 Punkte. Läuft die Zeit mittendrin ab, zählen die Punkte bis dahin.
 - Nach dem Spiel gibt es eine Revanche in derselben Lobby.
 - Eine Online-Bestenliste gibt es vorerst nicht. Ob sie kommt, entscheiden wir später.
 - Server mit Deno, Datenbank Deno KV.
@@ -149,7 +150,12 @@ Alle anderen sehen die Reihenfolge ohne Pfeile und statt des Knopfs: „Warte, b
 
 **Ist die Zeit um**, streicht der Server ein zufälliges freies Feld. Dort steht dann eine 0, egal was die Würfel zeigen. Alle sehen kurz, was passiert ist, zum Beispiel: „Zeit um – bei Tim wurde die Große Straße gestrichen.“
 
-**Countdown (Vorschlag):** Hatte die Person im ersten Wurf 4 gleiche, darf sie den Countdown trotzdem spielen. Laut Regeln kommt er nach dem Eintragen, und ein gestrichenes Feld gilt als eingetragen. Für den Countdown gibt es eigene 30 Sekunden. Läuft diese Zeit ab, ist der Countdown vorbei, und die geschafften Stufen zählen.
+**Countdown:** Hatte die Person im ersten Wurf 4 gleiche, darf sie den Countdown spielen, auch wenn ihr Zug wegen der Zeit gestrichen wurde. Laut Regeln kommt er nach dem Eintragen, und ein gestrichenes Feld gilt als eingetragen.
+
+- Der Countdown hat eigene 30 Sekunden. Auch hier blinkt und tickt es ab 10 Sekunden.
+- Wer bis zum Ende der Zeit gar nicht würfelt, bekommt 0 Punkte.
+- Läuft die Zeit mittendrin ab, zählen die Punkte der Stufen, die bis dahin geschafft sind.
+- Die Punkte trägt der Server selbst ein, sobald der Countdown vorbei ist. Anders als lokal muss niemand auswählen, wem sie gehören.
 
 **Abwesend:** Wer zwei Züge hintereinander verpasst, gilt als abwesend. Dann streicht der Server bei dieser Person sofort, ohne die 60 Sekunden abzuwarten. So müssen die anderen nicht jedes Mal warten. Sobald die Person wieder verbunden ist, wartet das Spiel wieder auf sie.
 
@@ -376,7 +382,7 @@ Handy-App, Push-Nachricht „Du bist dran“, Emoji-Reaktionen, Zuschauen.
 
 ## Offene Fragen
 
-1. **Countdown bei Zeitablauf:** Passt der [Vorschlag oben](#zugzeit) mit eigenen 30 Sekunden, bei dem die geschafften Stufen zählen?
+Keine mehr. Kleinigkeiten klären wir beim Bauen.
 
 ## Quellen
 
