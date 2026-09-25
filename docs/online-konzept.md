@@ -4,9 +4,9 @@
 
 ## Kurz gesagt
 
-Mehrere Leute spielen HEXA zusammen, jede Person am eigenen Gerät. Eine Person erstellt eine Lobby und bekommt einen Code. Die anderen treten mit diesem Code bei. Es gibt keine Konten, nur Spitznamen.
+Mehrere Leute spielen HEXA zusammen, jede Person am eigenen Gerät. Eine Person erstellt eine Lobby und bekommt einen Code. Die anderen treten mit diesem Code bei. Man kann auch allein online spielen. Es gibt keine Konten, nur Spitznamen.
 
-Der Server würfelt, prüft jeden Zug und achtet auf die Zugzeit. Er läuft mit Deno auf Deno Deploy und speichert alles in Deno KV.
+Der Server würfelt, prüft jeden Zug und achtet auf die Zugzeit von 60 Sekunden. Er läuft mit Deno auf Deno Deploy und speichert alles in Deno KV.
 
 ## Schon entschieden
 
@@ -14,17 +14,20 @@ Der Server würfelt, prüft jeden Zug und achtet auf die Zugzeit. Er läuft mit 
 - Keine Konten, nur Spitznamen.
 - Beitritt nur per Code, ohne Einladungslink. Später soll es auch eine Handy-App geben.
 - „Online“ im Hauptmenü führt zu: Lobby erstellen oder Lobby beitreten.
-- Jeder Zug hat ein Zeitlimit. Man sieht immer, wer dran ist.
+- Online wird nur mit App-Würfeln gespielt.
+- Man kann auch allein online spielen.
+- Jeder Zug hat 60 Sekunden. Man sieht immer, wer dran ist.
+- Kurz vor Schluss blinkt die Zeit, ab 10 Sekunden tickt es.
+- Ist die Zeit um, streicht der Server ein zufälliges freies Feld.
 - Server mit Deno, Datenbank Deno KV.
 
 ## Grundsätze (Vorschlag)
 
 1. **Der Server entscheidet.** Er würfelt, prüft jeden Eintrag mit `js/rules.js` und führt den Spielstand. Die App zeigt an und schickt nur Wünsche wie „würfeln“, „Würfel 3 halten“ oder „Große Straße eintragen“. So kann niemand schummeln, obwohl der ganze Code offen ist.
-2. **Online nur mit App-Würfeln.** Eigene Würfel kann der Server nicht prüfen (siehe [offene Fragen](#offene-fragen)).
-3. **Immer der ganze Stand.** Nach jeder Änderung schickt der Server den kompletten Spielstand, nicht nur die Änderung. Das sind nur ein paar KB. Wer kurz weg war, ist nach dem Wiederverbinden sofort auf dem neuesten Stand.
-4. **Gleiche Form wie lokal.** Der Online-Stand hat dieselben Teile wie der lokale (`players`, `scores`, `cds`, `dice`, `cdGame`). So können Block, Würfel, Countdown und Ergebnis fast unverändert bleiben.
-5. **Lokal bleibt lokal.** Erst wenn jemand auf „Online“ tippt, verbindet sich die App mit dem Server. Der lokale Modus und die ZIP-Version laufen weiter ohne Internet.
-6. **So wenig Daten wie möglich.** Gespeichert werden der Spitzname, ein zufälliger Geräteschlüssel und der Spielstand. Lobbys und Spiele löschen sich von selbst.
+2. **Immer der ganze Stand.** Nach jeder Änderung schickt der Server den kompletten Spielstand, nicht nur die Änderung. Das sind nur ein paar KB. Wer kurz weg war, ist nach dem Wiederverbinden sofort auf dem neuesten Stand.
+3. **Gleiche Form wie lokal.** Der Online-Stand hat dieselben Teile wie der lokale (`players`, `scores`, `cds`, `dice`, `cdGame`). So können Block, Würfel, Countdown und Ergebnis fast unverändert bleiben.
+4. **Lokal bleibt lokal.** Erst wenn jemand auf „Online“ tippt, verbindet sich die App mit dem Server. Der lokale Modus und die ZIP-Version laufen weiter ohne Internet.
+5. **So wenig Daten wie möglich.** Gespeichert werden der Spitzname, ein zufälliger Geräteschlüssel und der Spielstand. Lobbys und Spiele löschen sich von selbst.
 
 ## Begriffe
 
@@ -32,9 +35,8 @@ Der Server würfelt, prüft jeden Zug und achtet auf die Zugzeit. Er läuft mit 
 |---|---|
 | **Lobby** | Der Raum, in dem man sich vor dem Spiel sammelt. |
 | **Code** | 6 Ziffern, z. B. `482 913`. Damit treten die anderen bei. |
-| **Host** | Wer die Lobby erstellt hat. Stellt die Zugzeit ein und startet das Spiel. |
-| **Zugzeit** | Das Zeitlimit pro Zug. Bewusst nicht „Countdown“, denn so heißt in HEXA schon das Bonusspiel. |
-| **Autopilot** | Macht den Zug zu Ende, wenn die Zugzeit abgelaufen ist. |
+| **Host** | Wer die Lobby erstellt hat. Startet das Spiel. |
+| **Zugzeit** | 60 Sekunden pro Zug. Bewusst nicht „Countdown“, denn so heißt in HEXA schon das Bonusspiel. |
 
 ## So läuft es ab
 
@@ -53,7 +55,7 @@ flowchart LR
 1. **Hauptmenü → Online.** Einmal einen Spitznamen eingeben, die App merkt ihn sich. Dann wählen: Lobby erstellen oder beitreten.
 2. **Lobby erstellen.** Der Server vergibt einen Code. Den sagt man den anderen, zum Beispiel am Tisch oder im Videocall.
 3. **Lobby beitreten.** Code eintippen, fertig. Das Handy zeigt dafür den Ziffernblock.
-4. **In der Lobby** sehen alle live, wer schon da ist. Der Host wählt die Zugzeit und startet, wenn alle da sind.
+4. **In der Lobby** sehen alle live, wer schon da ist. Der Host startet, wenn alle da sind. Allein geht es sofort los.
 5. **Beim Start** lost der Server die Reihenfolge aus. Danach kann niemand mehr beitreten, wie im lokalen Spiel.
 6. **Im Spiel** gibt es die gewohnten Tabs: Würfel, Block, Regeln und Menü. Wer dran ist, würfelt. Alle anderen sehen die Würfel live mit.
 7. **Am Ende** kommt das bekannte Ergebnis-Popup mit allen Punkten.
@@ -95,13 +97,13 @@ flowchart LR
 │   Tim                          │
 │   Mia                          │
 │                                │
-│ Zugzeit   30 s  [60 s]  90 s   │
+│ 60 Sekunden pro Zug            │
 │                                │
 │ [       Spiel starten        ] │
 └────────────────────────────────┘
 ```
 
-Alle anderen sehen statt des Knopfs: „Warte, bis Lena startet …“
+Alle anderen sehen statt des Knopfs: „Warte, bis Lena startet …“ Ist noch niemand beigetreten, heißt der Knopf „Allein starten“.
 
 **Im Spiel mit der Zugleiste oben**
 
@@ -122,30 +124,28 @@ Alle anderen sehen statt des Knopfs: „Warte, bis Lena startet …“
 
 - Oben im Spiel, in allen Tabs: „Tim ist dran“, die Restzeit und ein Balken, der abläuft.
 - **Bist du dran**, steht dort „Du bist dran!“ in der Akzentfarbe. Das Handy vibriert kurz, und es gibt einen Ton, wenn Töne an sind. Die App springt zum Würfel-Tab.
-- **In den letzten 10 Sekunden** wird der Balken rot. Auf Wunsch tickt es leise.
+- **Ab 10 Sekunden** werden Zeit und Balken rot und blinken. Wer dran ist, hört jede Sekunde ein leises Ticken. Die anderen sehen nur das Blinken.
 - **Würfel-Tab bei den anderen:** Man sieht die Würfel der Person, die dran ist, mit derselben Animation. Die Knöpfe sind gesperrt, dort steht z. B. „Tim würfelt …“.
 - **Block-Tab:** Die Spalte der Person, die dran ist, ist hervorgehoben. Deine Spalte trägt ein „Du“. Ein grauer Punkt zeigt, wer gerade keine Verbindung hat.
 
-## Zugzeit und Autopilot
+## Zugzeit
 
-- Der Host wählt in der Lobby 30, 60 oder 90 Sekunden. Vorschlag für den Standard: 60.
-- Die Zeit gilt für den ganzen Zug, also für alle drei Würfe und das Eintragen. Für die nächste Person startet sie neu.
-- Ein Countdown (Bonusspiel) bekommt danach eigene 30 Sekunden.
+- Jeder Zug hat 60 Sekunden, für alle drei Würfe und das Eintragen. Für die nächste Person startet die Zeit neu. Einstellen muss man nichts.
+- Das Ticken ist ein neuer Spielsound. Wie alle Töne entsteht er im Browser und folgt der Einstellung „Spielsounds“.
+- Wer im System „Bewegung reduzieren“ eingeschaltet hat, sieht kein Blinken. Die Zeit wird dann nur rot.
 
-**Läuft die Zeit ab, übernimmt der Autopilot:**
+**Ist die Zeit um**, streicht der Server ein zufälliges freies Feld. Dort steht dann eine 0, egal was die Würfel zeigen. Alle sehen kurz, was passiert ist, zum Beispiel: „Zeit um – bei Tim wurde die Große Straße gestrichen.“
 
-1. Noch nicht gewürfelt? Dann würfelt er einmal.
-2. Er trägt das freie Feld ein, das die meisten Punkte bringt.
-3. Bringt kein Feld Punkte, streicht er nach dem Tipp aus den Regeln ein Feld, das sowieso selten klappt, zuerst den Sechserpasch.
-4. Einen offenen Countdown würfelt er zu Ende. Dabei gibt es ohnehin nichts zu entscheiden.
+**Countdown (Vorschlag):** Hatte die Person im ersten Wurf 4 gleiche, darf sie den Countdown trotzdem spielen. Laut Regeln kommt er nach dem Eintragen, und ein gestrichenes Feld gilt als eingetragen. Für den Countdown gibt es eigene 30 Sekunden. Läuft diese Zeit ab, ist der Countdown vorbei, und die geschafften Stufen zählen.
 
-**Abwesend:** Wer zwei Züge hintereinander verpasst, gilt als abwesend. Dann macht der Autopilot deren Züge sofort, damit die anderen nicht jedes Mal warten müssen. Sobald die Person wieder verbunden ist, wartet das Spiel wieder auf sie.
+**Abwesend:** Wer zwei Züge hintereinander verpasst, gilt als abwesend. Dann streicht der Server bei dieser Person sofort, ohne die 60 Sekunden abzuwarten. So müssen die anderen nicht jedes Mal warten. Sobald die Person wieder verbunden ist, wartet das Spiel wieder auf sie.
 
 ### So läuft die Zeit technisch
 
 - Der Server speichert nur den Zeitpunkt, an dem der Zug endet (Deadline). Die Apps rechnen die Restzeit selbst aus. Jede Nachricht vom Server enthält seine Uhrzeit, darum stört eine falsch gehende Handy-Uhr nicht.
-- Verzögerte Aufgaben (KV-Queues) gibt es auf dem neuen Deno Deploy nicht. Darum löst den Autopilot aus, wer den Ablauf zuerst bemerkt: ein Timer auf dem Server oder eine App im Spiel, die „Zeit um“ meldet. Der Server prüft die Uhrzeit immer selbst.
-- Ein atomarer Check in Deno KV sorgt dafür, dass der Autopilot pro Zug genau einmal läuft, auch wenn es mehrere gleichzeitig versuchen.
+- Verzögerte Aufgaben (KV-Queues) gibt es auf dem neuen Deno Deploy nicht. Darum löst das Streichen aus, wer den Ablauf zuerst bemerkt: ein Timer auf dem Server oder eine App im Spiel, die „Zeit um“ meldet. Der Server prüft die Uhrzeit immer selbst.
+- Ein atomarer Check in Deno KV sorgt dafür, dass pro Zug genau einmal gestrichen wird, auch wenn es mehrere gleichzeitig versuchen.
+- Das Feld lost der Server mit derselben fairen Methode aus wie die Würfel.
 - Eine Sekunde Puffer: Ein Tipp in letzter Sekunde zählt auch bei langsamem Netz noch.
 - Ist niemand mehr verbunden, bleibt das Spiel einfach stehen.
 
@@ -160,7 +160,7 @@ Handys trennen die Verbindung oft, sobald der Bildschirm ausgeht oder man kurz e
 | Was passiert | Was dann |
 |---|---|
 | Internet kurz weg | Die App verbindet neu, die Zugzeit läuft weiter. |
-| Menü → „Zum Hauptmenü“ | Das Spiel läuft ohne dich weiter, bis du zurückkommst. Verpasste Züge macht der Autopilot. |
+| Menü → „Zum Hauptmenü“ | Das Spiel läuft ohne dich weiter, bis du zurückkommst. Bei jedem verpassten Zug wird ein zufälliges Feld gestrichen. |
 | Menü → „Spiel verlassen“ | Du bist raus, und deine Punkte sind weg. Vorher kommt eine Warnung, wie lokal beim Entfernen. |
 | Der Host geht | Die nächste Person wird Host. |
 | Alle sind weg | Das Spiel bleibt stehen. Nach 24 Stunden wird es gelöscht. |
@@ -173,7 +173,7 @@ Handys trennen die Verbindung oft, sobald der Bildschirm ausgeht oder man kurz e
 
 Den Tab „Online“ bei den Highscores gibt es schon als Platzhalter.
 
-- In die Liste kommen nur fertige Online-Spiele. Weil der Server würfelt, sind alle Punkte echt.
+- In die Liste kommen nur fertige Online-Spiele, auch Solo-Spiele. Weil der Server würfelt, sind alle Punkte echt.
 - Ein Eintrag besteht aus Spitzname, Punkten und Datum. Vorschlag: die Top 10 aller Zeiten.
 - Beim Spitznamen steht ein Hinweis: Er kann öffentlich in der Bestenliste stehen, also lieber nicht den vollen Namen nehmen.
 - In den Einstellungen gibt es „Meine Online-Einträge löschen“. Das klappt auch ohne Konto, über den Geräteschlüssel.
@@ -234,9 +234,9 @@ Von der App an den Server:
 | Nachricht | Wofür |
 |---|---|
 | `hello` | Verbinden, mit Protokollversion und Geräteschlüssel. Bringt dich zurück in dein Spiel. |
-| `create` | Lobby erstellen, mit Spitzname und Zugzeit |
+| `create` | Lobby erstellen, mit Spitzname |
 | `join` | Beitreten, mit Code und Spitzname |
-| `start`, `kick`, `settings` | Nur für den Host in der Lobby: starten, jemanden entfernen, Zugzeit ändern |
+| `start`, `kick` | Nur für den Host in der Lobby: starten, jemanden entfernen |
 | `roll`, `hold`, `enter` | Würfeln, einen Würfel halten oder loslassen, ein Feld eintragen |
 | `cdRoll` | Eine Stufe im Countdown würfeln |
 | `expired` | „Bei mir ist die Zeit um.“ Der Server prüft selbst. |
@@ -255,7 +255,7 @@ Jede Aktion schickt die Nummer des Stands mit, auf den sie sich bezieht. Ein dop
 
 | Schlüssel | Inhalt | Wie lange |
 |---|---|---|
-| `["room", "482913"]` | Lobby oder Spiel: Status, Host, Zugzeit, Personen, Block, Würfel, Countdown, Deadline | 1 Stunde ohne Start, sonst 24 Stunden nach der letzten Aktion |
+| `["room", "482913"]` | Lobby oder Spiel: Status, Host, Personen, Block, Würfel, Countdown, Deadline | 1 Stunde ohne Start, sonst 24 Stunden nach der letzten Aktion |
 | `["best", …]` | Online-Highscores. Die Punkte stecken im Schlüssel, so liefert KV die Liste schon sortiert. | dauerhaft |
 
 So könnte eine Lobby mitten im Spiel aussehen (Runde 3, Tim ist dran):
@@ -266,7 +266,6 @@ So könnte eine Lobby mitten im Spiel aussehen (Runde 3, Tim ist dran):
   code: '482913',
   status: 'playing',        // lobby | playing | done
   host: 'p1',
-  turnSec: 60,
   seq: 42,                  // zählt bei jeder Änderung hoch
   deadline: 1790000000000,  // Ende des aktuellen Zugs
   players: [
@@ -299,7 +298,7 @@ hexa/
 │   └── app.js                bekommt Anschlüsse für den Online-Modus
 └── server/                   neu
     ├── main.ts               Einstieg für Deno Deploy: WebSocket, Highscores
-    ├── game.ts               Spielablauf: würfeln, prüfen, Zugzeit, Autopilot
+    ├── game.ts               Spielablauf: würfeln, prüfen, Zugzeit, Streichen
     ├── store.ts              alles rund um Deno KV
     ├── deno.json             Befehle wie dev und test
     └── *_test.ts             Tests
@@ -313,7 +312,7 @@ hexa/
 
 ### Testen
 
-- `deno test`: Spielablauf mit festgelegten Würfeln, Zugzeit, Autopilot, Reihenfolge, Countdown und Verlassen.
+- `deno test`: Spielablauf mit festgelegten Würfeln, Zugzeit, Streichen bei Zeitablauf, Reihenfolge, Countdown und Verlassen.
 - Zwei simulierte Apps spielen gegen den lokalen Server (`deno task dev`).
 - Playwright: Zwei Browserfenster spielen ein ganzes Spiel.
 
@@ -322,7 +321,7 @@ hexa/
 0. **Technik-Check zuerst, klein:** ein Mini-Server auf Deno Deploy mit WebSocket und `kv.watch()`, dazu zwei Handys. Wir messen, wie schnell Änderungen ankommen und was beim Sperren des Bildschirms passiert. Lokal klappt alles schon. Offen ist nur, ob `kv.watch()` auf dem neuen Deno Deploy genauso läuft, denn beschrieben ist es bisher nur für die alte Plattform. Plan B wäre, dass die Apps regelmäßig nachfragen. Das kostet aber viel mehr Anfragen.
 1. **Spielablauf auf dem Server** (`game.ts`) mit Tests, noch ohne Netz.
 2. **Server fertig:** WebSocket, KV, Zugzeit, Wiederverbinden, Schutz vor Missbrauch.
-3. **App:** Online-Start, Lobby, Zugleiste, Spiel und Ergebnis. Alle Texte auf Deutsch und Englisch.
+3. **App:** Online-Start, Lobby, Zugleiste mit Blinken und Ticken, Spiel und Ergebnis. Alle Texte auf Deutsch und Englisch.
 4. **Online-Highscores.**
 5. **Vor dem Start:** Impressum, Datenschutz, AVV, Limits des kostenlosen Tarifs prüfen, README, Changelog, Release.
 
@@ -332,20 +331,20 @@ Später vielleicht: Handy-App, Push-Nachricht „Du bist dran“, Emoji-Reaktion
 
 - Konten, Passwörter, E-Mail-Adressen
 - Einladungslinks
+- Eigene Würfel im Online-Modus
+- Eine einstellbare Zugzeit
 - Chat, denn der bräuchte Moderation
 - Beitreten, wenn das Spiel schon läuft
 - Änderungen am lokalen Modus
 
 ## Offene Fragen
 
-1. **Online nur mit App-Würfeln?** Vorschlag: ja. Bei eigenen Würfeln kann der Server nichts prüfen, und die Bestenliste wäre wertlos.
-2. **Wie viele Personen pro Lobby?** Vorschlag: bis 6, sonst dauert ein Spiel sehr lange. Und darf man auch allein starten? Dann könnte man solo für die Online-Bestenliste spielen.
-3. **Zugzeit:** Passen 30, 60 und 90 Sekunden mit 60 als Standard? Soll es auch „ohne Limit“ geben? Dann bräuchte der Host einen Knopf, um abwesende Personen zu überspringen.
-4. **Autopilot:** das beste Feld eintragen? Oder lieber immer streichen, damit Zeitüberschreitungen wehtun?
-5. **Reihenfolge:** auslosen? Oder soll der Host sie in der Lobby festlegen können?
-6. **Code:** 6 Ziffern? Die sind auf dem Ziffernblock schnell getippt und auf Deutsch und Englisch gleich leicht vorzulesen. Die Alternative wären 4 Buchstaben wie `KXMP`.
-7. **Revanche:** Nach dem Spiel „Nochmal“ in derselben Lobby mit denselben Leuten?
-8. **Bestenliste:** nur „aller Zeiten“ oder zusätzlich „dieser Monat“?
+1. **Personen pro Lobby:** Ich plane mit höchstens 6, sonst dauert ein Spiel sehr lange. Passt das?
+2. **Countdown bei Zeitablauf:** Passt der [Vorschlag oben](#zugzeit) mit eigenen 30 Sekunden, bei dem die geschafften Stufen zählen?
+3. **Reihenfolge:** auslosen? Oder soll der Host sie in der Lobby festlegen können?
+4. **Code:** 6 Ziffern? Die sind auf dem Ziffernblock schnell getippt und auf Deutsch und Englisch gleich leicht vorzulesen. Die Alternative wären 4 Buchstaben wie `KXMP`.
+5. **Revanche:** Nach dem Spiel „Nochmal“ in derselben Lobby mit denselben Leuten?
+6. **Bestenliste:** nur „aller Zeiten“ oder zusätzlich „dieser Monat“?
 
 ## Quellen
 
