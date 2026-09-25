@@ -1,4 +1,4 @@
-/* HEXA – App: Spieler, Würfel, Spielblock, Countdown.
+/* HEXA – App: Startbildschirm, Spieler, Würfel, Spielblock, Countdown, Highscores.
    Braucht js/rules.js (window.HexaRules) und js/sound.js (window.HexaSound). */
 (() => {
   'use strict';
@@ -8,7 +8,7 @@
 
   /* ---------- Einstellungen ---------- */
   const KEY = 'hexa-spiel-v1';
-  const TABS = ['players', 'dice', 'block', 'rules'];
+  const TABS = ['dice', 'block', 'rules'];
   const PAIR = ['dice', 'block'];
   const WIDE = '(min-width: 1100px)';
   const PIPS = { 0: [], 1: [4], 2: [2, 6], 3: [2, 4, 6], 4: [0, 2, 6, 8], 5: [0, 2, 4, 6, 8], 6: [0, 2, 3, 5, 6, 8] };
@@ -30,6 +30,11 @@
     volume: svg('<path d="M11 4.702a.705.705 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.705.705 0 0 0 11 19.298z"/><path d="M16 9a5 5 0 0 1 0 6"/><path d="M19.364 18.364a9 9 0 0 0 0-12.728"/>'),
     dices: svg('<rect width="12" height="12" x="2" y="10" rx="2" ry="2"/><path d="m17.92 14 3.5-3.5a2.24 2.24 0 0 0 0-3l-5-4.92a2.24 2.24 0 0 0-3 0L10 6"/><path d="M6 18h.01"/><path d="M10 14h.01"/><path d="M15 6h.01"/><path d="M18 9h.01"/>'),
     language: svg('<path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/>'),
+    back: svg('<path d="m15 18-6-6 6-6"/>'),
+    phone: svg('<rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/>'),
+    pause: svg('<rect x="14" y="4" width="4" height="16" rx="1"/><rect x="6" y="4" width="4" height="16" rx="1"/>'),
+    trophy: svg('<path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/>'),
+    globe: svg('<circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/>'),
   };
 
   /* ---------- Helfer ---------- */
@@ -62,7 +67,8 @@
 
   /* ---------- Zustand (localStorage) ---------- */
   const freshDice = () => ({ vals: null, held: [false, false, false, false, false, false], rolls: 0, owner: null, ownerFilled: 0, cd: null });
-  const freshState = () => ({ v: 1, tab: 'dice', duo: false, players: [], scores: {}, cds: {}, dice: freshDice(), cdGame: null, gameId: uid(), history: {}, skipHist: null });
+  // started: Das Spiel läuft (sonst sieht man die Spieler-Auswahl). via: App-Würfel ('app') oder eigene Würfel ('own').
+  const freshState = () => ({ v: 1, tab: 'dice', duo: false, started: false, via: 'app', players: [], scores: {}, cds: {}, dice: freshDice(), cdGame: null, gameId: uid(), history: {}, skipHist: null });
 
   function normalize(raw) {
     const s = freshState();
@@ -74,6 +80,9 @@
         .filter(p => isObj(p) && typeof p.id === 'string')
         .map(p => ({ id: p.id, name: String(p.name || 'Spieler').slice(0, 20) }));
     }
+    // Ältere Spielstände kennen „started“ noch nicht: Wer Spieler hat, war mitten im Spiel.
+    s.started = s.players.length > 0 && (typeof raw.started === 'boolean' ? raw.started : true);
+    if (raw.via === 'own') s.via = 'own';
     if (isObj(raw.scores)) s.scores = raw.scores;
     if (isObj(raw.cds)) s.cds = raw.cds;
     if (isObj(raw.history)) s.history = raw.history;
@@ -167,6 +176,11 @@
     return !!p && filled(p.id) > d.ownerFilled;
   }
   const cdPending = () => !!(state.dice.cd && !state.dice.cd.played);
+  // Alle Felder voll und kein Countdown mehr offen: Jetzt kann das Spiel beendet werden.
+  const gameDone = () => isOver() && !cdPending();
+  // Ist im Spiel schon etwas passiert? Sonst geht nichts verloren, wenn man es verlässt.
+  const gameTouched = () => anyScores() || state.dice.rolls > 0 || !!state.cdGame;
+  const viaTab = () => (state.via === 'own' ? 'block' : 'dice');
 
   // Ein Wurf gehört immer zu jemandem, der gerade mitspielt. Ein Wurf aus dem
   // freien Würfeln oder von einer entfernten Person wird verworfen, damit das
@@ -198,10 +212,10 @@
     Object.keys(state.history).forEach(k => {
       const g = state.history[k];
       if (isObj(g) && Array.isArray(g.r)) {
-        g.r.forEach(r => { if (isObj(r) && typeof r.s === 'number') out.push({ n: String(r.n || ''), s: r.s, t: g.t || 0 }); });
+        g.r.forEach(r => { if (isObj(r) && typeof r.s === 'number') out.push({ n: String(r.n || ''), s: r.s, t: g.t || 0, g: k }); });
       }
     });
-    return out.sort((a, b) => b.s - a.s || a.t - b.t).slice(0, 5);
+    return out.sort((a, b) => b.s - a.s || a.t - b.t).slice(0, 10);
   }
 
   /* ---------- Darstellung ---------- */
@@ -221,14 +235,23 @@
   // und die Ansicht eingeschaltet wurde.
   const wideMQ = window.matchMedia ? window.matchMedia(WIDE) : null;
   const canDuo = () => !!(wideMQ && wideMQ.matches);
-  const duoOn = () => canDuo() && !!state.duo && PAIR.indexOf(state.tab) >= 0;
+  const duoOn = () => canDuo() && !!state.duo && state.started && PAIR.indexOf(state.tab) >= 0;
   let shownDuo = false;
 
+  // Startbildschirm, Spieler-Auswahl oder laufendes Spiel mit Leiste unten
+  function syncFrame() {
+    $('#start').hidden = !atStart;
+    $('.app').hidden = atStart;
+    $('.tabbar').hidden = atStart || !state.started;
+  }
+
   function render() {
+    const setup = !state.started;
     const duo = duoOn();
     shownDuo = duo;
+    syncFrame();
     $('.app').classList.toggle('duo', duo);
-    const shown = name => name === state.tab || (duo && PAIR.indexOf(name) >= 0);
+    const shown = name => (setup ? name === 'players' : name === state.tab || (duo && PAIR.indexOf(name) >= 0));
     $$('.view').forEach(v => { v.hidden = !shown(v.dataset.view); });
     $$('.tab').forEach(t => {
       const on = shown(t.dataset.tab);
@@ -237,7 +260,7 @@
       else t.removeAttribute('aria-current');
     });
     renderTop();
-    if (state.tab === 'players') renderPlayers();
+    if (setup) renderPlayers();
     if (shown('dice')) renderDice();
     if (shown('block')) renderBlock();
   }
@@ -247,7 +270,7 @@
     // Drei Längen, je nach Platz in der Kopfzeile
     const fit = (l, m, s) => `<span class="st-l">${l}</span><span class="st-m">${m}</span><span class="st-s">${s}</span>`;
     const r = roundNo();
-    if (!state.players.length) el.innerHTML = '';
+    if (!state.players.length || !state.started) el.innerHTML = '';
     else if (isOver()) el.innerHTML = fit('Spiel beendet', 'Beendet', 'Ende');
     else el.innerHTML = fit('Runde ' + r + ' von ' + NF, 'Runde ' + r + '/' + NF, r + '/' + NF);
     $('#cdBadge').hidden = !cdPending();
@@ -265,16 +288,14 @@
     });
   }
 
+  // Spieler-Auswahl vor dem Spiel: Namen, Reihenfolge und womit gewürfelt wird
   function renderPlayers() {
     const root = $('#view-players');
     const P = state.players;
-    const started = anyScores();
-    const canRestart = started || state.dice.rolls > 0 || !!state.cdGame;
     const rows = P.map((p, i) => `
       <li class="prow">
         <span class="pnum">${i + 1}</span>
         <input class="pname" type="text" value="${esc(p.name)}" data-pid="${p.id}" maxlength="20" autocomplete="off" spellcheck="false" enterkeyhint="done" aria-label="Name von Person ${i + 1}">
-        ${started ? `<span class="ppts">${totals(p.id).total} Pkt.</span>` : ''}
         <span class="pacts">
           <button type="button" class="ibtn" data-act="up" data-pid="${p.id}" aria-label="${esc(p.name)} nach oben"${i === 0 ? ' disabled' : ''}>${ICON.up}</button>
           <button type="button" class="ibtn" data-act="down" data-pid="${p.id}" aria-label="${esc(p.name)} nach unten"${i === P.length - 1 ? ' disabled' : ''}>${ICON.down}</button>
@@ -282,38 +303,42 @@
         </span>
       </li>`).join('');
 
-    const recs = records();
-    const recHTML = recs.length
-      ? `<ol class="rec">${recs.map((r, i) => `<li><span class="rn">${i + 1}.</span><span class="rname">${esc(r.n)}<small>${fmtDate(r.t)}</small></span><span class="rs">${r.s}</span></li>`).join('')}</ol>
-         <button type="button" class="btn btn-quiet" data-act="clear-records">Bestenliste leeren</button>`
-      : '<p class="muted">Nach dem ersten kompletten Spiel stehen hier die besten Ergebnisse.</p>';
-
     const listHTML = P.length
-      ? `<ol class="plist">${rows}</ol>
-         <div class="pbtns">
-           <button type="button" class="btn btn-pen" data-act="tab" data-tab="dice">Zum Würfeln</button>
-           <button type="button" class="btn btn-line" data-act="new-game"${canRestart ? '' : ' disabled'}>Neues Spiel</button>
-         </div>`
+      ? `<ol class="plist">${rows}</ol>`
       : `<div class="empty-box">
            <p><b>So spielst du mit der App</b></p>
            <ol>
              <li>Trag oben alle Namen ein.</li>
-             <li>Würfle im Bereich Würfel. Tippe die Würfel an, die liegen bleiben sollen.</li>
-             <li>Trag dein Ergebnis direkt unter den Würfeln ein oder im Block.</li>
+             <li>Wähle, ob ihr mit der App oder mit euren eigenen Würfeln spielt.</li>
+             <li>Die App führt den Spielblock und rechnet alles aus.</li>
            </ol>
          </div>`;
 
+    const off = P.length ? '' : ' disabled';
     root.innerHTML = `
-      <h1 class="h-view">Wer spielt mit?</h1>
+      <button type="button" class="back" data-act="home">${ICON.back}<span>Hauptmenü</span></button>
+      <h1 class="h-view" tabindex="-1">Wer spielt mit?</h1>
       <p class="lead">Die jüngste Person beginnt. Mit den Pfeilen änderst du die Reihenfolge.</p>
       <div class="add">
         <input id="newName" class="input" type="text" maxlength="20" placeholder="Name" autocomplete="off" spellcheck="false" enterkeyhint="done" aria-label="Name der neuen Person">
         <button type="button" class="btn btn-pen" data-act="add">Hinzufügen</button>
       </div>
       ${listHTML}
-      <section class="records" aria-label="Bestenliste">
-        <h2 class="h-sec">Bestenliste</h2>
-        ${recHTML}
+      <section class="via" aria-labelledby="via-h">
+        <h2 class="h-sec" id="via-h">Womit würfelt ihr?</h2>
+        <p class="via-note" id="via-note">${P.length ? 'Den Würfel-Tab habt ihr in beiden Fällen dabei.' : 'Trag zuerst mindestens eine Person ein.'}</p>
+        <div class="choices">
+          <button type="button" class="choice" data-act="start-game" data-via="app" aria-describedby="via-note"${off}>
+            <span class="choice-ic">${ICON.phone}</span>
+            <span class="choice-tx"><span class="choice-t">Mit der App</span><span class="choice-s">Die App würfelt für euch</span></span>
+            ${ICON.chev}
+          </button>
+          <button type="button" class="choice" data-act="start-game" data-via="own" aria-describedby="via-note"${off}>
+            <span class="choice-ic">${ICON.dices}</span>
+            <span class="choice-tx"><span class="choice-t">Mit eigenen Würfeln</span><span class="choice-s">Ihr würfelt selbst, die App führt den Block</span></span>
+            ${ICON.chev}
+          </button>
+        </div>
       </section>`;
   }
 
@@ -351,9 +376,11 @@
     else if (!idle && owner) who = owner.name + ' ist dran';
     else who = cur.name + ' ist dran';
 
+    // Im Nebeneinander steht der Kasten zum Spielende nur über dem Block.
+    const endHTML = gameDone() && !duoOn() ? endCard('Im Block könnt ihr vorher alles noch einmal prüfen.') : '';
+    if (!cur && !endHTML) sub = 'Alle Runden sind gespielt.';
     let subHTML = sub ? `<div class="who-sub">${esc(sub)}</div>` : '';
-    if (!hasP) subHTML = '<div class="who-sub">Ohne Spieler wird nichts eingetragen. <button type="button" class="link" data-act="tab" data-tab="players">Spieler hinzufügen</button></div>';
-    else if (!cur) subHTML = '<div class="who-sub">Das Ergebnis steht im Block. <button type="button" class="link" data-act="tab" data-tab="block">Zum Ergebnis</button></div>';
+    if (!hasP) subHTML = '<div class="who-sub">Ohne Spieler wird nichts eingetragen.</div>';
 
     const fresh = idle || done;
     const meter = `<div class="meter"><span class="meter-l">${fresh ? '3 Würfe' : 'Wurf ' + d.rolls + ' von 3'}</span><span class="meter-b" aria-hidden="true">${[0, 1, 2].map(i => `<i${!fresh && i < d.rolls ? ' class="on"' : ''}></i>`).join('')}</span></div>`;
@@ -411,7 +438,7 @@
         </section>`;
     }
 
-    root.innerHTML = `
+    root.innerHTML = `${endHTML}
       <div class="turnbar"><div class="turn-who"><div class="who">${esc(who)}</div>${subHTML}</div>${meter}</div>
       <div class="tray">
         <div class="dice">${dice}</div>
@@ -435,6 +462,15 @@
     b.disabled = rs.off;
   }
 
+  // Kasten über Würfeln und Block, sobald alle Runden gespielt sind
+  function endCard(note) {
+    return `<section class="end" aria-label="Spielende">
+        <h2>Alle Runden gespielt</h2>
+        <p>${esc(note)}</p>
+        <button type="button" class="btn btn-pen" data-act="end-game">${ICON.trophy}<span>Spiel beenden</span></button>
+      </section>`;
+  }
+
   let padScroll = 0;
   function renderBlock() {
     const root = $('#view-block');
@@ -443,8 +479,8 @@
       root.innerHTML = `
         <div class="empty-box">
           <p><b>Noch keine Spieler</b></p>
-          <p>Trag zuerst ein, wer mitspielt. Dann bekommt jede Person hier ihre eigene Spalte.</p>
-          <button type="button" class="btn btn-pen" data-act="tab" data-tab="players">Spieler hinzufügen</button>
+          <p>Starte im Hauptmenü ein neues Spiel und trag ein, wer mitspielt.</p>
+          <button type="button" class="btn btn-pen" data-act="menu">Zum Hauptmenü</button>
         </div>`;
       return;
     }
@@ -453,7 +489,6 @@
     P.forEach(p => { T[p.id] = totals(p.id); });
     const best = Math.max.apply(null, P.map(p => T[p.id].total));
     const started = anyScores();
-    const over = isOver();
     const turn = p => (cur && cur.id === p.id ? ' is-turn' : '');
 
     const lab = (name, sub, icon) => `<div class="p-lab">${icon || ''}<span class="p-lt"><span class="p-nm">${name}</span>${sub ? `<span class="p-rq">${sub}</span>` : ''}</span></div>`;
@@ -485,42 +520,18 @@
     }).join('')}</div>`;
     rows += `<div class="p-row total">${lab('Endstand')}${P.map(p => val(p, T[p.id].total, started && best > 0 && T[p.id].total === best ? 'is-lead' : '')).join('')}</div>`;
 
-    let endHTML = '';
-    if (over) {
-      const ranking = P.map(p => ({ p, s: T[p.id].total })).sort((a, b) => b.s - a.s);
-      const top = ranking[0].s;
-      const winners = ranking.filter(r => r.s === top).map(r => r.p.name);
-      let place = 0;
-      let last = null;
-      const items = ranking.map((r, i) => {
-        if (r.s !== last) { place = i + 1; last = r.s; }
-        return `<li><span class="pl">${place}.</span><span class="pn">${esc(r.p.name)}</span><span class="ps">${r.s}</span></li>`;
-      }).join('');
-      let title;
-      let note;
-      if (P.length === 1) {
-        title = top + ' Punkte';
-        note = top >= 300 ? 'Das liegt über dem Richtwert von rund 300 Punkten.' : 'Richtwert für ein ordentliches Spiel: rund 300 Punkte.';
-      } else if (winners.length > 1) {
-        title = 'Gleichstand';
-        note = nameList(winners) + ' teilen sich den Sieg mit ' + top + ' Punkten.';
-      } else {
-        title = winners[0] + ' gewinnt';
-        note = 'Mit ' + top + ' Punkten.';
-      }
-      endHTML = `<section class="end" aria-label="Ergebnis"><h2>${esc(title)}</h2><p>${esc(note)}</p>${P.length > 1 ? `<ol class="rank">${items}</ol>` : ''}<button type="button" class="btn btn-pen" data-act="new-game">Neues Spiel starten</button></section>`;
-    }
+    const endHTML = gameDone() ? endCard('Prüft den Block noch einmal. Danach seht ihr das Ergebnis.') : '';
 
     root.innerHTML = `${endHTML}
       <div class="pad" style="--n:${P.length};--pcols:repeat(${P.length}, minmax(var(--cw), 1fr))">
         <div class="pad-top" aria-hidden="true"></div>
         <div class="pad-head">
           <div class="pad-corner"></div>
-          <div class="pad-vp"><div class="pad-names">${P.map(p => `<div class="pad-name${turn(p)}" title="${esc(p.name)}">${esc(p.name)}</div>`).join('')}</div></div>
+          <div class="pad-vp"><div class="pad-names">${P.map(p => `<button type="button" class="pad-name${turn(p)}" data-act="player" data-pid="${p.id}" title="${esc(p.name)}" aria-label="${esc(p.name)} umbenennen oder entfernen">${esc(p.name)}</button>`).join('')}</div></div>
         </div>
         <div class="p-body"><div class="p-grid">${rows}</div></div>
       </div>
-      <p class="pad-hint">Tippe auf ein Feld, um Punkte einzutragen oder zu ändern.</p>`;
+      <p class="pad-hint">Tippe auf ein Feld, um Punkte einzutragen oder zu ändern. Über einen Namen kannst du die Person umbenennen oder entfernen.</p>`;
 
     const body = $('.p-body', root);
     const track = $('.pad-names', root);
@@ -624,6 +635,7 @@
     hideCountdown();
     save();
     render();
+    if (atStart) renderStart();
     toast('Rückgängig gemacht');
   }
 
@@ -1017,17 +1029,19 @@
   }
 
   /* ---------- Spieler ---------- */
+  const cleanName = v => String(v).replace(/\s+/g, ' ').trim().slice(0, 20);
+  function shake(inp) {
+    inp.classList.remove('shake');
+    void inp.offsetWidth;
+    inp.classList.add('shake');
+    inp.focus();
+  }
+
   function addPlayer() {
     const inp = $('#newName');
     if (!inp) return;
-    const name = inp.value.replace(/\s+/g, ' ').trim().slice(0, 20);
-    if (!name) {
-      inp.classList.remove('shake');
-      void inp.offsetWidth;
-      inp.classList.add('shake');
-      inp.focus();
-      return;
-    }
+    const name = cleanName(inp.value);
+    if (!name) { shake(inp); return; }
     state.players.push({ id: uid(), name });
     dropStrayRoll();
     save();
@@ -1044,7 +1058,9 @@
     state.players = state.players.filter(x => x.id !== pid);
     delete state.scores[pid];
     delete state.cds[pid];
+    if (!state.players.length) state.started = false;
     dropStrayRoll();
+    closeSheet();
     save();
     render();
     toast(p.name + ' entfernt', snap);
@@ -1066,47 +1082,240 @@
     }
   }
 
-  function confirmNewGame() {
+  // Im Spiel: Namen im Block antippen, um die Person umzubenennen oder zu entfernen
+  function openPlayerSheet(pid) {
+    const p = playerById(pid);
+    if (!p) return;
+    const alone = state.players.length < 2;
     openSheet(`
-      <h3 class="s-title">Neues Spiel starten?</h3>
-      <p class="s-note">Alle Punkte werden gelöscht und die Würfel zurückgesetzt. Die Spieler bleiben dabei.</p>
+      <h3 class="s-title">${esc(p.name)}</h3>
+      <label class="s-lab" for="renameInp">Name</label>
+      <input id="renameInp" class="input" type="text" maxlength="20" value="${esc(p.name)}" autocomplete="off" spellcheck="false" enterkeyhint="done">
       <div class="s-acts">
-        <button type="button" class="btn btn-danger" data-act="sheet-do" data-do="ok">Neues Spiel starten</button>
+        <button type="button" class="btn btn-pen" data-act="sheet-do" data-do="save">Speichern</button>
+        ${alone ? '' : `<button type="button" class="btn btn-line btn-warn" data-act="sheet-do" data-do="remove">Aus dem Spiel entfernen</button>`}
         <button type="button" class="btn btn-quiet" data-act="sheet-close">Abbrechen</button>
+      </div>
+      ${alone ? '<p class="s-fine">Allein kannst du dich nicht entfernen. Zum Aufhören tippe unten auf Menü und brich das Spiel ab.</p>' : ''}`, {
+      save: () => renamePlayer(pid),
+      remove: () => askRemove(pid),
+    }, 'Spieler bearbeiten');
+  }
+
+  function renamePlayer(pid) {
+    const p = playerById(pid);
+    const inp = $('#renameInp');
+    if (!p || !inp) return;
+    const name = cleanName(inp.value);
+    if (!name) { shake(inp); return; }
+    closeSheet();
+    if (name === p.name) return;
+    const snap = snapshot();
+    const old = p.name;
+    p.name = name;
+    save();
+    render();
+    toast(old + ' heißt jetzt ' + name, snap);
+  }
+
+  // Stehen schon Punkte im Block, wird vorher nachgefragt.
+  function askRemove(pid) {
+    const p = playerById(pid);
+    if (!p || state.players.length < 2) return;
+    const n = filled(pid);
+    if (!n && !cdList(pid).length) { removePlayer(pid); return; }
+    const what = n ? n + (n === 1 ? ' Feld' : ' Felder') : 'ein Countdown';
+    openSheet(`
+      <h3 class="s-title">${esc(p.name)} entfernen?</h3>
+      <p class="s-note">Für ${esc(p.name)} ist schon etwas eingetragen (${what}, ${totals(pid).total} Punkte). Beim Entfernen werden diese Einträge gelöscht.</p>
+      <div class="s-acts">
+        <button type="button" class="btn btn-danger" data-act="sheet-do" data-do="ok">Entfernen und Punkte löschen</button>
+        <button type="button" class="btn btn-quiet" data-act="sheet-do" data-do="back">Abbrechen</button>
       </div>`, {
-      ok: () => {
+      ok: () => removePlayer(pid),
+      back: () => openPlayerSheet(pid),
+    }, 'Spieler entfernen');
+  }
+
+  /* ---------- Spiel starten, pausieren, beenden ---------- */
+  // Punkte, Würfel und Countdown zurücksetzen. Die Spieler bleiben dabei.
+  function clearGame() {
+    state.scores = {};
+    state.cds = {};
+    state.dice = freshDice();
+    state.cdGame = null;
+    state.gameId = uid();
+  }
+
+  function focusView() {
+    const el = state.started ? $('.tab.on') : $('#view-players .h-view');
+    if (el) { try { el.focus({ preventScroll: true }); } catch (e) { /* egal */ } }
+  }
+
+  // Mit App-Würfeln geht es zum Würfeln, mit eigenen Würfeln direkt in den Block.
+  function startGame(via) {
+    if (!state.players.length) return;
+    state.via = via === 'own' ? 'own' : 'app';
+    state.started = true;
+    state.tab = viaTab();
+    state.dice = freshDice();
+    state.cdGame = null;
+    save();
+    render();
+    try { window.scrollTo(0, 0); } catch (e) { /* egal */ }
+    focusView();
+  }
+
+  // „Menü“ unten in der Leiste und das Logo oben
+  function openMenu() {
+    if (!state.started) { showStart(); return; }
+    // Noch nichts gewürfelt oder eingetragen: Beim nächsten Mal geht es wieder zur Spieler-Auswahl.
+    if (!gameTouched()) { state.started = false; save(); showStart(); return; }
+    if (gameDone()) { openResult(); return; }
+    openPause();
+  }
+
+  function openPause() {
+    const over = isOver();   // Alle Felder voll, nur der Countdown ist noch offen
+    const choice = (act, cls, icon, title, sub) => `
+          <button type="button" class="choice${cls}" data-act="sheet-do" data-do="${act}">
+            <span class="choice-ic">${ICON[icon]}</span>
+            <span class="choice-tx"><span class="choice-t">${title}</span><span class="choice-s">${sub}</span></span>
+          </button>`;
+    openSheet(`
+      <h3 class="s-title">Zurück ins Hauptmenü?</h3>
+      <p class="s-note">${over ? 'Alle Runden sind gespielt, nur der Countdown ist noch offen.' : 'Ihr seid in Runde ' + roundNo() + ' von ' + NF + '.'}</p>
+      <div class="choices">
+        ${choice('pause', '', 'pause', 'Pausieren', 'Das Spiel bleibt gespeichert. Im Menü geht es mit „Lokal“ weiter.')}
+        ${over ? '' : choice('abort', ' choice-danger', 'x', 'Spiel abbrechen', 'Alle Punkte werden gelöscht. Es gibt keinen Highscore.')}
+      </div>
+      <div class="s-acts"><button type="button" class="btn btn-quiet" data-act="sheet-close">Zurück zum Spiel</button></div>`, {
+      pause: () => showStart(),
+      abort: () => {
         const snap = snapshot();
-        state.scores = {};
-        state.cds = {};
-        state.dice = freshDice();
-        state.cdGame = null;
-        state.gameId = uid();
-        closeSheet();
+        clearGame();
+        state.started = false;
         save();
-        render();
-        toast('Neues Spiel gestartet', snap);
+        showStart();
+        toast('Spiel abgebrochen', snap);
       },
+    }, 'Zurück ins Hauptmenü');
+  }
+
+  // Ergebnis am Ende: Platzierung aller Personen. Die Punkte stehen dann schon in den Highscores.
+  function openResult() {
+    const P = state.players;
+    if (!P.length || !isOver()) return;
+    syncHistory();
+    const ranking = P.map(p => ({ p, s: totals(p.id).total })).sort((a, b) => b.s - a.s);
+    const top = ranking[0].s;
+    const winners = ranking.filter(r => r.s === top).map(r => r.p.name);
+    // Neuer Rekord: Das beste Ergebnis aller Zeiten stammt aus diesem Spiel (und es gab schon frühere).
+    const recs = records();
+    const record = recs.length && recs[0].g === state.gameId && Object.keys(state.history).length > 1 ? recs[0].s : null;
+    const recChip = '<span class="chip chip-rec">Neuer Rekord</span>';
+    let place = 0;
+    let last = null;
+    const items = ranking.map((r, i) => {
+      if (r.s !== last) { place = i + 1; last = r.s; }
+      return `<li${place === 1 ? ' class="win"' : ''}><span class="pl">${place}.</span><span class="pn">${esc(r.p.name)}${r.s === record ? recChip : ''}</span><span class="ps">${r.s}</span></li>`;
+    }).join('');
+    let title;
+    let note;
+    if (P.length === 1) {
+      title = top + ' Punkte';
+      note = top >= 300 ? 'Das liegt über dem Richtwert von rund 300 Punkten.' : 'Richtwert für ein ordentliches Spiel: rund 300 Punkte.';
+    } else if (winners.length > 1) {
+      title = 'Gleichstand';
+      note = nameList(winners) + ' teilen sich den Sieg mit ' + top + ' Punkten.';
+    } else {
+      title = winners[0] + ' gewinnt';
+      note = 'Mit ' + top + ' Punkten.';
+    }
+    const saved = state.skipHist === state.gameId
+      ? 'Dieses Spiel steht nicht in den Highscores, weil die Liste gerade geleert wurde.'
+      : (P.length === 1 ? 'Das Ergebnis steht' : 'Die Ergebnisse stehen') + ' in den Highscores. Gespeichert wird nur auf diesem Gerät.';
+    openSheet(`
+      <div class="res-top"><span class="res-ic">${ICON.trophy}</span>${P.length === 1 && record !== null ? recChip : ''}</div>
+      <h3 class="s-title">${esc(title)}</h3>
+      <p class="s-note">${esc(note)}</p>
+      ${P.length > 1 ? `<ol class="rank">${items}</ol>` : ''}
+      <p class="saved">${ICON.phone}<span>${saved}</span></p>
+      <div class="s-acts">
+        <button type="button" class="btn btn-pen" data-act="sheet-do" data-do="menu">Zum Hauptmenü</button>
+        <button type="button" class="btn btn-line" data-act="sheet-do" data-do="again">Nochmal spielen</button>
+        <button type="button" class="btn btn-quiet" data-act="sheet-close">Schließen</button>
+      </div>`, {
+      menu: () => endGame(false),
+      again: () => endGame(true),
+    }, 'Ergebnis');
+  }
+
+  // Spiel abschließen. „Nochmal spielen“ startet gleich ein neues mit denselben Personen.
+  function endGame(again) {
+    if (!isOver()) return;
+    syncHistory();
+    const snap = snapshot();
+    clearGame();
+    state.started = !!again;
+    if (again) state.tab = viaTab();
+    save();
+    if (!again) { showStart(); return; }
+    closeSheet();
+    render();
+    try { window.scrollTo(0, 0); } catch (e) { /* egal */ }
+    toast('Neues Spiel gestartet', snap);
+  }
+
+  /* ---------- Highscores ---------- */
+  function openHighscores(tab) {
+    const on = tab === 'online' ? 'online' : 'local';
+    const recs = records();
+    const local = recs.length
+      ? `<ol class="rec">${recs.map((r, i) => `<li><span class="rn">${i + 1}.</span><span class="rname">${esc(r.n)}<small>${fmtDate(r.t)}</small></span><span class="rs">${r.s}</span></li>`).join('')}</ol>
+         <p class="saved">${ICON.phone}<span>Die zehn besten Ergebnisse, nur auf diesem Gerät gespeichert.</span></p>
+         <button type="button" class="btn btn-quiet hs-clear" data-act="sheet-do" data-do="clear">Liste leeren</button>`
+      : `<div class="hs-empty"><span class="hs-ic">${ICON.trophy}</span><p><b>Noch keine Highscores</b></p><p>Nach dem ersten kompletten Spiel stehen hier die zehn besten Ergebnisse.</p></div>`;
+    const online = `<div class="hs-empty"><span class="hs-ic">${ICON.globe}</span><p><b>Online-Highscores kommen bald</b></p><p>Sobald man online spielen kann, seht ihr hier die Besten von überall.</p><span class="chip">Bald verfügbar</span></div>`;
+    const tabBtn = (id, label) => `<button type="button" class="seg-b" role="tab" id="hs-t-${id}" aria-controls="hs-p-${id}" aria-selected="${on === id}" tabindex="${on === id ? 0 : -1}" data-act="hs-tab" data-v="${id}">${label}</button>`;
+    openSheet(`
+      <h3 class="s-title">Highscores</h3>
+      <div class="seg seg-tabs" role="tablist" aria-label="Highscores">${tabBtn('local', 'Lokal')}${tabBtn('online', 'Online')}</div>
+      <div class="hs-panel" role="tabpanel" id="hs-p-local" aria-labelledby="hs-t-local"${on === 'local' ? '' : ' hidden'}>${local}</div>
+      <div class="hs-panel" role="tabpanel" id="hs-p-online" aria-labelledby="hs-t-online"${on === 'online' ? '' : ' hidden'}>${online}</div>
+      <div class="s-acts"><button type="button" class="btn btn-pen" data-act="sheet-close">Fertig</button></div>`, {
+      clear: confirmClearRecords,
+    }, 'Highscores');
+  }
+
+  function setHsTab(tab, focus) {
+    $$('#sheet [role="tab"]').forEach(b => {
+      const on = b.dataset.v === tab;
+      b.setAttribute('aria-selected', on ? 'true' : 'false');
+      b.tabIndex = on ? 0 : -1;
+      if (on && focus) b.focus();
     });
+    $$('#sheet .hs-panel').forEach(p => { p.hidden = p.id !== 'hs-p-' + tab; });
   }
 
   function confirmClearRecords() {
     openSheet(`
-      <h3 class="s-title">Bestenliste leeren?</h3>
-      <p class="s-note">Alle gespeicherten Ergebnisse werden gelöscht.</p>
+      <h3 class="s-title">Highscores leeren?</h3>
+      <p class="s-note">Alle gespeicherten Ergebnisse auf diesem Gerät werden gelöscht.</p>
       <div class="s-acts">
-        <button type="button" class="btn btn-danger" data-act="sheet-do" data-do="ok">Bestenliste leeren</button>
-        <button type="button" class="btn btn-quiet" data-act="sheet-close">Abbrechen</button>
+        <button type="button" class="btn btn-danger" data-act="sheet-do" data-do="ok">Highscores leeren</button>
+        <button type="button" class="btn btn-quiet" data-act="sheet-do" data-do="back">Abbrechen</button>
       </div>`, {
       ok: () => {
         const snap = snapshot();
         state.history = {};
         state.skipHist = state.gameId;
-        closeSheet();
         save();
-        render();
-        toast('Bestenliste geleert', snap);
+        openHighscores('local');
+        toast('Highscores geleert', snap);
       },
-    });
+      back: () => openHighscores('local'),
+    }, 'Highscores leeren');
   }
 
   /* ---------- Design: hell, dunkel oder automatisch ---------- */
@@ -1298,7 +1507,7 @@
   /* ---------- Startbildschirm ---------- */
   function renderStart() {
     const sub = $('#localSub');
-    if (!state.players.length) sub.textContent = 'Ein Gerät, reihum spielen';
+    if (!state.started) sub.textContent = 'Ein Gerät, reihum spielen';
     else if (isOver()) sub.textContent = 'Spiel beendet · Ergebnis ansehen';
     else sub.textContent = 'Weiterspielen · Runde ' + roundNo() + ' von ' + NF;
   }
@@ -1319,9 +1528,7 @@
     hideCountdown();
     atStart = true;
     renderStart();
-    $('.app').hidden = true;
-    $('.tabbar').hidden = true;
-    $('#start').hidden = false;
+    syncFrame();
     syncSky();
     rollStartDice();
     syncTheme();
@@ -1329,19 +1536,16 @@
     try { b.focus({ preventScroll: true }); } catch (e) { /* egal */ }
   }
 
+  // Läuft ein Spiel, geht es direkt weiter. Sonst kommt zuerst die Spieler-Auswahl.
   function enterLocal() {
     atStart = false;
-    // Noch niemand dabei: zuerst die Spieler eintragen
-    if (!state.players.length && state.tab !== 'rules') { state.tab = 'players'; save(); }
-    $('#start').hidden = true;
-    $('.app').hidden = false;
-    $('.tabbar').hidden = false;
     syncSky();
     render();
     syncTheme();
     try { window.scrollTo(0, 0); } catch (e) { /* egal */ }
-    const tab = $('.tab.on');
-    if (tab) { try { tab.focus({ preventScroll: true }); } catch (e) { /* egal */ } }
+    focusView();
+    // Beendetes Spiel, das noch nicht abgeschlossen wurde: gleich das Ergebnis zeigen
+    if (state.started && gameDone()) openResult();
   }
 
   function setTab(tab) {
@@ -1384,6 +1588,9 @@
       case 'duo': toggleDuo(); break;
       case 'local': enterLocal(); break;
       case 'home': showStart(); break;
+      case 'menu': openMenu(); break;
+      case 'scores': openHighscores(); break;
+      case 'hs-tab': setHsTab(t.dataset.v); break;
       case 'settings': openSettings(); break;
       case 'set-theme': setTheme(t.dataset.v); break;
       case 'set-sound': toggleChannel(t.dataset.ch); break;
@@ -1396,11 +1603,12 @@
       case 'cell': openFieldSheet(t.dataset.pid, t.dataset.key); break;
       case 'cd-cell': openCdSheet(t.dataset.pid); break;
       case 'add': addPlayer(); break;
+      case 'start-game': startGame(t.dataset.via); break;
+      case 'player': openPlayerSheet(t.dataset.pid); break;
+      case 'end-game': openResult(); break;
       case 'up': movePlayer(t.dataset.pid, -1); break;
       case 'down': movePlayer(t.dataset.pid, 1); break;
       case 'remove': removePlayer(t.dataset.pid); break;
-      case 'new-game': confirmNewGame(); break;
-      case 'clear-records': confirmClearRecords(); break;
       case 'cd-open': startCountdown(); break;
       case 'cd-roll': cdRoll(); break;
       case 'cd-pick': cdPick = t.dataset.pid; renderCountdown(); break;
@@ -1467,8 +1675,15 @@
       return;
     }
     if (shortcut(e)) return;
+    // Pfeiltasten wechseln zwischen den Tabs der Highscores
+    if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && t && t.getAttribute && t.getAttribute('role') === 'tab') {
+      e.preventDefault();
+      setHsTab(t.dataset.v === 'local' ? 'online' : 'local', true);
+      return;
+    }
     if (e.key !== 'Enter' || !t) return;
     if (t.id === 'newName') { e.preventDefault(); addPlayer(); }
+    else if (t.id === 'renameInp') { e.preventDefault(); if (sheetFns.save) sheetFns.save(); }
     else if (t.classList && t.classList.contains('pname')) { e.preventDefault(); t.blur(); }
   });
 
@@ -1487,7 +1702,7 @@
     if (!t || !t.classList || !t.classList.contains('pname')) return;
     const p = playerById(t.dataset.pid);
     if (!p) return;
-    const v = t.value.replace(/\s+/g, ' ').trim().slice(0, 20);
+    const v = cleanName(t.value);
     if (v) { p.name = v; save(); }
   });
 
@@ -1501,7 +1716,7 @@
     if (!t || !t.classList || !t.classList.contains('pname')) return;
     const p = playerById(t.dataset.pid);
     if (!p) return;
-    const v = t.value.replace(/\s+/g, ' ').trim().slice(0, 20);
+    const v = cleanName(t.value);
     if (v) p.name = v;
     t.value = p.name;
     save();

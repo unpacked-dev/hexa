@@ -51,7 +51,10 @@
         <span class="mode-tx"><span class="mode-t">Online</span><span class="mode-s">Bald verfügbar</span></span>
       </button>
     </div>
-    <button type="button" class="start-set" data-act="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/><circle cx="12" cy="12" r="3"/></svg><span>Einstellungen</span></button>
+    <div class="start-links">
+      <button type="button" class="start-set" data-act="scores"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg><span>Highscores</span></button>
+      <button type="button" class="start-set" data-act="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/><circle cx="12" cy="12" r="3"/></svg><span>Einstellungen</span></button>
+    </div>
     <noscript><p class="start-ns">Bitte aktiviere JavaScript, um HEXA zu nutzen.</p></noscript>
   </div>
 </section>
@@ -59,7 +62,7 @@
 <div class="sky sky-page" id="appSky" aria-hidden="true" hidden></div>
 <div class="app" hidden>
   <header class="top">
-    <button type="button" class="brand" data-act="home" aria-label="Zum Startbildschirm" title="Zum Startbildschirm">
+    <button type="button" class="brand" data-act="menu" aria-label="Zum Hauptmenü" title="Zum Hauptmenü">
       <svg class="logo" viewBox="0 0 40 40" aria-hidden="true"><path class="hex" d="M20 3 34.7 11.5v17L20 37 5.3 28.5v-17z"/><g class="pip"><circle cx="15" cy="13.5" r="2.4"/><circle cx="15" cy="20" r="2.4"/><circle cx="15" cy="26.5" r="2.4"/><circle cx="25" cy="13.5" r="2.4"/><circle cx="25" cy="20" r="2.4"/><circle cx="25" cy="26.5" r="2.4"/></g></svg>
       <span class="wordmark">HEXA</span>
     </button>
@@ -342,9 +345,9 @@
 
 <nav class="tabbar" aria-label="Bereiche" hidden>
   <div class="tabbar-in">
-    <button type="button" class="tab" data-act="tab" data-tab="players">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.7-3.4 3.3-5.3 6.5-5.3s5.8 1.9 6.5 5.3"/><path d="M15.5 4.9a3.5 3.5 0 0 1 0 6.2"/><path d="M18 14.9c1.8.7 3 2.4 3.5 5.1"/></svg>
-      <span>Spieler</span>
+    <button type="button" class="tab" data-act="menu" title="Zurück ins Hauptmenü">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+      <span>Menü</span>
     </button>
     <div class="tab-cell">
       <button type="button" class="tab" data-act="tab" data-tab="dice">
