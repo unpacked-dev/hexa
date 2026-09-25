@@ -1,2 +1,166 @@
-# hexa
-HEXA: Dicegame
+<div align="center">
+
+<img src="favicon.svg" width="80" height="80" alt="HEXA-Logo">
+
+# HEXA
+
+**Sechs Würfel. Drei Würfe. Ein Countdown.**
+
+Das Würfelspiel für eine oder mehr Personen – Würfel, Spielblock und Regeln in einer App.<br>
+Läuft direkt im Browser, auf dem Handy wie am Laptop. Ohne Installation, ohne Konto, ohne Abhängigkeiten.
+
+### [▶&nbsp;Jetzt spielen](https://unpacked-dev.github.io/hexa/)
+
+[![Release](https://img.shields.io/github/v/release/unpacked-dev/hexa?style=flat-square&color=2340C8&label=Release)](https://github.com/unpacked-dev/hexa/releases/latest)
+[![Tests](https://img.shields.io/github/actions/workflow/status/unpacked-dev/hexa/ci.yml?branch=main&style=flat-square&label=Tests)](https://github.com/unpacked-dev/hexa/actions/workflows/ci.yml)
+[![Vanilla](https://img.shields.io/badge/Vanilla-HTML%20%C2%B7%20CSS%20%C2%B7%20JS-FFE14D?style=flat-square&labelColor=1C2030)](#technik)
+[![Abhängigkeiten](https://img.shields.io/badge/Abh%C3%A4ngigkeiten-0-2340C8?style=flat-square)](#technik)
+[![Lizenz](https://img.shields.io/github/license/unpacked-dev/hexa?style=flat-square&color=2340C8&label=Lizenz)](LICENSE)
+
+<br>
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/hero-dark.webp">
+  <img src="docs/screenshots/hero-light.webp" width="880" alt="HEXA auf dem Handy: Würfel mit gehaltenen Vierern, Spielblock mit drei Personen und der Countdown">
+</picture>
+
+</div>
+
+## Worum geht’s?
+
+Bei HEXA würfelst du um die besten Kombinationen: Pasche, Straßen, Paare und Drillinge – oder einfach um möglichst viele Augen. In 15 Runden füllst du deinen Spielblock Feld für Feld, und jedes Feld darfst du nur einmal belegen.
+
+Wer geschickt plant, holt sich im oberen Block einen dicken Bonus. Und wer schon im ersten Wurf vier gleiche Zahlen hat, darf zusätzlich den **Countdown** spielen: von 6 bis 1 herunterzählen, 10 Punkte pro geschaffter Stufe.
+
+Die App ersetzt Würfel, Becher, Block und Stift. Ihr gebt einfach das Handy reihum – oder legt es in die Mitte.
+
+## Features
+
+- **Würfeln mit Gefühl** – sechs Würfel mit Rollanimation, Klackern und Vibration. Tippen hält einen Würfel fest, nochmal Tippen löst ihn wieder.
+- **Spielblock, der mitrechnet** – Summen, Bonus und Endstand werden automatisch berechnet. Nach jedem Wurf zeigt die App, wie viele Punkte jedes freie Feld bringen würde.
+- **Countdown als Bonusspiel** – wird automatisch freigeschaltet und direkt nach dem Zug gestartet.
+- **Mehrere Personen oder solo** – Reihenfolge festlegen, Namen ändern, Bestenliste mit den fünf besten Ergebnissen.
+- **Nichts geht verloren** – der Spielstand bleibt auch nach dem Schließen erhalten. Einträge, gelöschte Personen oder ein neues Spiel lassen sich mit einem Tipp rückgängig machen.
+- **Regeln eingebaut** – Kurzübersicht, Beispiele und Wahrscheinlichkeiten für Neugierige.
+- **Hell und dunkel** – folgt dem System oder per Schalter.
+- **Ton** – Effekte und entspannte Lo-Fi-Musik, live im Browser erzeugt. Mit einem Tipp stumm.
+- **Nebeneinander** – auf großen Bildschirmen stehen Würfel und Block nebeneinander.
+- **Auf den Home-Bildschirm** – lässt sich wie eine App installieren und startet dann im Vollbild. Der Bildschirm bleibt während des Spiels an.
+
+<div align="center">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/desktop-dark.webp">
+  <img src="docs/screenshots/desktop-light.webp" width="880" alt="HEXA am Laptop: Würfel und Spielblock nebeneinander">
+</picture>
+</div>
+
+## Die Regeln in 30 Sekunden
+
+| | |
+| --- | --- |
+| **Ziel** | In 15 Runden möglichst viele Punkte sammeln. |
+| **Dein Zug** | Bis zu 3 Würfe. Dazwischen beliebig viele Würfel zur Seite legen – oder wieder mitwürfeln. |
+| **Eintragen** | Pro Zug genau ein freies Feld. Voraussetzung nicht erfüllt: 0 Punkte. |
+| **Bonus** | Oberer Block mindestens 70 Punkte → 40 Bonuspunkte. |
+| **Countdown** | Mindestens 4 gleiche im ersten Wurf → nach dem Zug von 6 bis 1 herunterzählen, 10 Punkte pro geschaffter Stufe. |
+| **Endstand** | Summe oben + Bonus + Summe unten + Countdown. |
+
+<details>
+<summary><b>Alle Felder im Überblick</b></summary>
+
+<br>
+
+**Oberer Block** – nur die Würfel mit der passenden Zahl zählen.
+
+| Feld | Punkte |
+| --- | ---: |
+| Einser bis Sechser | Summe der passenden Würfel (max. 6 bis 36) |
+
+**Unterer Block** – feste Punkte, wenn die Kombination steht.
+
+| Feld | Voraussetzung | Punkte |
+| --- | --- | ---: |
+| Fünferpasch | mindestens 5 gleiche | 40 |
+| Sechserpasch | 6 gleiche | 75 |
+| Drei Paare | 3 Paare (ein Vierling zählt als zwei) | 30 |
+| Zwei Drillinge | 2 Drillinge | 40 |
+| Kleine Straße | 1-2-3-4-5 oder 2-3-4-5-6 | 25 |
+| Große Straße | 1-2-3-4-5-6 | 40 |
+| Tiefflug | jeder Würfel zeigt 1, 2 oder 3 | 25 |
+| Höhenflug | jeder Würfel zeigt 4, 5 oder 6 | 25 |
+| Chance | keine | Augensumme |
+
+Die vollständigen Regeln mit Beispielen stehen in der App im Bereich **Regeln**.
+
+</details>
+
+## Loslegen
+
+**Online:** [unpacked-dev.github.io/hexa](https://unpacked-dev.github.io/hexa/) öffnen und losspielen.
+
+**Lokal:** Repository klonen und `index.html` im Browser öffnen – fertig. Es gibt keinen Build-Schritt.
+
+```bash
+git clone https://github.com/unpacked-dev/hexa.git
+cd hexa
+open index.html            # macOS  ·  Windows: start index.html  ·  Linux: xdg-open index.html
+```
+
+Wer lieber über einen lokalen Server testet (z. B. für das Web-App-Manifest):
+
+```bash
+python3 -m http.server 8000   # dann http://localhost:8000 öffnen
+```
+
+**Als App aufs Handy:** Seite im Browser öffnen und *Zum Home-Bildschirm hinzufügen* wählen.
+
+### Tastatur
+
+| Taste | Aktion |
+| --- | --- |
+| <kbd>Leertaste</kbd> | würfeln (auch im Countdown) |
+| <kbd>1</kbd> – <kbd>6</kbd> | Würfel halten oder lösen |
+| <kbd>M</kbd> | Ton an oder aus |
+| <kbd>Esc</kbd> | Fenster schließen |
+
+## Technik
+
+HEXA ist bewusst einfach gebaut: **reines HTML, CSS und JavaScript** – kein Framework, kein Bundler, keine Pakete.
+
+- **Ton aus dem Browser:** Alle Effekte und die Lo-Fi-Musik entstehen live mit der Web Audio API. Es wird keine einzige Audiodatei geladen.
+- **Faire Würfel:** Zufallszahlen kommen aus `crypto.getRandomValues`, ohne Modulo-Verzerrung.
+- **Alles bleibt auf dem Gerät:** Spielstand, Bestenliste, Design und Ton werden im `localStorage` gespeichert. Es gibt keinen Server und kein Tracking.
+- **Barrierearm:** Bedienbar per Tastatur, mit Screenreader-Beschriftungen, sichtbarem Fokus und Rücksicht auf *reduzierte Bewegung*.
+- **Moderne Web-APIs, wo verfügbar:** Screen Wake Lock (Bildschirm bleibt an), View Transitions (weicher Wechsel hell/dunkel), Vibration.
+- **Schriften:** [Archivo](https://fonts.google.com/specimen/Archivo) und [Kalam](https://fonts.google.com/specimen/Kalam) über Google Fonts.
+
+### Projektstruktur
+
+```
+hexa/
+├── index.html             # Aufbau der Seite und Regeltexte
+├── css/
+│   └── hexa.css           # Design, hell und dunkel
+├── js/
+│   ├── theme-init.js      # setzt das gewählte Design vor dem ersten Zeichnen
+│   ├── rules.js           # Felder, Punkte und Wertung
+│   ├── sound.js           # Effekte und Lo-Fi-Musik (Web Audio)
+│   └── app.js             # Spielablauf, Darstellung, Eingaben
+├── icons/                 # App-Icons für Home-Bildschirm
+├── manifest.webmanifest   # macht HEXA installierbar
+├── tests/
+│   └── rules.test.js      # Tests für die Wertung
+└── docs/                  # Screenshots und Vorschaubild
+```
+
+### Tests
+
+Die Wertung aller 15 Felder ist mit dem eingebauten Test-Runner von Node.js abgedeckt (Node 18 oder neuer, keine Installation nötig):
+
+```bash
+node --test
+```
+
+## Lizenz
+
+[MIT](LICENSE) – mach damit, was du möchtest.
