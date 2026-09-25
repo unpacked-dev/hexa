@@ -3,6 +3,20 @@
 Alle wichtigen Änderungen an HEXA stehen hier.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), die Versionen folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.1.0] – 2026-09-25
+
+Keine Verbindung mehr zu fremden Servern.
+
+### Geändert
+
+- **Schriften lokal:** Archivo und Kalam liegen jetzt im Repository statt bei Google Fonts. Beim Spielen entsteht keine Verbindung mehr zu Google (DSGVO). Aussehen und Verhalten bleiben gleich.
+- **Release-Workflow:** prüft die Versionsnummer vorab und nennt den Grund direkt in der Übersicht, wenn etwas fehlt.
+
+### Neu
+
+- **Lizenzhinweise:** `THIRD-PARTY-NOTICES.md` mit den Lizenzen der Schriften (SIL Open Font License) und der Lucide-Icons (ISC/MIT). Die Lizenztexte der Schriften liegen neben den Schriftdateien.
+- Die ZIP-Datei im Release enthält jetzt auch Schriften und Lizenzhinweise und funktioniert komplett offline.
+
 ## [1.0.0] – 2026-09-25
 
 Die erste Version von HEXA.
@@ -21,4 +35,5 @@ Die erste Version von HEXA.
 - **Web-App:** installierbar auf dem Home-Bildschirm, Bildschirm bleibt während des Spiels an.
 - **Tests:** Wertung aller Felder mit `node --test` abgedeckt.
 
+[1.1.0]: https://github.com/unpacked-dev/hexa/releases/tag/v1.1.0
 [1.0.0]: https://github.com/unpacked-dev/hexa/releases/tag/v1.0.0
