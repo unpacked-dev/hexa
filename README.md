@@ -157,19 +157,24 @@ HEXA ist bewusst einfach gebaut: **reines HTML, CSS und JavaScript** – kein Fr
 
 ```
 hexa/
-├── index.html             # Aufbau der Seite und Regeltexte
+├── index.html             # Aufbau der Seite
 ├── css/
 │   └── hexa.css           # Design, hell und dunkel
 ├── js/
 │   ├── theme-init.js      # setzt das gewählte Design vor dem ersten Zeichnen
 │   ├── rules.js           # Felder, Punkte und Wertung
 │   ├── sound.js           # Effekte und Lo-Fi-Musik (Web Audio)
+│   ├── i18n.js            # wählt die Sprache und liefert die Texte
 │   └── app.js             # Spielablauf, Darstellung, Eingaben
+├── lang/
+│   ├── de.js              # alle Texte auf Deutsch (Hauptsprache), auch die Regeln
+│   └── en.js              # alle Texte auf Englisch
 ├── fonts/                 # Schriften Archivo und Kalam mit Lizenztexten
 ├── icons/                 # App-Icons für Home-Bildschirm
 ├── manifest.webmanifest   # macht HEXA installierbar
 ├── tests/
-│   └── rules.test.js      # Tests für die Wertung
+│   ├── rules.test.js      # Tests für die Wertung
+│   └── lang.test.js       # prüft, dass beide Sprachen vollständig sind
 ├── docs/                  # Screenshots und Vorschaubild
 └── THIRD-PARTY-NOTICES.md # Lizenzen von Schriften und Icons
 ```

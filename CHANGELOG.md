@@ -3,6 +3,25 @@
 Alle wichtigen Änderungen an HEXA stehen hier.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), die Versionen folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.4.0] – 2026-09-25
+
+HEXA spricht jetzt auch Englisch.
+
+### Neu
+
+- **Englisch:** Steht der Browser nicht auf Deutsch, startet HEXA auf Englisch. Übersetzt sind alle Texte, auch die Regeln. Tiefflug und Höhenflug heißen dort Low Roll und High Roll, der Block heißt Scorecard.
+- **Sprache in den Einstellungen:** Deutsch oder English. Die Wahl gilt sofort und bleibt gespeichert.
+- **Sprachdateien:** Alle Texte stehen in `lang/de.js` und `lang/en.js`. Ein Test prüft, dass in keiner Sprache ein Text fehlt.
+
+### Geändert
+
+- **Datum:** Die Highscores zeigen das Datum so, wie es in der gewählten Sprache und im Browser üblich ist.
+- **Startbildschirm:** erscheint erst, wenn alle Texte in der richtigen Sprache stehen. So blitzt nichts in der falschen Sprache auf.
+
+### Behoben
+
+- Die Taste M bei offenen Highscores löste einen Fehler aus, und der Hinweis „Töne aus“ erschien nicht.
+
 ## [1.3.0] – 2026-09-25
 
 Neuer Spielablauf mit Spielende und Highscores.
@@ -71,6 +90,7 @@ Die erste Version von HEXA.
 - **Web-App:** installierbar auf dem Home-Bildschirm, Bildschirm bleibt während des Spiels an.
 - **Tests:** Wertung aller Felder mit `node --test` abgedeckt.
 
+[1.4.0]: https://github.com/unpacked-dev/hexa/releases/tag/v1.4.0
 [1.3.0]: https://github.com/unpacked-dev/hexa/releases/tag/v1.3.0
 [1.2.0]: https://github.com/unpacked-dev/hexa/releases/tag/v1.2.0
 [1.1.0]: https://github.com/unpacked-dev/hexa/releases/tag/v1.1.0
