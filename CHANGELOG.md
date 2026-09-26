@@ -3,6 +3,22 @@
 Alle wichtigen Änderungen an HEXA stehen hier.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), die Versionen folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.6.0] – 2026-09-26
+
+Mehr Abwechslung beim Würfeln, und die Musik läuft stabiler.
+
+### Neu
+
+- **Drei Wurfarten:** Kullern, Hochwerfen und über den Tisch rollen, jede mit eigener Bewegung und eigenem Klang. Sie wechseln zufällig, aber nie zweimal hintereinander dieselbe. Dazu dreht sich jeder Würfel etwas anders, fliegt unterschiedlich hoch und startet leicht versetzt.
+- **Steigende Töne:** Liegen mehr gleiche Würfel als vorher, gibt es einen Ton: leise bei 4, höher bei 5, bei 6 mit hellem Akkord.
+- **Große Straße:** Die sechs Töne des Countdowns spielen als kurzer Lauf nach oben.
+- **Konfetti:** bei 6 gleichen, beim perfekten Countdown und bei einem neuen Rekord. Bei „Bewegung reduzieren“ gibt es keins.
+
+### Behoben
+
+- **Musik stockt nicht mehr:** Auf dem iPhone fing die Musik nach etwa einer halben Stunde an zu stocken. Jeder Ton ließ kleine Audio-Bausteine zurück, die Safari nicht aufräumt. Jetzt werden sie nach dem Ausklingen abgehängt. Zusätzlich baut sich der Weg der Musik nach 20 Minuten weich neu auf.
+- **Kein fremder Ton beim Sperren:** Beim Sperren des Handys war ein Ton zu hören, der nicht zur Musik passte. Jetzt wird erst ausgeblendet und dann angehalten, und schon geplante Töne werden abgesagt.
+
 ## [1.5.0] – 2026-09-25
 
 Computergegner: Jetzt könnt ihr gegen Bots spielen.
@@ -109,6 +125,7 @@ Die erste Version von HEXA.
 - **Web-App:** installierbar auf dem Home-Bildschirm, Bildschirm bleibt während des Spiels an.
 - **Tests:** Wertung aller Felder mit `node --test` abgedeckt.
 
+[1.6.0]: https://github.com/unpacked-dev/hexa/releases/tag/v1.6.0
 [1.5.0]: https://github.com/unpacked-dev/hexa/releases/tag/v1.5.0
 [1.4.0]: https://github.com/unpacked-dev/hexa/releases/tag/v1.4.0
 [1.3.0]: https://github.com/unpacked-dev/hexa/releases/tag/v1.3.0
