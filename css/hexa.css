@@ -285,15 +285,38 @@ button { touch-action: manipulation; }
 }
 .die.idle { opacity: .55; }
 .die.dim { opacity: .4; }
-.die.rolling { animation: tumble .56s cubic-bezier(.25, .8, .35, 1) both; animation-delay: calc(var(--k, 0) * 18ms); }
+/* Drei Wurfarten (data-roll): kullern (Standard), hochwerfen, über den Tisch.
+   Jeder Würfel bekommt kleine Zufälle mit: --spin/--turn (Drehung), --amt (Stärke),
+   --lift (Höhe), --dir (Richtung beim Rollen), --wait (Start). Alle enden gerade ausgerichtet. */
+.die.rolling { animation: tumble .56s cubic-bezier(.25, .8, .35, 1) both; animation-delay: calc(var(--k, 0) * 12ms + var(--wait, 0ms)); }
+.die.rolling[data-roll="toss"] { animation-name: toss; animation-duration: .54s; animation-timing-function: linear; }
+.die.rolling[data-roll="slide"] { animation-name: slide; animation-timing-function: cubic-bezier(.2, .75, .3, 1); }
 @keyframes tumble {
   0% { transform: translate(0, 0) rotate(0); }
-  20% { transform: translate(-3px, -20px) rotate(-22deg) scale(1.05); }
-  45% { transform: translate(4px, 5px) rotate(15deg) scale(.98); }
-  68% { transform: translate(-2px, -7px) rotate(-6deg); }
-  86% { transform: translate(0, 2px) rotate(2deg); }
+  20% { transform: translate(calc(-3px * var(--spin, 1)), calc(-20px * var(--lift, 1))) rotate(calc(-22deg * var(--spin, 1))) scale(1.05); }
+  45% { transform: translate(calc(4px * var(--spin, 1)), 5px) rotate(calc(15deg * var(--spin, 1))) scale(.98); }
+  68% { transform: translate(calc(-2px * var(--spin, 1)), calc(-7px * var(--lift, 1))) rotate(calc(-6deg * var(--spin, 1))); }
+  86% { transform: translate(0, 2px) rotate(calc(2deg * var(--spin, 1))); }
   100% { transform: translate(0, 0) rotate(0); }
 }
+/* Hochwerfen: steigen, einmal ganz drehen, landen, kurz nachhüpfen */
+@keyframes toss {
+  0% { transform: translateY(0) rotate(0) scale(1); animation-timing-function: cubic-bezier(.2, .6, .35, 1); }
+  38% { transform: translateY(calc(-44px * var(--lift, 1))) rotate(calc(210deg * var(--turn, 1))) scale(1.13); animation-timing-function: cubic-bezier(.55, 0, .85, .4); }
+  64% { transform: translateY(0) rotate(calc(360deg * var(--turn, 1))) scale(1.05, .93); animation-timing-function: cubic-bezier(.2, .6, .35, 1); }
+  77% { transform: translateY(calc(-9px * var(--lift, 1))) rotate(calc(360deg * var(--turn, 1))) scale(1); animation-timing-function: cubic-bezier(.55, 0, .85, .4); }
+  89% { transform: translateY(0) rotate(calc(360deg * var(--turn, 1))) scale(1.02, .97); }
+  100% { transform: translateY(0) rotate(calc(360deg * var(--turn, 1))) scale(1); }
+}
+/* Über den Tisch: zur Seite rollen, abprallen, liegen bleiben */
+@keyframes slide {
+  0% { transform: translate(0, 0) rotate(0); }
+  34% { transform: translate(calc(30px * var(--dir, 1) * var(--amt, 1)), -3px) rotate(calc(140deg * var(--dir, 1) * var(--amt, 1))); }
+  62% { transform: translate(calc(-7px * var(--dir, 1)), 1px) rotate(calc(-18deg * var(--dir, 1))); }
+  82% { transform: translate(calc(3px * var(--dir, 1)), 0) rotate(calc(5deg * var(--dir, 1))); }
+  100% { transform: translate(0, 0) rotate(0); }
+}
+.confetti { position: fixed; inset: 0; z-index: 90; width: 100%; height: 100%; pointer-events: none; }
 
 .controls { display: grid; margin-top: 14px; }
 .btn-roll { flex-direction: column; gap: 1px; min-height: 62px; }

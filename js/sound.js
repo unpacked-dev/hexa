@@ -188,13 +188,44 @@ window.HexaSound = (() => {
   }
 
   /* ---------- Effekte ---------- */
-  // Würfel rollen: dichtes Klacken am Anfang, dann seltener und leiser, zum Schluss liegen bleiben
-  function roll(n) {
+  // Würfel rollen, passend zur Wurfart in der App:
+  // tumble: kullern, dichtes Klacken am Anfang, dann seltener und leiser, zum Schluss liegen bleiben
+  // toss: hochwerfen, kurz fast still, dann kräftige Aufschläge mit kleinem Nachhüpfer
+  // slide: über den Tisch, tiefes Rumpeln wie auf Holz, einzelne Klacks, zum Schluss ausrollen
+  function roll(n, kind) {
     if (!ready()) return;
     const t0 = ctx.currentTime + 0.01;
+    const dice = Math.max(1, n);
+    if (kind === 'toss') {
+      // Die Würfel verlassen die Hand: leises Klappern, dann nur Luft
+      for (let k = 0; k < 2 + dice; k++) hit(t0 + rnd(0, 0.05), { freq: rnd(2200, 3600), q: rnd(3, 6), gain: rnd(0.15, 0.3), decay: rnd(0.012, 0.025) });
+      hit(t0 + 0.04, { type: 'bandpass', freq: 1200, q: 0.6, gain: 0.035, attack: 0.12, decay: 0.14 });
+      for (let k = 0; k < dice; k++) {
+        const land = t0 + 0.33 + rnd(0, 0.1);
+        hit(land, { freq: rnd(1100, 2300), q: rnd(2.5, 4.5), gain: rnd(0.9, 1.3), decay: rnd(0.03, 0.05) });
+        tone(land, rnd(170, 240), { type: 'triangle', gain: 0.12, attack: 0.002, decay: 0.07, slide: 0.7 });
+        hit(land + rnd(0.1, 0.14), { freq: rnd(1800, 3000), q: rnd(3, 5), gain: rnd(0.35, 0.55), decay: rnd(0.02, 0.035) });
+      }
+      hit(t0 + 0.6, { freq: 2600, q: 4, gain: 0.2, decay: 0.025 });
+      return;
+    }
+    if (kind === 'slide') {
+      hit(t0, { type: 'lowpass', freq: 380, q: 0.9, gain: 0.34, attack: 0.02, decay: 0.56 });
+      for (let k = 0; k < 3 + dice * 2; k++) {
+        const t = t0 + 0.02 + 0.3 * Math.random();
+        hit(t, { freq: rnd(900, 2200), q: rnd(2, 4), gain: rnd(0.6, 1.1) * (1 - (t - t0) * 1.2), decay: rnd(0.02, 0.05) });
+      }
+      // Ausrollen: Die Klacks kommen seltener und werden leiser.
+      let t = t0 + 0.34;
+      for (let k = 0; k < 4; k++) {
+        hit(t, { freq: rnd(1500, 2400), q: 3, gain: 0.4 - k * 0.08, decay: 0.025 });
+        t += 0.035 + k * 0.022;
+      }
+      return;
+    }
     const dur = 0.58;
     hit(t0, { type: 'lowpass', freq: 700, q: 0.7, gain: 0.2, attack: 0.03, decay: dur });
-    const count = 6 + Math.max(1, n) * 4;
+    const count = 6 + dice * 4;
     for (let k = 0; k < count; k++) {
       const t = t0 + dur * 0.9 * Math.pow(Math.random(), 1.3);
       const left = 1 - (t - t0) / dur;
@@ -233,11 +264,38 @@ window.HexaSound = (() => {
     [64, 67, 72, 76].forEach(m => pluck(t + 0.45, m, 0.08, 0));
   }
   // Countdown freigeschaltet
-  function sparkle() {
+  function sparkle(delay) {
     if (!ready()) return;
-    const t = ctx.currentTime + 0.02;
+    const t = ctx.currentTime + 0.02 + (delay || 0);
     [84, 88, 91, 96].forEach((m, i) => pluck(t + i * 0.055, m, 0.08, 0));
     hit(t, { type: 'highpass', freq: 7000, q: 0.5, gain: 0.04, attack: 0.05, decay: 0.35 });
+  }
+  // Mehr gleiche Würfel: je Stufe ein Ton höher, wie beim Countdown. 4 gleiche kommen oft vor,
+  // deshalb ist dieser Ton leise. Bei 6 gleichen kommt ein heller Akkord obendrauf.
+  // from: wie viele gleiche vorher lagen, to: wie viele jetzt. Gibt zurück, wie lange es dauert.
+  const SAME = { 4: [76, 0.06], 5: [79, 0.1], 6: [84, 0.13] };
+  function combo(from, to) {
+    if (!ready()) return 0;
+    const t0 = ctx.currentTime + 0.02;
+    let t = t0;
+    for (let k = Math.max(4, from + 1); k <= Math.min(6, to); k++) {
+      const [m, g] = SAME[k];
+      pluck(t, m, g, 0);
+      pluck(t + 0.07, m + 7, g * 0.7, 0);
+      if (k === 6) {
+        [84, 88, 91, 96].forEach((n, i) => pluck(t + 0.16 + i * 0.05, n, 0.09, 0));
+        hit(t + 0.16, { type: 'highpass', freq: 7000, q: 0.5, gain: 0.05, attack: 0.05, decay: 0.45 });
+        t += 0.2;
+      }
+      t += 0.14;
+    }
+    return t - t0;
+  }
+  // Große Straße: die sechs Töne des Countdowns als schneller Lauf nach oben
+  function run() {
+    if (!ready()) return;
+    const t = ctx.currentTime + 0.02;
+    [72, 74, 76, 79, 81, 84].forEach((m, i) => pluck(t + i * 0.055, m, 0.07 + i * 0.008, 0));
   }
   // Countdown getroffen: mit jeder Stufe ein Ton höher
   function cdHit(stage) {
@@ -582,5 +640,5 @@ window.HexaSound = (() => {
   });
   window.addEventListener('pagehide', sleep);
 
-  return { get: () => Object.assign({}, prefs), set, toggleAll, preview, roll, hold, score, fanfare, sparkle, cdHit, cdMiss };
+  return { get: () => Object.assign({}, prefs), set, toggleAll, preview, roll, hold, score, fanfare, sparkle, combo, run, cdHit, cdMiss };
 })();

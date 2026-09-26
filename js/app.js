@@ -52,6 +52,9 @@
   const isObj = x => !!x && typeof x === 'object' && !Array.isArray(x);
   const reduced = () => !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   const odds = k => Math.round((1 - Math.pow(5 / 6, k)) * 100);
+  const rnd = (a, b) => a + Math.random() * (b - a);
+  const maxSame = vals => Math.max.apply(null, countFaces(vals));
+  const isStraight = vals => { const c = countFaces(vals); return !!(c[1] && c[2] && c[3] && c[4] && c[5] && c[6]); };
   const nameList = a => (a.length < 2 ? (a[0] || '') : a.slice(0, -1).join(', ') + ' ' + tr('common.and') + ' ' + a[a.length - 1]);
   const fmtDate = t => {
     try { return new Date(t).toLocaleDateString(I18n.locale(), { day: '2-digit', month: '2-digit', year: '2-digit' }); }
@@ -644,6 +647,82 @@
       <div class="cd-foot">${foot}</div>`;
   }
 
+  /* ---------- Konfetti ---------- */
+  // Für seltene Momente: 6 gleiche, perfekter Countdown, neuer Rekord. Ein Canvas über allem,
+  // das nach knapp 2 Sekunden wieder verschwindet. Bei „Bewegung reduzieren“ gibt es keins.
+  let party = null;
+  let partyFor = null;   // Spiel, für das der Rekord schon gefeiert wurde
+  function confetti(from) {
+    if (reduced()) return;
+    const r = from && from.getBoundingClientRect ? from.getBoundingClientRect() : null;
+    const x = r && r.width ? r.left + r.width / 2 : window.innerWidth / 2;
+    const y = r && r.height ? r.top + r.height / 2 : window.innerHeight / 3;
+    if (!party) {
+      const cv = document.createElement('canvas');
+      const g = cv.getContext && cv.getContext('2d');
+      if (!g) return;
+      cv.className = 'confetti';
+      cv.setAttribute('aria-hidden', 'true');
+      document.body.appendChild(cv);
+      party = { cv, g, bits: [], frame: 0, last: 0 };
+    }
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    party.cv.width = Math.round(window.innerWidth * dpr);
+    party.cv.height = Math.round(window.innerHeight * dpr);
+    party.g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    // HEXA-Farben: Blau, Gelb, Türkis und Weiß
+    const css = getComputedStyle(document.documentElement);
+    const colors = ['--pen', '--marker', '--hold'].map(v => css.getPropertyValue(v).trim() || '#2340C8').concat('#FFFFFF');
+    for (let i = 0; i < 90; i++) {
+      const a = -Math.PI / 2 + rnd(-1.15, 1.15);
+      const v = rnd(5, 12.5);
+      party.bits.push({
+        x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 2,
+        rot: rnd(0, 6.3), vr: rnd(-0.22, 0.22), flip: rnd(0.06, 0.2), phase: rnd(0, 6.3),
+        w: rnd(6, 9), h: rnd(10, 15), round: Math.random() < 0.25,
+        color: colors[i % colors.length], age: 0, life: rnd(1300, 1900),
+      });
+    }
+    if (!party.frame) {
+      party.last = performance.now();
+      party.frame = requestAnimationFrame(drawConfetti);
+    }
+  }
+  function drawConfetti(now) {
+    const p = party;
+    if (!p) return;
+    // Zeitbasiert, damit es auf 60- und 120-Hz-Bildschirmen gleich schnell fällt
+    const dt = Math.min(3, Math.max(0.2, (now - p.last) / 16.7));
+    p.last = now;
+    const g = p.g;
+    g.clearRect(0, 0, window.innerWidth, window.innerHeight);
+    p.bits = p.bits.filter(b => (b.age += dt * 16.7) < b.life);
+    p.bits.forEach(b => {
+      b.vy += 0.3 * dt;
+      b.vx *= Math.pow(0.985, dt);
+      b.vy *= Math.pow(0.985, dt);
+      b.x += b.vx * dt;
+      b.y += b.vy * dt;
+      b.rot += b.vr * dt;
+      b.phase += b.flip * dt;
+      g.save();
+      g.globalAlpha = Math.min(1, (b.life - b.age) / 350);
+      g.translate(b.x, b.y);
+      g.rotate(b.rot);
+      g.scale(1, Math.cos(b.phase));   // Papier, das sich im Fallen dreht
+      g.fillStyle = b.color;
+      g.beginPath();
+      if (b.round) g.arc(0, 0, b.w / 2, 0, Math.PI * 2);
+      else g.rect(-b.w / 2, -b.h / 2, b.w, b.h);
+      g.fill();
+      // Weiß braucht auf hellem Grund einen feinen Rand
+      if (b.color === '#FFFFFF') { g.lineWidth = 1; g.strokeStyle = 'rgba(28, 32, 48, .22)'; g.stroke(); }
+      g.restore();
+    });
+    if (p.bits.length) p.frame = requestAnimationFrame(drawConfetti);
+    else { p.cv.remove(); party = null; }
+  }
+
   /* ---------- Rückmeldungen ---------- */
   let toastTimer = 0;
   let undoSnap = null;
@@ -732,10 +811,31 @@
   /* ---------- Würfeln ---------- */
   let rolling = false;
 
-  function flicker(els, done) {
+  // Drei Wurfarten, jede mit eigener Bewegung (css/hexa.css) und eigenem Klang (js/sound.js):
+  // kullern, hochwerfen, über den Tisch. Zufällig, aber nie zweimal hintereinander dieselbe.
+  const THROWS = ['tumble', 'toss', 'slide'];
+  let lastThrow = null;
+  function pickThrow() {
+    const pool = THROWS.filter(k => k !== lastThrow);
+    lastThrow = pool[Math.floor(Math.random() * pool.length)];
+    return lastThrow;
+  }
+
+  function flicker(els, done, kind) {
     if (!els.length || reduced()) { done(); return; }
     rolling = true;
+    const dir = Math.random() < 0.5 ? -1 : 1;   // Richtung beim Rollen über den Tisch, für alle Würfel gleich
     els.forEach(el => {
+      // Kleine Zufälle je Würfel: Drehrichtung und -stärke, Flughöhe, Start
+      const turn = Math.random() < 0.5 ? -1 : 1;
+      const amt = rnd(0.75, 1.25);
+      el.dataset.roll = kind || 'tumble';
+      el.style.setProperty('--turn', turn);
+      el.style.setProperty('--amt', amt.toFixed(2));
+      el.style.setProperty('--spin', (turn * amt).toFixed(2));
+      el.style.setProperty('--lift', rnd(0.8, 1.25).toFixed(2));
+      el.style.setProperty('--dir', dir);
+      el.style.setProperty('--wait', Math.round(rnd(0, 50)) + 'ms');
       el.classList.remove('rolling');
       void el.offsetWidth;
       el.classList.add('rolling');
@@ -771,6 +871,9 @@
       d.ownerFilled = cp ? filled(cp.id) : 0;
       d.cd = null;
     }
+    // Wie viele gleiche lagen vorher, und war es schon eine Große Straße? Töne gibt es nur für Neues.
+    const before = first ? 0 : maxSame(d.vals);
+    const wasStraight = !first && isStraight(d.vals);
     const next = (d.vals || [1, 2, 3, 4, 5, 6]).slice();
     const idx = [];
     for (let i = 0; i < 6; i++) {
@@ -786,15 +889,29 @@
     const btn = $('#view-dice [data-act="roll"]');
     if (btn) btn.disabled = true;
     vibrate(10);
-    Sound.roll(idx.length);
+    const kind = pickThrow();
+    Sound.roll(idx.length, kind);
     flicker(els, () => {
       renderDice();
       renderTop();
-      if (first && d.cd) {
-        vibrate([12, 60, 12]);
-        Sound.sparkle();
-      }
-    });
+      landed(next, before, wasStraight, first && !!d.cd);
+    }, kind);
+  }
+
+  // Nach dem Landen: steigende Töne für 4, 5 und 6 gleiche, ein Lauf für die Große Straße,
+  // Glitzern für den freigeschalteten Countdown, Konfetti für 6 gleiche.
+  function landed(vals, before, wasStraight, cdUnlocked) {
+    const same = maxSame(vals);
+    const delay = same >= 4 && same > before ? Sound.combo(before, same) : 0;
+    if (isStraight(vals) && !wasStraight) Sound.run();
+    if (cdUnlocked) {
+      vibrate([12, 60, 12]);
+      Sound.sparkle(delay);
+    }
+    if (same === 6 && before < 6) {
+      vibrate([15, 40, 15, 40, 30]);
+      confetti($('#view-dice .tray'));
+    }
   }
 
   function toggleHold(i, byBot) {
@@ -1037,15 +1154,18 @@
       box.innerHTML = vals.map((_, i) => `<div class="die" style="--k:${i}">${faceHTML(d6())}</div>`).join('');
     }
     vibrate(10);
-    Sound.roll(n);
+    const kind = pickThrow();
+    Sound.roll(n, kind);
     flicker(box ? $$('.die', box) : [], () => {
       renderCountdown();
       renderTop();
       if (hit >= 0) vibrate([8, 40, 8]);
-      if (g.status === 'perfect') Sound.fanfare();
-      else if (hit >= 0) Sound.cdHit(g.stage);
+      if (g.status === 'perfect') {
+        Sound.fanfare();
+        confetti($('#cd .cd-dice'));
+      } else if (hit >= 0) Sound.cdHit(g.stage);
       else Sound.cdMiss();
-    });
+    }, kind);
   }
 
   // byBot: Ein Bot trägt seinen eigenen Countdown ein. Das lässt sich nicht rückgängig machen.
@@ -1464,6 +1584,15 @@
       menu: () => endGame(false),
       again: () => endGame(true),
     }, tr('result.label'));
+    // Neuer Rekord: einmal pro Spiel Konfetti, sobald das Fenster steht
+    if (record !== null && partyFor !== state.gameId) {
+      partyFor = state.gameId;
+      setTimeout(() => {
+        if ($('#sheet').hidden) return;
+        confetti($('#sheet .res-ic'));
+        Sound.sparkle();
+      }, 320);
+    }
   }
 
   // Spiel abschließen. „Nochmal spielen“ startet gleich ein neues mit denselben Personen.
