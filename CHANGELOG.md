@@ -3,6 +3,18 @@
 Alle wichtigen Änderungen an HEXA stehen hier.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), die Versionen folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.7.0] – 2026-09-26
+
+Noch mehr Abwechslung beim Würfeln.
+
+### Neu
+
+- **Vier neue Wurfarten:** Schütteln wie im Becher, Hüpfen wie ein Flummi, Kreiseln und die Welle, bei der die Würfel nacheinander springen und ihre Zahl zeigen, sobald sie landen. Jede hat eine eigene Bewegung und einen eigenen Klang. Zusammen mit Kullern, Hochwerfen und über den Tisch rollen sind es jetzt sieben.
+
+### Geändert
+
+- **Mehr Wechsel:** Die Wurfart wechselt zufällig, aber es kommt nie eine der letzten drei. Die drei Würfe eines Zugs sehen also immer verschieden aus.
+
 ## [1.6.0] – 2026-09-26
 
 Mehr Abwechslung beim Würfeln, und die Musik läuft stabiler.
@@ -125,6 +137,7 @@ Die erste Version von HEXA.
 - **Web-App:** installierbar auf dem Home-Bildschirm, Bildschirm bleibt während des Spiels an.
 - **Tests:** Wertung aller Felder mit `node --test` abgedeckt.
 
+[1.7.0]: https://github.com/unpacked-dev/hexa/releases/tag/v1.7.0
 [1.6.0]: https://github.com/unpacked-dev/hexa/releases/tag/v1.6.0
 [1.5.0]: https://github.com/unpacked-dev/hexa/releases/tag/v1.5.0
 [1.4.0]: https://github.com/unpacked-dev/hexa/releases/tag/v1.4.0
