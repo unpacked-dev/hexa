@@ -159,6 +159,11 @@ window.HexaSound = (() => {
     const f = ctx.createBiquadFilter();
     f.type = o.type || 'bandpass';
     f.frequency.value = o.freq;
+    if (o.to) {
+      // Der Klang wandert von freq nach to
+      f.frequency.setValueAtTime(o.freq, t);
+      f.frequency.exponentialRampToValueAtTime(o.to, t + attack + o.decay);
+    }
     f.Q.value = o.q == null ? 1 : o.q;
     const g = ctx.createGain();
     env(g, t, o.gain, attack, o.decay);
@@ -188,14 +193,70 @@ window.HexaSound = (() => {
   }
 
   /* ---------- Effekte ---------- */
-  // Würfel rollen, passend zur Wurfart in der App:
+  // Würfel rollen, passend zur Wurfart in der App (Zeiten wie in css/hexa.css):
   // tumble: kullern, dichtes Klacken am Anfang, dann seltener und leiser, zum Schluss liegen bleiben
   // toss: hochwerfen, kurz fast still, dann kräftige Aufschläge mit kleinem Nachhüpfer
   // slide: über den Tisch, tiefes Rumpeln wie auf Holz, einzelne Klacks, zum Schluss ausrollen
+  // rattle: im Becher schütteln, bei jedem Schwung Klappern und ein hohler Ton, dann auf den Tisch
+  // bounce: wie ein Flummi, drei Aufschläge, immer schneller hintereinander und leiser
+  // spin: kreiseln wie ein Glücksrad, das Ticken wird langsamer, zum Schluss ein Klack
+  // wave: die Würfel springen nacheinander, jeder landet mit eigenem Klack, einer heller als der andere
   function roll(n, kind) {
     if (!ready()) return;
     const t0 = ctx.currentTime + 0.01;
     const dice = Math.max(1, n);
+    if (kind === 'rattle') {
+      [0.05, 0.11, 0.165, 0.22, 0.275, 0.33].forEach((s, j, all) => {
+        const loud = 0.55 + 0.45 * Math.sin(Math.PI * (j + 0.5) / all.length);   // an- und abschwellen
+        for (let k = 0; k < 2 + Math.ceil(dice / 2); k++) {
+          hit(t0 + s + rnd(0, 0.035), { freq: rnd(1800, 3400), q: rnd(3, 6), gain: rnd(0.5, 0.9) * loud, decay: rnd(0.012, 0.028) });
+        }
+        hit(t0 + s, { freq: rnd(560, 720), q: 5, gain: 0.9 * loud, decay: 0.045 });   // hohler Becher
+      });
+      // Plumps auf den Tisch
+      for (let k = 0; k < dice; k++) {
+        hit(t0 + 0.41 + rnd(0, 0.07), { freq: rnd(1100, 2000), q: rnd(2.5, 4), gain: rnd(0.8, 1.15), decay: rnd(0.03, 0.05) });
+      }
+      tone(t0 + 0.42, 150, { type: 'triangle', gain: 0.14, attack: 0.003, decay: 0.09, slide: 0.7 });
+      hit(t0 + 0.53, { freq: 2500, q: 4, gain: 0.22, decay: 0.025 });
+      return;
+    }
+    if (kind === 'bounce') {
+      for (let k = 0; k < dice; k++) {
+        const start = t0 + rnd(0, 0.05);
+        [[0.235, 1], [0.392, 0.55], [0.493, 0.28]].forEach(([at, g], j) => {
+          const loud = g * rnd(0.8, 1.1);
+          hit(start + at, { freq: rnd(1200, 2000) * (1 + 0.15 * j), q: rnd(2.5, 4), gain: loud, decay: rnd(0.025, 0.04) });
+          tone(start + at, rnd(190, 230), { type: 'triangle', gain: 0.13 * loud, attack: 0.002, decay: 0.06, slide: 0.75 });
+        });
+      }
+      return;
+    }
+    if (kind === 'spin') {
+      hit(t0, { freq: 2400, to: 900, q: 1.2, gain: 0.22, attack: 0.02, decay: 0.46 });   // Surren, wird tiefer
+      for (let r = 0; r < Math.min(3, dice); r++) {
+        let t = t0 + rnd(0, 0.012);
+        let gap = rnd(0.018, 0.024);
+        const grow = rnd(1.18, 1.24);
+        while (t < t0 + 0.47) {
+          hit(t, { freq: rnd(2400, 3400), q: rnd(3, 5), gain: (1.4 - 0.7 * (t - t0) / 0.47) / (1 + r * 0.35), decay: rnd(0.014, 0.024) });
+          t += gap;
+          gap *= grow;
+        }
+      }
+      hit(t0 + 0.5, { freq: 2100, q: 3.5, gain: 0.8, decay: 0.035 });
+      hit(t0 + 0.54, { freq: 2700, q: 4, gain: 0.3, decay: 0.025 });
+      return;
+    }
+    if (kind === 'wave') {
+      for (let i = 0; i < dice; i++) {
+        const t = t0 + i * 0.055;
+        hit(t + 0.005, { freq: 2800 + i * 120, q: 5, gain: 0.25, decay: 0.015 });   // Absprung
+        hit(t + 0.265, { freq: 1300 + i * 260, q: 3.5, gain: rnd(0.8, 1), decay: 0.035 });   // Landung
+        tone(t + 0.265, 200 + i * 12, { type: 'triangle', gain: 0.1, attack: 0.002, decay: 0.06, slide: 0.75 });
+      }
+      return;
+    }
     if (kind === 'toss') {
       // Die Würfel verlassen die Hand: leises Klappern, dann nur Luft
       for (let k = 0; k < 2 + dice; k++) hit(t0 + rnd(0, 0.05), { freq: rnd(2200, 3600), q: rnd(3, 6), gain: rnd(0.15, 0.3), decay: rnd(0.012, 0.025) });

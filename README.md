@@ -52,7 +52,7 @@ Die App ersetzt Würfel, Becher, Block und Stift. Ihr gebt einfach das Handy rei
 
 - **Hauptmenü** – lokal auf einem Gerät reihum spielen, Highscores ansehen, Einstellungen öffnen. Online kommt bald.
 - **Mit App- oder eigenen Würfeln** – vor dem Spiel wählen: Die App würfelt für euch, oder ihr würfelt selbst und nutzt nur den Spielblock.
-- **Würfeln mit Gefühl** – sechs Würfel mit Klackern und Vibration, geworfen auf drei Arten: kullern, hochwerfen oder über den Tisch rollen. Tippen hält einen Würfel fest, nochmal Tippen löst ihn wieder.
+- **Würfeln mit Gefühl** – sechs Würfel mit Klackern und Vibration, geworfen auf sieben Arten: kullern, hochwerfen, über den Tisch rollen, schütteln, hüpfen, kreiseln oder als Welle. Keine Art kommt öfter als einmal in vier Würfen. Tippen hält einen Würfel fest, nochmal Tippen löst ihn wieder.
 - **Kleine Belohnungen** – steigende Töne bei 4, 5 und 6 gleichen, ein Lauf für die Große Straße und Konfetti für seltene Momente wie sechs gleiche oder einen neuen Rekord.
 - **Spielblock, der mitrechnet** – Summen, Bonus und Endstand werden automatisch berechnet. Nach jedem Wurf zeigt die App, wie viele Punkte jedes freie Feld bringen würde.
 - **Countdown als Bonusspiel** – wird automatisch freigeschaltet und direkt nach dem Zug gestartet.

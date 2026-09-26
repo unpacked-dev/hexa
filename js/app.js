@@ -811,25 +811,36 @@
   /* ---------- Würfeln ---------- */
   let rolling = false;
 
-  // Drei Wurfarten, jede mit eigener Bewegung (css/hexa.css) und eigenem Klang (js/sound.js):
-  // kullern, hochwerfen, über den Tisch. Zufällig, aber nie zweimal hintereinander dieselbe.
-  const THROWS = ['tumble', 'toss', 'slide'];
-  let lastThrow = null;
+  // Sieben Wurfarten, jede mit eigener Bewegung (css/hexa.css) und eigenem Klang (js/sound.js):
+  // kullern, hochwerfen, über den Tisch, schütteln, hüpfen, kreiseln, Welle.
+  // Zufällig, aber nie eine der letzten drei. So fühlt sich jeder Wurf anders an.
+  const THROWS = ['tumble', 'toss', 'slide', 'rattle', 'bounce', 'spin', 'wave'];
+  const recentThrows = [];
   function pickThrow() {
-    const pool = THROWS.filter(k => k !== lastThrow);
-    lastThrow = pool[Math.floor(Math.random() * pool.length)];
-    return lastThrow;
+    const pool = THROWS.filter(k => recentThrows.indexOf(k) < 0);
+    const kind = pool[Math.floor(Math.random() * pool.length)];
+    recentThrows.push(kind);
+    if (recentThrows.length > 3) recentThrows.shift();
+    return kind;
   }
 
-  function flicker(els, done, kind) {
+  const ROLL_MS = 620;
+  // Welle: Alle 55 ms springt der nächste Würfel los, nach 265 ms landet er, nach 340 ms liegt er still.
+  const WAVE = { step: 55, land: 265, end: 340 };
+
+  // ends: die Zahlen, die am Ende oben liegen. Bei der Welle zeigt jeder Würfel seine Zahl schon,
+  // sobald er landet, und wechselt vor dem Absprung noch nicht.
+  function flicker(els, done, kind, ends) {
     if (!els.length || reduced()) { done(); return; }
     rolling = true;
-    const dir = Math.random() < 0.5 ? -1 : 1;   // Richtung beim Rollen über den Tisch, für alle Würfel gleich
-    els.forEach(el => {
+    kind = kind || 'tumble';
+    const dir = Math.random() < 0.5 ? -1 : 1;   // Richtung über den Tisch und bei der Welle, für alle Würfel gleich
+    // Von wann bis wann jeder Würfel in der Luft ist (ms ab Start)
+    const air = els.map((el, i) => {
       // Kleine Zufälle je Würfel: Drehrichtung und -stärke, Flughöhe, Start
       const turn = Math.random() < 0.5 ? -1 : 1;
       const amt = rnd(0.75, 1.25);
-      el.dataset.roll = kind || 'tumble';
+      el.dataset.roll = kind;
       el.style.setProperty('--turn', turn);
       el.style.setProperty('--amt', amt.toFixed(2));
       el.style.setProperty('--spin', (turn * amt).toFixed(2));
@@ -839,11 +850,21 @@
       el.classList.remove('rolling');
       void el.offsetWidth;
       el.classList.add('rolling');
+      if (kind !== 'wave') return [0, ROLL_MS];
+      const w = dir > 0 ? i : els.length - 1 - i;
+      el.style.setProperty('--w', w);
+      return [w * WAVE.step, w * WAVE.step + WAVE.land];
     });
+    const stop = kind === 'wave' ? (els.length - 1) * WAVE.step + WAVE.end : ROLL_MS;
     const t0 = Date.now();
     const iv = setInterval(() => {
-      els.forEach(el => setFace(el, d6()));
-      if (Date.now() - t0 >= 620) {
+      const t = Date.now() - t0;
+      els.forEach((el, i) => {
+        if (t < air[i][0]) return;
+        if (t < air[i][1]) setFace(el, d6());
+        else if (ends) setFace(el, ends[i]);
+      });
+      if (t >= stop) {
         clearInterval(iv);
         rolling = false;
         done();
@@ -884,7 +905,8 @@
     if (first && Math.max.apply(null, countFaces(next)) >= 4) d.cd = { owner: d.owner, played: false };
     save();
 
-    const els = idx.map(i => $('#view-dice .die[data-i="' + i + '"]')).filter(Boolean);
+    const dice = idx.map(i => ({ el: $('#view-dice .die[data-i="' + i + '"]'), v: next[i] })).filter(x => x.el);
+    const els = dice.map(x => x.el);
     els.forEach(el => el.classList.remove('idle', 'dim', 'held'));
     const btn = $('#view-dice [data-act="roll"]');
     if (btn) btn.disabled = true;
@@ -895,7 +917,7 @@
       renderDice();
       renderTop();
       landed(next, before, wasStraight, first && !!d.cd);
-    }, kind);
+    }, kind, dice.map(x => x.v));
   }
 
   // Nach dem Landen: steigende Töne für 4, 5 und 6 gleiche, ein Lauf für die Große Straße,
@@ -1165,7 +1187,7 @@
         confetti($('#cd .cd-dice'));
       } else if (hit >= 0) Sound.cdHit(g.stage);
       else Sound.cdMiss();
-    }, kind);
+    }, kind, vals);
   }
 
   // byBot: Ein Bot trägt seinen eigenen Countdown ein. Das lässt sich nicht rückgängig machen.

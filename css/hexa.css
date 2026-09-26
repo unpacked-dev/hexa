@@ -285,12 +285,17 @@ button { touch-action: manipulation; }
 }
 .die.idle { opacity: .55; }
 .die.dim { opacity: .4; }
-/* Drei Wurfarten (data-roll): kullern (Standard), hochwerfen, über den Tisch.
-   Jeder Würfel bekommt kleine Zufälle mit: --spin/--turn (Drehung), --amt (Stärke),
-   --lift (Höhe), --dir (Richtung beim Rollen), --wait (Start). Alle enden gerade ausgerichtet. */
+/* Sieben Wurfarten (data-roll): kullern (Standard), hochwerfen, über den Tisch, schütteln, hüpfen,
+   kreiseln, Welle. Jeder Würfel bekommt kleine Zufälle mit: --spin/--turn (Drehung), --amt (Stärke),
+   --lift (Höhe), --dir (Richtung, für alle Würfel gleich), --wait (Start), --w (Platz in der Welle).
+   Alle enden gerade ausgerichtet. Die Zeiten passen zu den Klängen in js/sound.js. */
 .die.rolling { animation: tumble .56s cubic-bezier(.25, .8, .35, 1) both; animation-delay: calc(var(--k, 0) * 12ms + var(--wait, 0ms)); }
 .die.rolling[data-roll="toss"] { animation-name: toss; animation-duration: .54s; animation-timing-function: linear; }
 .die.rolling[data-roll="slide"] { animation-name: slide; animation-timing-function: cubic-bezier(.2, .75, .3, 1); }
+.die.rolling[data-roll="rattle"] { animation-name: rattle; animation-timing-function: ease-in-out; }
+.die.rolling[data-roll="bounce"] { animation-name: bounce; animation-timing-function: linear; transform-origin: 50% 100%; }
+.die.rolling[data-roll="spin"] { animation-name: spin; animation-timing-function: linear; }
+.die.rolling[data-roll="wave"] { animation-name: wave; animation-duration: .34s; animation-timing-function: linear; animation-delay: calc(var(--w, 0) * 55ms); }
 @keyframes tumble {
   0% { transform: translate(0, 0) rotate(0); }
   20% { transform: translate(calc(-3px * var(--spin, 1)), calc(-20px * var(--lift, 1))) rotate(calc(-22deg * var(--spin, 1))) scale(1.05); }
@@ -315,6 +320,45 @@ button { touch-action: manipulation; }
   62% { transform: translate(calc(-7px * var(--dir, 1)), 1px) rotate(calc(-18deg * var(--dir, 1))); }
   82% { transform: translate(calc(3px * var(--dir, 1)), 0) rotate(calc(5deg * var(--dir, 1))); }
   100% { transform: translate(0, 0) rotate(0); }
+}
+/* Schütteln: angehoben wie im Becher hin und her, dann auf den Tisch plumpsen */
+@keyframes rattle {
+  0% { transform: translate(0, 0) rotate(0) scale(1); }
+  8% { transform: translate(calc(-6px * var(--amt, 1)), -4px) rotate(calc(-10deg * var(--turn, 1))) scale(1.07); }
+  18% { transform: translate(calc(6px * var(--amt, 1)), -7px) rotate(calc(9deg * var(--turn, 1))) scale(1.08); }
+  28% { transform: translate(calc(-6px * var(--amt, 1)), -4px) rotate(calc(-9deg * var(--turn, 1))) scale(1.08); }
+  38% { transform: translate(calc(6px * var(--amt, 1)), -7px) rotate(calc(8deg * var(--turn, 1))) scale(1.08); }
+  48% { transform: translate(calc(-5px * var(--amt, 1)), -4px) rotate(calc(-7deg * var(--turn, 1))) scale(1.08); }
+  58% { transform: translate(calc(4px * var(--amt, 1)), -9px) rotate(calc(5deg * var(--turn, 1))) scale(1.1); }
+  72% { transform: translate(0, 2px) rotate(calc(-2deg * var(--turn, 1))) scale(1.05, .92); }
+  86% { transform: translate(0, -2px) rotate(calc(1deg * var(--turn, 1))) scale(.99, 1.01); }
+  100% { transform: translate(0, 0) rotate(0) scale(1); }
+}
+/* Hüpfen wie ein Flummi: kurz ducken, dreimal springen, jedes Mal niedriger, beim Aufkommen gestaucht */
+@keyframes bounce {
+  0% { transform: translateY(0) rotate(0) scale(1); animation-timing-function: ease-out; }
+  6% { transform: translateY(0) rotate(0) scale(1.08, .9); animation-timing-function: cubic-bezier(.2, .6, .35, 1); }
+  24% { transform: translateY(calc(-32px * var(--lift, 1))) rotate(calc(9deg * var(--turn, 1))) scale(.93, 1.09); animation-timing-function: cubic-bezier(.55, 0, .85, .4); }
+  42% { transform: translateY(0) rotate(calc(3deg * var(--turn, 1))) scale(1.13, .85); animation-timing-function: cubic-bezier(.2, .6, .35, 1); }
+  57% { transform: translateY(calc(-14px * var(--lift, 1))) rotate(calc(-6deg * var(--turn, 1))) scale(.97, 1.04); animation-timing-function: cubic-bezier(.55, 0, .85, .4); }
+  70% { transform: translateY(0) rotate(calc(-2deg * var(--turn, 1))) scale(1.08, .91); animation-timing-function: cubic-bezier(.2, .6, .35, 1); }
+  79% { transform: translateY(calc(-5px * var(--lift, 1))) rotate(calc(1deg * var(--turn, 1))) scale(1); animation-timing-function: cubic-bezier(.55, 0, .85, .4); }
+  88% { transform: translateY(0) rotate(0) scale(1.03, .97); animation-timing-function: ease-out; }
+  100% { transform: translateY(0) rotate(0) scale(1); }
+}
+/* Kreiseln: mit Schwung auf der Stelle drehen, langsamer werden, kurz nachwackeln */
+@keyframes spin {
+  0% { transform: translate(0, 0) rotate(0) scale(1); animation-timing-function: cubic-bezier(.22, .55, .35, 1); }
+  80% { transform: translate(calc(3px * var(--dir, 1)), -2px) rotate(calc(370deg * var(--turn, 1))) scale(1.05); animation-timing-function: ease-in-out; }
+  92% { transform: translate(calc(1px * var(--dir, 1)), 0) rotate(calc(357deg * var(--turn, 1))) scale(.99); animation-timing-function: ease-in-out; }
+  100% { transform: translate(0, 0) rotate(calc(360deg * var(--turn, 1))) scale(1); }
+}
+/* Welle: Die Würfel springen nacheinander hoch und drehen sich dabei einmal */
+@keyframes wave {
+  0% { transform: translateY(0) rotate(0) scale(1); animation-timing-function: cubic-bezier(.3, .55, .4, 1); }
+  42% { transform: translateY(calc(-26px * var(--lift, 1))) rotate(calc(180deg * var(--dir, 1))) scale(1.1); animation-timing-function: cubic-bezier(.55, 0, .85, .4); }
+  78% { transform: translateY(0) rotate(calc(360deg * var(--dir, 1))) scale(1.07, .92); animation-timing-function: ease-out; }
+  100% { transform: translateY(0) rotate(calc(360deg * var(--dir, 1))) scale(1); }
 }
 .confetti { position: fixed; inset: 0; z-index: 90; width: 100%; height: 100%; pointer-events: none; }
 
