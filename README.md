@@ -184,6 +184,8 @@ hexa/
 │   ├── bot-optimal.js     # rechnet das perfekte Spiel für alle Spielstände aus
 │   ├── bot-fit.js         # leitet daraus die Werte für die Bots ab
 │   └── bot-sim.js         # lässt Bots viele Partien spielen und zeigt die Zahlen
+├── server/                # Server für den kommenden Online-Modus (Deno, Deno KV), siehe server/README.md
+├── deno.json              # Befehle für den Server: deno task dev, deno task test
 ├── docs/                  # Screenshots, Vorschaubild und Konzept für den Online-Modus
 └── THIRD-PARTY-NOTICES.md # Lizenzen von Schriften und Icons
 ```
@@ -194,6 +196,12 @@ Wertung, Sprachen und Bots sind mit dem eingebauten Test-Runner von Node.js abge
 
 ```bash
 node --test
+```
+
+Der Server für den Online-Modus hat eigene Tests. Dafür braucht es [Deno 2](https://docs.deno.com/runtime/getting_started/installation/):
+
+```bash
+deno task test
 ```
 
 Wer die Bots selbst nachrechnen möchte:

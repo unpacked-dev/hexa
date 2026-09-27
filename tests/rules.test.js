@@ -1,7 +1,7 @@
 /* Tests für die Wertung der Felder. Ausführen mit: node --test */
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { FIELDS, UPPER, LOWER, NF, BONUS_MIN, BONUS_PTS, scoreFor, countFaces } = require('../js/rules.js');
+const { FIELDS, UPPER, LOWER, NF, BONUS_MIN, BONUS_PTS, scoreFor, countFaces, onlineName } = require('../js/rules.js');
 
 const dice = s => s.split('').map(Number);
 const score = (key, s) => scoreFor(key, dice(s));
@@ -78,4 +78,13 @@ test('Tiefflug und Höhenflug: nicht alle drei Zahlen nötig', () => {
 test('Chance: Augensumme ohne Voraussetzung', () => {
   assert.equal(score('chance', '234566'), 26);
   assert.equal(score('chance', '111111'), 6);
+});
+
+test('Online-Namen: nur Buchstaben, Zahlen und - _ . ! ?, ohne HTML-Zeichen und Emojis', () => {
+  for (const ok of ['Jürgen', 'Anna-Lena', 'dice_master', 'Dr. Würfel', 'Wer?!']) assert.equal(onlineName(ok), ok);
+  assert.equal(onlineName('  Lena   Maria '), 'Lena Maria');
+  assert.equal(onlineName('Ju\u0308rgen'), 'Jürgen');
+  for (const bad of ['Zoë', 'José', 'Lena😀', "O'Brien", '<script>', '<img src=x onerror=alert(1)>', '...', '', 'a'.repeat(21)]) {
+    assert.equal(onlineName(bad), null, bad);
+  }
 });

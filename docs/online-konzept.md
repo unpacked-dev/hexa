@@ -1,6 +1,6 @@
 # Online-Modus – Konzept
 
-> **Konzept, alle Fragen geklärt.** Noch ist nichts davon gebaut. Stand: 25. September 2026.
+> **Der Server ist gebaut und getestet** (Schritte 1 und 2), die App nutzt ihn noch nicht. Als Nächstes prüfen wir ihn auf Deno Deploy (Schritt 0). Wie der Server arbeitet und welche Nachrichten es gibt, steht in [`server/README.md`](../server/README.md). Stand: 27. September 2026.
 
 ## Kurz gesagt
 
@@ -306,7 +306,7 @@ Vom Server an die App:
 | `state` | Der ganze Stand, wer du bist und die Uhrzeit des Servers |
 | `error` | Ein Fehlercode wie `room-not-found`, `game-running`, `not-your-turn` oder `update-needed`. Die App übersetzt ihn ins Deutsche oder Englische. |
 
-Jede Aktion schickt die Nummer des Stands mit, auf den sie sich bezieht. Ein doppelter Tipp auf „Eintragen“ wird so einfach ignoriert.
+Doppelte Tipps fängt der Server ab: `roll` sagt, der wievielte Wurf es sein soll, `cdRoll` welche Stufe. Kommt dieselbe Zahl zweimal, lehnt er die zweite ab. Ein zweites „Eintragen“ scheitert von selbst, weil das Feld schon voll ist. `hold` sagt „halten“ oder „loslassen“ statt „umschalten“, damit eine doppelt angekommene Nachricht nichts verdreht. Beim Bauen kamen noch `away` (zum Hauptmenü, ohne das Spiel zu verlassen), `ping` und die Antworten `welcome`, `left`, `away` und `pong` dazu. Statt `move` schickt der Host mit `order` gleich die ganze neue Reihenfolge. Alle Felder und Fehlercodes stehen in [`server/README.md`](../server/README.md#nachrichten).
 
 ### Daten in Deno KV
 
@@ -353,16 +353,19 @@ hexa/
 │   ├── rules.js              Regeln, nutzen App und Server
 │   ├── online.js             neu: Verbindung zum Server, Online-Ansichten
 │   └── app.js                bekommt Anschlüsse für den Online-Modus
+├── deno.json                 Befehle dev, start und test, schaltet Deno KV frei
 └── server/                   neu
-    ├── main.ts               Einstieg für Deno Deploy: WebSocket
-    ├── game.ts               Spielablauf: würfeln, prüfen, Zugzeit, Streichen
-    ├── store.ts              alles rund um Deno KV
-    ├── deno.json             Befehle wie dev und test
-    └── *_test.ts             Tests
+    ├── main.js               Einstieg für Deno Deploy: HTTP, WebSocket, Zugzeit, Bremsen
+    ├── game.js               Spielablauf: würfeln, prüfen, Zugzeit, Streichen
+    ├── store.js              alles rund um Deno KV
+    ├── README.md             Einrichten auf Deno Deploy, Nachrichten, Fehlercodes
+    └── tests/*.spec.js       Tests
 ```
 
-- Der Server ist in TypeScript geschrieben. Deno braucht dafür keinen Build-Schritt.
-- `game.ts` rechnet nur: Stand + Aktion + Uhrzeit ergibt den neuen Stand. Kein Netz, keine Datenbank. Dadurch lässt sich der ganze Spielablauf leicht testen.
+- Der Server ist in reinem JavaScript geschrieben, ganz ohne Pakete. Er nutzt nur, was Deno mitbringt.
+- Die `deno.json` liegt im Hauptordner, weil der Server `js/rules.js` lädt. Deno Deploy muss darum das ganze Repo sehen.
+- Die Testdateien heißen `*.spec.js`, damit `node --test` sie nicht für eigene Tests hält.
+- `game.js` rechnet nur: Stand + Aktion + Uhrzeit ergibt den neuen Stand. Kein Netz, keine Datenbank. Dadurch lässt sich der ganze Spielablauf leicht testen.
 - Die Release-ZIP bleibt, wie sie ist. `server/` kommt nicht hinein.
 - Die CI lässt zusätzlich `deno test` laufen.
 - Deno Deploy baut bei jedem Push neu. Commits, die nur die App ändern, bekommen `[skip deploy]` in die Nachricht. So müssen sich laufende Spiele nicht unnötig neu verbinden.
@@ -376,8 +379,8 @@ hexa/
 ## Umsetzung in Schritten
 
 0. **Technik-Check zuerst, klein:** ein Mini-Server auf Deno Deploy mit WebSocket und `kv.watch()`, dazu zwei Handys. Wir messen, wie schnell Änderungen ankommen und was beim Sperren des Bildschirms passiert. Lokal klappt alles schon. Offen ist nur, ob `kv.watch()` auf dem neuen Deno Deploy genauso läuft, denn beschrieben ist es bisher nur für die alte Plattform. Plan B wäre, dass die Apps regelmäßig nachfragen. Das kostet aber viel mehr Anfragen.
-1. **Spielablauf auf dem Server** (`game.ts`) mit Tests, noch ohne Netz.
-2. **Server fertig:** WebSocket, KV, Codes, Zugzeit, Wiederverbinden, Revanche, Sicherheit.
+1. **Spielablauf auf dem Server** (`game.js`) mit Tests, noch ohne Netz. ✓ Erledigt.
+2. **Server fertig:** WebSocket, KV, Codes, Zugzeit, Wiederverbinden, Revanche, Sicherheit. ✓ Erledigt, mit 28 Deno-Tests. Lokal geprüft: eine ganze Partie zu dritt mit Wiederverbinden, die echte Zugzeit von 60 Sekunden, zwei Server-Prozesse an einer Datenbank und der Absturz einer Instanz. Weil `kv.watch()` lokal nur Änderungen aus dem eigenen Prozess meldet, fragt jede Instanz zusätzlich alle 5 Sekunden nach (Plan B als Sicherheitsnetz).
 3. **App:** Online-Start, Lobby mit Reihenfolge, Zugleiste mit Blinken und Ticken, Spiel, Ergebnis und Revanche. Alle Texte auf Deutsch und Englisch.
 4. **Vor dem Start:** Impressum, Datenschutz, AVV, Limits des kostenlosen Tarifs prüfen, README, Changelog, Release.
 

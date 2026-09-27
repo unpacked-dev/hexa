@@ -60,7 +60,20 @@
     }
   }
 
-  const api = { UPPER, LOWER, FIELDS, F, NF, BONUS_MIN, BONUS_PTS, sum, countFaces, scoreFor };
+  // Spitznamen im Online-Spiel: nur Buchstaben (mit Ä, Ö, Ü und ß), Zahlen, Leerzeichen und - _ . ! ?
+  // Mindestens ein Buchstabe oder eine Zahl, höchstens 20 Zeichen. HTML-Zeichen wie < > & " ' gehen nie.
+  // Im lokalen Spiel gilt die Regel nicht, dort verlässt ein Name das Gerät ja nie.
+  const NAME_MAX = 20;
+  const NAME_OK = /^(?=.*[A-Za-z0-9ÄÖÜäöüß])[A-Za-z0-9ÄÖÜäöüß _.!?-]{1,20}$/;
+  // Schreibweise vereinheitlichen (NFC), Leerzeichen zusammenfassen und außen abschneiden.
+  // Gibt den fertigen Namen zurück oder null, wenn er nicht erlaubt ist.
+  function onlineName(raw) {
+    if (typeof raw !== 'string' || raw.length > 200) return null;
+    const s = raw.normalize('NFC').replace(/\s+/g, ' ').trim();
+    return NAME_OK.test(s) ? s : null;
+  }
+
+  const api = { UPPER, LOWER, FIELDS, F, NF, BONUS_MIN, BONUS_PTS, NAME_MAX, sum, countFaces, scoreFor, onlineName };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.HexaRules = api;
 })(typeof self !== 'undefined' ? self : this);
