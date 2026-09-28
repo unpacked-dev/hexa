@@ -1,6 +1,6 @@
 # Online-Modus – Konzept
 
-> **Server und App sind gebaut und getestet** (Schritte 1 bis 3). Zum Testen liefert der Server die App gleich mit aus: die Adresse des Branches auf Deno Deploy öffnen, auf „Online“ tippen und mit einem zweiten Handy beitreten. Offen sind noch der Test mit echten Handys (Schritt 0) und alles vor dem Start (Schritt 4). Wie der Server arbeitet und welche Nachrichten es gibt, steht in [`server/README.md`](../server/README.md). Stand: 28. September 2026.
+> **Seit Version 1.8.0 ist der Online-Modus live:** App und Server unter [hexa.unpacked-dev.deno.net](https://hexa.unpacked-dev.deno.net/), die App auch auf GitHub Pages. Vorher auf echten Handys getestet. Offen aus Schritt 4 sind noch Impressum, Datenschutz, AVV und ein Blick auf die Grenzen des kostenlosen Tarifs. Wie der Server arbeitet und welche Nachrichten es gibt, steht in [`server/README.md`](../server/README.md). Stand: 28. September 2026.
 
 ## Kurz gesagt
 
@@ -368,7 +368,7 @@ hexa/
 - `game.js` rechnet nur: Stand + Aktion + Uhrzeit ergibt den neuen Stand. Kein Netz, keine Datenbank. Dadurch lässt sich der ganze Spielablauf leicht testen.
 - Die Release-ZIP bleibt, wie sie ist. `server/` kommt nicht hinein.
 - Die CI lässt zusätzlich `deno test` laufen.
-- Deno Deploy baut bei jedem Push neu. Commits, die nur die App ändern, bekommen `[skip deploy]` in die Nachricht. So müssen sich laufende Spiele nicht unnötig neu verbinden.
+- Deno Deploy baut bei jedem Push neu, auch wenn sich nur die App ändert, denn der Server liefert sie mit aus. Laufende Spiele verbinden sich danach kurz neu.
 
 ### Testen
 
@@ -378,11 +378,11 @@ hexa/
 
 ## Umsetzung in Schritten
 
-0. **Technik-Check zuerst, klein:** ein Mini-Server auf Deno Deploy mit WebSocket und `kv.watch()`, dazu zwei Handys. Wir messen, wie schnell Änderungen ankommen und was beim Sperren des Bildschirms passiert. Lokal klappt alles schon. Offen ist nur, ob `kv.watch()` auf dem neuen Deno Deploy genauso läuft, denn beschrieben ist es bisher nur für die alte Plattform. Plan B wäre, dass die Apps regelmäßig nachfragen. Das kostet aber viel mehr Anfragen.
+0. **Technik-Check zuerst, klein:** ein Mini-Server auf Deno Deploy mit WebSocket und `kv.watch()`, dazu zwei Handys. Wir messen, wie schnell Änderungen ankommen und was beim Sperren des Bildschirms passiert. ✓ Erledigt: Auf Deno Deploy kamen Würfe beim anderen in etwa 0,1 Sekunden an, auf echten Handys lief es gut. Ob `kv.watch()` auch zwischen verschiedenen Instanzen meldet, ist nicht gesondert gemessen. Sonst greift das Sicherheitsnetz: Jede Instanz fragt alle 5 Sekunden nach.
 1. **Spielablauf auf dem Server** (`game.js`) mit Tests, noch ohne Netz. ✓ Erledigt.
 2. **Server fertig:** WebSocket, KV, Codes, Zugzeit, Wiederverbinden, Revanche, Sicherheit. ✓ Erledigt, mit 29 Deno-Tests. Lokal geprüft: eine ganze Partie zu dritt mit Wiederverbinden, die echte Zugzeit von 60 Sekunden, zwei Server-Prozesse an einer Datenbank und der Absturz einer Instanz. Weil `kv.watch()` lokal nur Änderungen aus dem eigenen Prozess meldet, fragt jede Instanz zusätzlich alle 5 Sekunden nach (Plan B als Sicherheitsnetz).
 3. **App:** Online-Start, Lobby mit Reihenfolge, Zugleiste mit Blinken und Ticken, Spiel, Ergebnis und Revanche. Alle Texte auf Deutsch und Englisch. ✓ Erledigt. Die App merkt eine tote Verbindung nach wenigen Sekunden (Herzschlag alle 25 Sekunden) und verbindet sich von selbst neu.
-4. **Vor dem Start:** Impressum, Datenschutz, AVV, Limits des kostenlosen Tarifs prüfen, README, Changelog, Release.
+4. **Vor dem Start:** Impressum, Datenschutz, AVV, Limits des kostenlosen Tarifs prüfen, README, Changelog, Release. README, Changelog und Release sind mit 1.8.0 erledigt, der Rest ist noch offen.
 
 ## Später, vielleicht
 

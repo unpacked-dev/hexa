@@ -3,7 +3,7 @@
 Alle wichtigen Änderungen an HEXA stehen hier.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), die Versionen folgen [Semantic Versioning](https://semver.org/lang/de/).
 
-## [Unreleased]
+## [1.8.0] – 2026-09-28
 
 Online spielen, jede Person am eigenen Gerät.
 
@@ -14,7 +14,11 @@ Online spielen, jede Person am eigenen Gerät.
 - **Live zuschauen:** Die Würfel der anderen rollen bei allen mit, auch im Countdown. Kurze Meldungen zeigen, wer was eingetragen hat.
 - **Weiterspielen:** Handy gesperrt, Funkloch oder neu geladen: Die App verbindet sich von selbst neu. Mit „Zum Hauptmenü“ läuft das Spiel ohne dich weiter, im Hauptmenü steht dann „Weiterspielen“.
 - **Ergebnis und Revanche:** Nach dem Spiel gibt es die Platzierung und „Nochmal“ mit denselben Leuten. Dein eigenes Ergebnis kommt in deine Highscores.
-- **Server:** Deno mit Deno KV, ganz ohne weitere Pakete. Er würfelt, prüft jeden Zug und liefert zum Testen auch die App aus.
+- **Server:** Deno mit Deno KV, ganz ohne weitere Pakete, unter [hexa.unpacked-dev.deno.net](https://hexa.unpacked-dev.deno.net/). Er würfelt, prüft jeden Zug und liefert die App auch selbst aus.
+
+### Geändert
+
+- **Highscores:** Der Tab „Online“ sagt jetzt, dass deine Ergebnisse aus Online-Spielen unter „Lokal“ stehen. Eine Bestenliste für alle kommt vielleicht später.
 
 ## [1.7.0] – 2026-09-26
 
@@ -150,6 +154,7 @@ Die erste Version von HEXA.
 - **Web-App:** installierbar auf dem Home-Bildschirm, Bildschirm bleibt während des Spiels an.
 - **Tests:** Wertung aller Felder mit `node --test` abgedeckt.
 
+[1.8.0]: https://github.com/unpacked-dev/hexa/releases/tag/v1.8.0
 [1.7.0]: https://github.com/unpacked-dev/hexa/releases/tag/v1.7.0
 [1.6.0]: https://github.com/unpacked-dev/hexa/releases/tag/v1.6.0
 [1.5.0]: https://github.com/unpacked-dev/hexa/releases/tag/v1.5.0

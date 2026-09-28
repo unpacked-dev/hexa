@@ -6,7 +6,7 @@
 
 **Sechs Würfel. Drei Würfe. Ein Countdown.**
 
-Das Würfelspiel für eine oder mehr Personen, auch gegen Bots – Würfel, Spielblock und Regeln in einer App.<br>
+Das Würfelspiel für eine oder mehr Personen, auch gegen Bots oder online – Würfel, Spielblock und Regeln in einer App.<br>
 Läuft direkt im Browser, auf dem Handy wie am Laptop. Ohne Installation, ohne Konto, ohne Abhängigkeiten.
 
 ### [▶&nbsp;Jetzt spielen](https://unpacked-dev.github.io/hexa/)
@@ -32,7 +32,7 @@ Bei HEXA würfelst du um die besten Kombinationen: Pasche, Straßen, Paare und D
 
 Wer geschickt plant, holt sich im oberen Block einen dicken Bonus. Und wer schon im ersten Wurf vier gleiche Zahlen hat, darf zusätzlich den **Countdown** spielen: von 6 bis 1 herunterzählen, 10 Punkte pro geschaffter Stufe.
 
-Die App ersetzt Würfel, Becher, Block und Stift. Ihr gebt einfach das Handy reihum – oder legt es in die Mitte.
+Die App ersetzt Würfel, Becher, Block und Stift. Ihr gebt einfach das Handy reihum – oder legt es in die Mitte. Oder ihr spielt online, jede Person am eigenen Handy.
 
 ## So läuft ein Spiel
 
@@ -45,6 +45,25 @@ Die App ersetzt Würfel, Becher, Block und Stift. Ihr gebt einfach das Handy rei
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/flow-dark.webp">
   <img src="docs/screenshots/flow-light.webp" width="880" alt="HEXA auf dem Handy: Spieler-Auswahl mit einem Bot, Ergebnis mit neuem Rekord und die Highscores">
+</picture>
+</div>
+
+## Online spielen
+
+Jede Person spielt am eigenen Handy, egal wo. Es gibt keine Konten, nur Spitznamen.
+
+1. Im Hauptmenü **Online** wählen und einen Spitznamen eingeben.
+2. Eine Person tippt auf **Lobby erstellen** und bekommt einen Code aus 4 Buchstaben. Die anderen tippen auf **Lobby beitreten** und geben den Code ein.
+3. Der Host legt die Reihenfolge fest und startet das Spiel. Allein geht auch.
+4. Jeder Zug hat 60 Sekunden. Die Zugleiste oben zeigt, wer dran ist und wie viel Zeit bleibt. Ab 10 Sekunden wird sie rot. Die anderen sehen die Würfel live mitrollen.
+5. Nach dem Spiel geht es mit **Nochmal** zurück in dieselbe Lobby. Dein Ergebnis landet in deinen Highscores.
+
+Der Server würfelt und prüft jeden Zug. Ist die Zeit um, streicht er ein zufälliges freies Feld. Handy gesperrt oder kurz kein Netz? Die App verbindet sich von selbst neu. Über **Menü → Zum Hauptmenü** läuft das Spiel ohne dich weiter, im Hauptmenü steht dann **Weiterspielen**.
+
+<div align="center">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/online-dark.webp">
+  <img src="docs/screenshots/online-light.webp" width="880" alt="HEXA online auf dem Handy: Lobby mit Code und drei Personen, eigener Zug mit Zugleiste und Restzeit, Ergebnis mit Platzierung">
 </picture>
 </div>
 
@@ -117,7 +136,7 @@ Die vollständigen Regeln mit Beispielen stehen in der App im Bereich **Regeln**
 
 ## Loslegen
 
-**Online:** [unpacked-dev.github.io/hexa](https://unpacked-dev.github.io/hexa/) öffnen und losspielen.
+**Im Browser:** [unpacked-dev.github.io/hexa](https://unpacked-dev.github.io/hexa/) öffnen und losspielen. Die App läuft auch unter [hexa.unpacked-dev.deno.net](https://hexa.unpacked-dev.deno.net/), dort läuft auch der Server für den Online-Modus.
 
 **Lokal:** Repository klonen und `index.html` im Browser öffnen – fertig. Es gibt keinen Build-Schritt.
 
@@ -132,6 +151,8 @@ Wer lieber über einen lokalen Server testet (z. B. für das Web-App-Manifest):
 ```bash
 python3 -m http.server 8000   # dann http://localhost:8000 öffnen
 ```
+
+Auch so geöffnet spielt die App online über den Server unter hexa.unpacked-dev.deno.net. Wer den Server selbst laufen lassen möchte, braucht [Deno 2](https://docs.deno.com/runtime/getting_started/installation/): `deno task dev` startet App und Server auf http://localhost:8000, mehr dazu in [server/README.md](server/README.md).
 
 **Als App aufs Handy:** Seite im Browser öffnen und *Zum Home-Bildschirm hinzufügen* wählen.
 
@@ -149,9 +170,10 @@ python3 -m http.server 8000   # dann http://localhost:8000 öffnen
 HEXA ist bewusst einfach gebaut: **reines HTML, CSS und JavaScript** – kein Framework, kein Bundler, keine Pakete.
 
 - **Ton aus dem Browser:** Alle Effekte und die Lo-Fi-Musik entstehen live mit der Web Audio API. Es wird keine einzige Audiodatei geladen.
-- **Faire Würfel:** Zufallszahlen kommen aus `crypto.getRandomValues`, ohne Modulo-Verzerrung.
+- **Faire Würfel:** Zufallszahlen kommen aus `crypto.getRandomValues`, ohne Modulo-Verzerrung. Online würfelt der Server genauso.
+- **Online-Server ohne Pakete:** [Deno](https://deno.com) mit `Deno.serve` für HTTP und WebSocket und Deno KV als Datenbank, auf Deno Deploy. Der Server würfelt, prüft jeden Zug und schickt nach jeder Änderung allen den ganzen Stand. Die App zeigt ihn nur an. Mehr in [server/README.md](server/README.md).
 - **Bots mit Mathe statt KI:** Ein Bot rechnet jeden Zug exakt durch. Für jede Möglichkeit, Würfel liegen zu lassen, kennt er die Wahrscheinlichkeit jedes Ergebnisses. Was ein Feld für den Rest des Spiels wert ist, schätzt er mit rund 170 Zahlen. Die stammen aus dem perfekten Spiel, das die Werkzeuge in `tools/` für alle 1,65 Millionen Spielstände ausrechnen.
-- **Alles bleibt auf dem Gerät:** Spielstand, Highscores, Design und Ton werden im `localStorage` deines Browsers gespeichert und nie übertragen. Es gibt kein Konto und kein Backend.
+- **Lokal bleibt alles auf dem Gerät:** Spielstand, Highscores, Design und Ton werden im `localStorage` deines Browsers gespeichert und nie übertragen. Nur im Online-Modus spricht die App mit dem Server, auch dann ohne Konto.
 - **Keine fremden Server:** Schriften und Icons liegen im Repository. Beim Spielen wird nichts von Google oder anderen Anbietern geladen. Es gibt keine Cookies und kein Tracking.
 - **Barrierearm:** Bedienbar per Tastatur, mit Screenreader-Beschriftungen, sichtbarem Fokus und Rücksicht auf *reduzierte Bewegung*.
 - **Moderne Web-APIs, wo verfügbar:** Screen Wake Lock (Bildschirm bleibt an), View Transitions (weicher Wechsel hell/dunkel), Vibration.
