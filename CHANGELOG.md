@@ -3,6 +3,19 @@
 Alle wichtigen Änderungen an HEXA stehen hier.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), die Versionen folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [Unreleased]
+
+Online spielen, jede Person am eigenen Gerät.
+
+### Neu
+
+- **Online spielen:** Eine Person erstellt eine Lobby und bekommt einen Code aus 4 Buchstaben, die anderen treten damit bei. Der Host legt die Reihenfolge fest und kann Leute entfernen. Allein geht auch. Kein Konto, nur ein Spitzname.
+- **Zugleiste:** Oben steht, wer dran ist, mit Restzeit und ablaufendem Balken. Jeder Zug hat 60 Sekunden, der Countdown eigene 30. Ab 10 Sekunden wird es rot und blinkt, wer dran ist, hört ein leises Ticken. Ist die Zeit um, streicht der Server ein zufälliges freies Feld.
+- **Live zuschauen:** Die Würfel der anderen rollen bei allen mit, auch im Countdown. Kurze Meldungen zeigen, wer was eingetragen hat.
+- **Weiterspielen:** Handy gesperrt, Funkloch oder neu geladen: Die App verbindet sich von selbst neu. Mit „Zum Hauptmenü“ läuft das Spiel ohne dich weiter, im Hauptmenü steht dann „Weiterspielen“.
+- **Ergebnis und Revanche:** Nach dem Spiel gibt es die Platzierung und „Nochmal“ mit denselben Leuten. Dein eigenes Ergebnis kommt in deine Highscores.
+- **Server:** Deno mit Deno KV, ganz ohne weitere Pakete. Er würfelt, prüft jeden Zug und liefert zum Testen auch die App aus.
+
 ## [1.7.0] – 2026-09-26
 
 Noch mehr Abwechslung beim Würfeln.

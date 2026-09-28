@@ -50,7 +50,7 @@ Die App ersetzt Würfel, Becher, Block und Stift. Ihr gebt einfach das Handy rei
 
 ## Features
 
-- **Hauptmenü** – lokal auf einem Gerät reihum spielen, Highscores ansehen, Einstellungen öffnen. Online kommt bald.
+- **Hauptmenü** – lokal auf einem Gerät reihum spielen oder online mit anderen, Highscores ansehen, Einstellungen öffnen.
 - **Mit App- oder eigenen Würfeln** – vor dem Spiel wählen: Die App würfelt für euch, oder ihr würfelt selbst und nutzt nur den Spielblock.
 - **Würfeln mit Gefühl** – sechs Würfel mit Klackern und Vibration, geworfen auf sieben Arten: kullern, hochwerfen, über den Tisch rollen, schütteln, hüpfen, kreiseln oder als Welle. Keine Art kommt öfter als einmal in vier Würfen. Tippen hält einen Würfel fest, nochmal Tippen löst ihn wieder.
 - **Kleine Belohnungen** – steigende Töne bei 4, 5 und 6 gleichen, ein Lauf für die Große Straße und Konfetti für seltene Momente wie sechs gleiche oder einen neuen Rekord.
@@ -58,7 +58,8 @@ Die App ersetzt Würfel, Becher, Block und Stift. Ihr gebt einfach das Handy rei
 - **Countdown als Bonusspiel** – wird automatisch freigeschaltet und direkt nach dem Zug gestartet.
 - **Mehrere Personen oder solo** – Reihenfolge vor dem Spiel festlegen. Im Spiel lassen sich Namen ändern und Personen entfernen.
 - **Bots als Gegner** – Computergegner mit Namen wie Pasch-Paula oder Dr. Wurf. Sie spielen sichtbar Zug für Zug und fast perfekt: im Schnitt 322 Punkte, perfektes Spiel bringt 324. In die Highscores kommen nur Menschen.
-- **Spielende und Highscores** – das Ergebnis zeigt alle Platzierungen und neue Rekorde. Die zehn besten Ergebnisse bleiben auf dem Gerät gespeichert, Online-Highscores kommen bald.
+- **Online spielen** – jede Person am eigenen Gerät. Eine Person erstellt eine Lobby und bekommt einen Code aus 4 Buchstaben, die anderen treten damit bei. Allein geht auch. Der Server würfelt, jeder Zug hat 60 Sekunden, und alle sehen die Würfel live mitrollen. Kein Konto, nur ein Spitzname.
+- **Spielende und Highscores** – das Ergebnis zeigt alle Platzierungen und neue Rekorde. Die zehn besten Ergebnisse bleiben auf dem Gerät gespeichert, bei Online-Spielen dein eigenes.
 - **Nichts geht verloren** – Spiele lassen sich pausieren und bleiben auch nach dem Schließen erhalten. Einträge, entfernte Personen oder ein abgebrochenes Spiel lassen sich mit einem Tipp rückgängig machen.
 - **Regeln eingebaut** – Kurzübersicht, Beispiele und Wahrscheinlichkeiten für Neugierige.
 - **Einstellungen** – Design hell, dunkel oder automatisch. Musik und Spielsounds lassen sich getrennt an- und ausschalten und leiser stellen.
@@ -169,7 +170,8 @@ hexa/
 │   ├── bot.js             # Computergegner: welche Würfel liegen bleiben, welches Feld
 │   ├── sound.js           # Effekte und Lo-Fi-Musik (Web Audio)
 │   ├── i18n.js            # wählt die Sprache und liefert die Texte
-│   └── app.js             # Spielablauf, Darstellung, Eingaben
+│   ├── online.js          # Verbindung zum Online-Server, verbindet von selbst neu
+│   └── app.js             # Spielablauf, Darstellung, Eingaben, auch online
 ├── lang/
 │   ├── de.js              # alle Texte auf Deutsch (Hauptsprache), auch die Regeln
 │   └── en.js              # alle Texte auf Englisch
@@ -184,7 +186,7 @@ hexa/
 │   ├── bot-optimal.js     # rechnet das perfekte Spiel für alle Spielstände aus
 │   ├── bot-fit.js         # leitet daraus die Werte für die Bots ab
 │   └── bot-sim.js         # lässt Bots viele Partien spielen und zeigt die Zahlen
-├── server/                # Server für den kommenden Online-Modus (Deno, Deno KV), siehe server/README.md
+├── server/                # Server für den Online-Modus (Deno, Deno KV), liefert auch die App aus, siehe server/README.md
 ├── deno.json              # Befehle für den Server: deno task dev, deno task test
 ├── docs/                  # Screenshots, Vorschaubild und Konzept für den Online-Modus
 └── THIRD-PARTY-NOTICES.md # Lizenzen von Schriften und Icons

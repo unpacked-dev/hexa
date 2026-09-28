@@ -2,13 +2,13 @@
 
 Der Server würfelt, prüft jeden Zug und achtet auf die Zugzeit. Er läuft mit [Deno](https://deno.com), ganz ohne weitere Pakete: `Deno.serve` für HTTP und WebSocket, [Deno KV](https://docs.deno.com/deploy/kv/) als Datenbank. Die Regeln kommen aus `../js/rules.js`, genau wie in der App.
 
-> **Stand:** Der Server ist fertig und getestet. Die App nutzt ihn noch nicht. Das Konzept steht in [`docs/online-konzept.md`](../docs/online-konzept.md).
+> **Stand:** Server und App sind fertig und getestet. Zum Testen liefert der Server die App gleich mit aus (siehe unten). Das Konzept steht in [`docs/online-konzept.md`](../docs/online-konzept.md).
 
 ## Dateien
 
 | Datei | Was drin ist |
 |---|---|
-| `main.js` | Einstieg: HTTP, WebSocket, Nachrichten, Zugzeit, Anwesenheit, Bremsen |
+| `main.js` | Einstieg: HTTP (App und `/health`), WebSocket, Nachrichten, Zugzeit, Anwesenheit, Bremsen |
 | `game.js` | Spielablauf, nur Rechnen: Stand + Aktion + Uhrzeit ergibt den neuen Stand |
 | `store.js` | Deno KV: Lobbys anlegen, atomar ändern, beobachten |
 | `tests/*.spec.js` | Tests für Spielablauf, Datenbank und den ganzen Server |
@@ -20,21 +20,27 @@ Die `deno.json` liegt im Hauptordner des Repos und nicht hier. Der Server lädt 
 Nötig ist nur [Deno 2](https://docs.deno.com/runtime/getting_started/installation/). Aus dem Hauptordner des Repos:
 
 ```bash
-deno task dev    # Server auf http://localhost:8000, WebSocket unter ws://localhost:8000/ws
+deno task dev    # App und Server auf http://localhost:8000, WebSocket unter ws://localhost:8000/ws
 deno task test   # alle Server-Tests
 ```
 
-`http://localhost:8000/` zeigt `{"app":"hexa","protocol":1,"ok":true}`. Die Datenbank liegt lokal in einer Datei im Deno-Cache. Mit `HEXA_KV=./hexa.kv` bestimmst du den Ort selbst.
+`http://localhost:8000/` öffnet die App, `http://localhost:8000/health` zeigt `{"app":"hexa","protocol":1,"ok":true}`. Mit zwei Browserfenstern (oder einem privaten Fenster) lässt sich so gegen sich selbst spielen. Die Datenbank liegt lokal in einer Datei im Deno-Cache. Mit `HEXA_KV=./hexa.kv` bestimmst du den Ort selbst.
 
 ## Auf Deno Deploy einrichten
 
 1. Auf [console.deno.com](https://console.deno.com) eine neue App anlegen und das GitHub-Repo `unpacked-dev/hexa` verbinden. Das App-Verzeichnis bleibt leer (Hauptordner des Repos).
 2. **Datenbank:** unter *Databases* eine Deno-KV-Datenbank anlegen (*Provision Database*) und der App zuweisen (*Assign*). Mehr ist nicht nötig, `Deno.openKv()` findet sie von selbst. Jeder Branch bekommt automatisch eine eigene Datenbank.
-3. **Prüfen:** Die Adresse eines Builds mit dem Server öffnen. Dort muss `{"app":"hexa","protocol":1,"ok":true}` stehen. Der WebSocket ist dann `wss://<adresse>/ws`.
+3. **Prüfen:** An die Adresse eines Builds `/health` anhängen. Dort muss `{"app":"hexa","protocol":1,"ok":true}` stehen. Der WebSocket ist dann `wss://<adresse>/ws`, unter der Adresse selbst läuft die App.
 
 Einstiegspunkt und Laufzeit stehen in der `deno.json` unter `deploy.runtime`: `mode: "dynamic"` mit `entrypoint: "server/main.js"`. Diese Angabe geht den Einstellungen im Dashboard vor. Ohne sie findet Deno Deploy die `index.html` im Hauptordner und liefert einfach die Website aus. Die `deno.json` schaltet außerdem mit `"unstable": ["kv"]` Deno KV frei, sonst bricht der Start mit „Deno.openKv is not a function“ ab.
 
-Solange der Server nur auf dem Branch `claude/charming-maxwell-yrwmwc` liegt, baut `main` weiter die Website. Die Adresse zum Testen ist die des Branches, zu finden unter *Timelines*. Deno Deploy baut bei jedem Push neu. Laufende Spiele verbinden sich danach kurz neu, das macht die App später automatisch.
+Solange der Server nur auf dem Branch `claude/charming-maxwell-yrwmwc` liegt, baut `main` weiter die Website. Die Adresse zum Testen ist die des Branches, zu finden unter *Timelines*. Deno Deploy baut bei jedem Push neu. Laufende Spiele verbinden sich danach von selbst kurz neu.
+
+### Die App gleich mit
+
+Der Server liefert auch die App aus: `index.html`, `favicon.svg`, `manifest.webmanifest` und die Ordner `css/`, `js/`, `lang/`, `fonts/` und `icons/`. Alles andere (etwa `server/`, `docs/` oder `.github/`) gibt es nicht, nur diese Liste. So ist jede Adresse auf Deno Deploy gleich eine fertige Testseite.
+
+Die App fragt beim Start `health` auf ihrer eigenen Adresse. Antwortet dort ein HEXA-Server, spielt sie über ihn. Sonst nimmt sie den festen Server `wss://hexa.unpacked-dev.deno.net/ws`, zum Beispiel auf GitHub Pages oder aus der ZIP.
 
 ### Einstellungen über Umgebungsvariablen
 

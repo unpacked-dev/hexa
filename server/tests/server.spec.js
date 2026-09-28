@@ -149,8 +149,10 @@ Deno.test('Doppelter Tipp und falsche Züge werden abgelehnt', async () => {
   lena.send({ t: 'hold', i: 2, on: true });
   await lena.until(x => x.dice.held[2]);
   lena.send({ t: 'enter', field: 'chance' });
-  const after = await tim.until(x => x.turn && x.turn.player === tim.state.you);
-  assert.equal(after.scores[lena.state.you].chance, r.dice.vals.reduce((a, b) => a + b, 0));
+  // Nicht auf Tims Zug warten: Bei 4 gleichen im ersten Wurf spielt Lena erst noch den Countdown.
+  const lenaId = lena.state.you;
+  const after = await tim.until(x => !!x.scores[lenaId] && x.scores[lenaId].chance !== undefined);
+  assert.equal(after.scores[lenaId].chance, r.dice.vals.reduce((a, b) => a + b, 0));
   await env.stop(lena, tim);
 });
 
@@ -274,17 +276,31 @@ Deno.test('Bremsen: nicht zu viele neue Lobbys, nicht zu viele Nachrichten', asy
   await env.stop(c);
 });
 
-Deno.test('HTTP: Startseite für einen schnellen Test, sonst nur WebSocket', async () => {
+Deno.test('HTTP: Die App, der Status unter /health, sonst nur WebSocket', async () => {
   const env = await servers(1);
-  const home = await fetch(env.http(0) + '/');
-  assert.deepEqual(await home.json(), { app: 'hexa', protocol: G.PROTOCOL, ok: true });
-  assert.equal(home.headers.get('access-control-allow-origin'), '*');
+  const health = await fetch(env.http(0) + '/health');
+  assert.deepEqual(await health.json(), { app: 'hexa', protocol: G.PROTOCOL, ok: true });
+  assert.equal(health.headers.get('access-control-allow-origin'), '*');
+  const page = await fetch(env.http(0) + '/');
+  assert.equal(page.status, 200);
+  assert.match(page.headers.get('content-type'), /text\/html/);
+  assert.match(await page.text(), /<title>HEXA<\/title>/);
+  for (const [path, type] of [['/js/online.js', /javascript/], ['/css/hexa.css', /css/], ['/lang/de.js', /javascript/], ['/icons/icon-192.png', /png/], ['/manifest.webmanifest', /manifest/]]) {
+    const r = await fetch(env.http(0) + path);
+    assert.equal(r.status, 200, path);
+    assert.match(r.headers.get('content-type'), type, path);
+    await r.body.cancel();
+  }
+  // Server-Code, Doku, Werkzeuge und Tricks mit Pfaden bleiben draußen
+  for (const path of ['/server/main.js', '/deno.json', '/docs/online-konzept.md', '/README.md', '/tools/bot-sim.js', '/tests/bot.test.js',
+    '/.git/config', '/js/../server/game.js', '/%2e%2e/deno.json', '/js/%2e%2e/deno.json', '/css/', '/js/app.js%3F', '/nichts.html']) {
+    const r = await fetch(env.http(0) + path);
+    assert.equal(r.status, 404, path);
+    await r.body.cancel();
+  }
   const plain = await fetch(env.http(0) + '/ws');
   assert.equal(plain.status, 426);
   await plain.body.cancel();
-  const missing = await fetch(env.http(0) + '/geheim');
-  assert.equal(missing.status, 404);
-  await missing.body.cancel();
   await env.stop();
 });
 

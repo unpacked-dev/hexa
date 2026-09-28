@@ -40,6 +40,9 @@
     trophy: svg('<path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/>'),
     globe: svg('<circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/>'),
     bot: svg('<path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/>'),
+    plus: svg('<path d="M5 12h14"/><path d="M12 5v14"/>'),
+    enter: svg('<path d="m10 17 5-5-5-5"/><path d="M15 12H3"/><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>'),
+    copy: svg('<rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>'),
   };
   // Kleines Roboter-Zeichen vor Bot-Namen
   const botMark = ICON.bot.replace('<svg ', '<svg class="bot-ic" ');
@@ -132,13 +135,25 @@
       return freshState();
     }
   }
+  // Gespeichert wird nur das lokale Spiel. Online kommt der Stand vom Server.
   function save() {
+    if (state !== local) return;
     syncHistory();
-    try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { /* Speicher voll oder gesperrt */ }
+    saveLocal();
+  }
+  function saveLocal() {
+    try { localStorage.setItem(KEY, JSON.stringify(local)); } catch (e) { /* Speicher voll oder gesperrt */ }
   }
 
-  let state = load();
+  let local = load();   // das lokale Spiel, dazu die Highscores
+  let state = local;    // was gerade zu sehen ist: das lokale Spiel oder der Stand eines Online-Spiels
   let atStart = true;   // Beim Öffnen kommt zuerst der Startbildschirm.
+
+  // Online-Modus: Verbindung in js/online.js, Ansichten im Abschnitt „Online“ weiter unten
+  const Online = window.HexaOnline;
+  let mode = 'local';   // local | online
+  let room = null;      // der letzte Stand vom Server
+  function online() { return mode === 'online'; }
 
   /* ---------- Spiel-Logik ---------- */
   const playerById = id => state.players.find(p => p.id === id) || null;
@@ -173,22 +188,26 @@
     return { upper, lower, bonus, cd, list, upperCount, total: upper + bonus + lower + cd };
   }
   function currentPlayer() {
+    if (online()) return room && room.status === 'playing' && room.turn ? playerById(room.turn.player) : null;
     let best = null;
     let min = Infinity;
     state.players.forEach(p => { const n = filled(p.id); if (n < min) { min = n; best = p; } });
     return min < NF ? best : null;
   }
   const roundNo = () => (state.players.length ? Math.min(NF, Math.min.apply(null, state.players.map(p => filled(p.id))) + 1) : 0);
-  const isOver = () => state.players.length > 0 && state.players.every(p => filled(p.id) >= NF);
+  // Online endet ein Spiel auf dem Server. Danach wartet die Lobby, und das Ergebnis kommt als Fenster.
+  const isOver = () => !online() && state.players.length > 0 && state.players.every(p => filled(p.id) >= NF);
   const anyScores = () => state.players.some(p => filled(p.id) > 0 || cdList(p.id).length > 0);
 
   function turnDone() {
     const d = state.dice;
     if (!d.rolls || !d.owner) return false;
+    // Online: Die Würfel gehören zu einem früheren Zug, oder der Countdown läuft schon.
+    if (online()) return !!(room && room.turn) && (d.turn !== room.turn.no || room.turn.phase === 'cd');
     const p = playerById(d.owner);
     return !!p && filled(p.id) > d.ownerFilled;
   }
-  const cdPending = () => !!(state.dice.cd && !state.dice.cd.played);
+  const cdPending = () => (online() ? !!(room && room.turn && room.turn.phase === 'cd') : !!(state.dice.cd && !state.dice.cd.played));
   // Alle Felder voll und kein Countdown mehr offen: Jetzt kann das Spiel beendet werden.
   const gameDone = () => isOver() && !cdPending();
   // Ist im Spiel schon etwas passiert? Sonst geht nichts verloren, wenn man es verlässt.
@@ -264,7 +283,8 @@
     shownDuo = duo;
     syncFrame();
     $('.app').classList.toggle('duo', duo);
-    const shown = name => (setup ? name === 'players' : name === state.tab || (duo && PAIR.indexOf(name) >= 0));
+    const setupView = online() ? 'online' : 'players';
+    const shown = name => (setup ? name === setupView : name === state.tab || (duo && PAIR.indexOf(name) >= 0));
     $$('.view').forEach(v => { v.hidden = !shown(v.dataset.view); });
     $$('.tab').forEach(t => {
       const on = shown(t.dataset.tab);
@@ -273,7 +293,7 @@
       else t.removeAttribute('aria-current');
     });
     renderTop();
-    if (setup) renderPlayers();
+    if (setup) { if (online()) renderOnline(); else renderPlayers(); }
     if (shown('dice')) renderDice();
     if (shown('block')) renderBlock();
     botKick();
@@ -287,7 +307,8 @@
     if (!state.players.length || !state.started) el.innerHTML = '';
     else if (isOver()) el.innerHTML = fit(tr('top.overLong'), tr('top.overMid'), tr('top.overShort'));
     else el.innerHTML = fit(tr('top.roundLong', v), tr('top.roundMid', v), tr('top.roundShort', v));
-    $('#cdBadge').hidden = !cdPending();
+    // Online zeigt der Punkt nur den eigenen Countdown an, wenn sein Fenster zu ist.
+    $('#cdBadge').hidden = online() ? !(myTurn() && cdPending() && $('#cd').hidden) : !cdPending();
     // Breite Bildschirme: Im aktiven Tab (Würfel oder Block) holt ein Knopf die andere Ansicht dazu.
     const wide = canDuo();
     const duo = duoOn();
@@ -300,6 +321,7 @@
       b.setAttribute('aria-label', label);
       b.title = label;
     });
+    renderBar();
   }
 
   // Spieler-Auswahl vor dem Spiel: Namen, Reihenfolge und womit gewürfelt wird
@@ -367,6 +389,17 @@
 
   function rollState() {
     const d = state.dice;
+    if (online()) {
+      const cur = currentPlayer();
+      if (!cur) return { label: tr('dice.roll'), sub: '', off: true };
+      if (cur.id !== room.you) return { label: tr('dice.roll'), sub: waitText(), off: true };
+      if (room.turn.phase === 'cd') return { label: tr('cdStrip.running'), sub: tr('online.cdSub'), off: true };
+      if (d.turn !== room.turn.no || !d.rolls) return { label: tr('dice.roll'), sub: tr('dice.allSix'), off: false };
+      if (d.rolls >= 3) return { label: tr('dice.noMore'), sub: tr('dice.enterResult'), off: true };
+      const free = d.held.filter(h => !h).length;
+      if (!free) return { label: tr('dice.allHeld'), sub: tr('dice.tapToRelease'), off: true };
+      return { label: tr('dice.rollAgain'), sub: tr(d.rolls === 2 ? 'dice.leftLast' : 'dice.left', { n: free }), off: false };
+    }
     const b = botActor();
     if (b) return { label: tr('bot.button', { name: b.name }), sub: tr('bot.buttonSub'), off: true };
     if (turnDone()) {
@@ -394,11 +427,22 @@
     const idle = !d.vals || !d.rolls;
     const vals = idle ? [1, 2, 3, 4, 5, 6] : d.vals;
     const bot = botActor();
-    const canHold = !idle && d.rolls < 3 && !done && !bot;
+    const watching = online() && !!cur && cur.id !== room.you;   // online ist jemand anderes dran
+    const canHold = !idle && d.rolls < 3 && !done && !bot && !watching;
 
     let who = '';
     let sub = '';
-    if (bot) {
+    const ot = online() && room ? room.turn : null;
+    if (online()) {
+      if (!cur || !ot) who = tr('dice.over');
+      else if (!watching) {
+        who = tr('online.yourTurn');
+        sub = ot.phase === 'cd' ? tr('online.yourCd') : idle || done ? tr('online.rollNow') : '';
+      } else {
+        who = tr('dice.turn', { name: cur.name });
+        sub = tr(ot.phase === 'cd' ? 'bot.cdPlays' : idle || done ? 'online.waitRoll' : 'bot.roll', { name: cur.name });
+      }
+    } else if (bot) {
       who = tr('dice.turn', { name: bot.name });
       const busy = !idle && !done && d.owner === bot.id;   // mitten im Zug, etwa nach dem Neuladen
       sub = tr('bot.' + (botStatus || (busy ? 'think' : 'ready')), { name: bot.name });
@@ -426,7 +470,9 @@
     }).join('');
 
     let hint;
-    if (bot) hint = tr('bot.hint');
+    if (watching) hint = tr('online.watchHint');
+    else if (ot && ot.phase === 'roll' && (idle || done)) hint = tr('dice.hintIdle');
+    else if (bot) hint = tr('bot.hint');
     else if (idle) hint = tr('dice.hintIdle');
     else if (done) hint = tr('dice.hintDone');
     else if (d.rolls >= 3) hint = tr('dice.hintNoRolls');
@@ -435,8 +481,15 @@
     const rs = rollState();
 
     let cdHTML = '';
-    // Den Countdown eines Bots spielt der Bot selbst.
-    if (cdPending() && !isBot(d.cd.owner)) {
+    if (online()) {
+      // Online: Leiste zum eigenen Countdown oder zum Zuschauen
+      const g = state.cdGame;
+      if (cdPending() && g && cur) {
+        const mine = !watching;
+        cdHTML = `<div class="cd-strip"><div class="tx"><strong>${esc(tr(mine ? 'cdStrip.running' : 'online.cdOf', { name: cur.name }))}</strong><p>${tr('cdStrip.runningText', { stage: g.stage + 1, pts: trPts(g.pts) })}</p></div><button type="button" class="btn btn-ink" data-act="cd-open">${tr(mine ? 'cdStrip.resume' : 'online.watch')}</button></div>`;
+      }
+    } else if (cdPending() && !isBot(d.cd.owner)) {
+      // Den Countdown eines Bots spielt der Bot selbst.
       const g = state.cdGame;
       const cdOwner = d.cd.owner ? playerById(d.cd.owner) : null;
       let title;
@@ -459,7 +512,7 @@
     }
 
     let entryHTML = '';
-    if (owner && !owner.bot && !idle && !done) {
+    if (owner && !owner.bot && !idle && !done && !watching) {
       const opts = FIELDS.filter(f => scoreOf(owner.id, f.key) === null).map(f => ({ f, p: scoreFor(f.key, d.vals) }));
       const good = opts.filter(o => o.p > 0);
       const zero = opts.filter(o => o.p === 0);
@@ -533,6 +586,14 @@
       return `<button type="button" class="${cls}" data-act="cell" data-pid="${p.id}" data-key="${f.key}" aria-label="${esc(label)}">${inner}</button>`;
     };
     const val = (p, html, extra) => `<div class="p-val${turn(p)}${extra ? ' ' + extra : ''}">${html}</div>`;
+    // Online: Punkt für verbunden oder nicht, und „du“ an der eigenen Spalte
+    const padName = p => {
+      const o = online() ? onlinePlayer(p.id) : null;
+      if (!o) return `<button type="button" class="pad-name${turn(p)}" data-act="player" data-pid="${p.id}" title="${esc(p.name)}" aria-label="${esc(tr(p.bot ? 'block.botName' : 'block.editName', { name: p.name }))}">${p.bot ? botMark : ''}${esc(p.name)}</button>`;
+      const me = p.id === room.you;
+      const label = tr(me ? 'online.playerYou' : o.online ? 'online.playerOn' : 'online.playerOff', { name: p.name });
+      return `<button type="button" class="pad-name${turn(p)}" data-act="player" data-pid="${p.id}" title="${esc(p.name)}" aria-label="${esc(label)}"><span class="pad-n"><i class="odot${o.online ? '' : ' off'}" aria-hidden="true"></i>${esc(p.name)}</span>${me ? `<small class="you">${tr('online.you')}</small>` : ''}</button>`;
+    };
 
     let rows = `<div class="p-sec"><span>${tr('block.upper')}</span></div>`;
     UPPER.forEach(f => { rows += `<div class="p-row">${lab(fieldName(f.key), '', miniDie(f.n))}${P.map(p => cell(p, f)).join('')}</div>`; });
@@ -561,11 +622,11 @@
         <div class="pad-top" aria-hidden="true"></div>
         <div class="pad-head">
           <div class="pad-corner"></div>
-          <div class="pad-vp"><div class="pad-names">${P.map(p => `<button type="button" class="pad-name${turn(p)}" data-act="player" data-pid="${p.id}" title="${esc(p.name)}" aria-label="${esc(tr(p.bot ? 'block.botName' : 'block.editName', { name: p.name }))}">${p.bot ? botMark : ''}${esc(p.name)}</button>`).join('')}</div></div>
+          <div class="pad-vp"><div class="pad-names">${P.map(padName).join('')}</div></div>
         </div>
         <div class="p-body"><div class="p-grid">${rows}</div></div>
       </div>
-      <p class="pad-hint">${tr('block.hint')}</p>`;
+      <p class="pad-hint">${tr(online() ? 'online.blockHint' : 'block.hint')}</p>`;
 
     const body = $('.p-body', root);
     const track = $('.pad-names', root);
@@ -596,8 +657,8 @@
 
     let msg;
     if (g.status === 'play') {
-      // Spielt ein Bot, wird er beim Namen genannt statt mit „du“.
-      const botName = owner && owner.bot ? esc(owner.name) : null;
+      // Spielt ein Bot oder online jemand anderes, wird er beim Namen genannt statt mit „du“.
+      const botName = owner && (owner.bot || (online() && owner.id !== room.you)) ? esc(owner.name) : null;
       const need = botName ? tr('bot.cdNeed', { stage: g.stage + 1, n: target, name: botName }) : tr('cd.need', { stage: g.stage + 1, n: target });
       const how = tr(botName ? 'bot.cdRollWith' : 'cd.rollWith', { dice: tr('cd.diceWith', { n: target }), p: odds(target) });
       msg = g.last && g.hit >= 0
@@ -616,7 +677,17 @@
       : Array.from({ length: target }, (_, i) => `<div class="die blank" style="--k:${i}">${faceHTML(0)}</div>`).join('');
 
     let foot;
-    if (owner && owner.bot) {
+    if (online()) {
+      // Online würfelt nur, wer dran ist. Die Punkte trägt der Server selbst ein.
+      const mine = !!owner && owner.id === room.you;
+      if (g.status === 'play') {
+        foot = mine
+          ? `<button type="button" class="btn btn-marker btn-roll" data-act="cd-roll"><span class="rl">${tr('cd.roll')}</span><small>${tr('cd.rollSub', { n: target })}</small></button>`
+          : `<p class="cd-bot">${esc(tr('bot.cdPlays', { name: owner ? owner.name : '' }))}</p>`;
+      } else {
+        foot = `<div class="cd-res"><div class="cd-big">${g.pts}</div><p>${tr(g.pts ? 'online.cdSaved' : 'cd.none')}</p></div><button type="button" class="btn btn-marker" data-act="cd-close">${tr('common.done')}</button>`;
+      }
+    } else if (owner && owner.bot) {
       foot = g.status === 'play'
         ? `<p class="cd-bot">${esc(tr('bot.cdPlays', { name: owner.name }))}</p>`
         : `<div class="cd-res"><div class="cd-big">${g.pts}</div><p>${tr(g.pts ? 'cd.result' : 'cd.none')}</p></div>`;
@@ -637,7 +708,7 @@
 
     box.innerHTML = `
       <div class="cd-head"><h2 class="cd-title">${tr('cd.title')}</h2><button type="button" class="cd-x" data-act="cd-close" aria-label="${esc(tr('cd.close'))}">${ICON.x}</button></div>
-      <div class="cd-sub"><span>${owner ? esc(tr('cd.for', { name: owner.name })) : tr('cd.intro')}</span><span>${tr('cd.pts', { n: g.pts })}</span></div>
+      <div class="cd-sub"><span>${owner ? esc(tr('cd.for', { name: owner.name })) : tr('cd.intro')}</span><span>${tr('cd.pts', { n: g.pts })}${online() && g.status === 'play' ? ' · <span class="cd-time" role="timer"></span>' : ''}</span></div>
       <div class="hexes" role="list" aria-label="${esc(tr('cd.stages'))}">${hexes}</div>
       <div class="cd-msg" aria-live="polite">${msg}</div>
       <div class="cd-stage">
@@ -645,6 +716,7 @@
         <div class="cd-got" aria-label="${esc(tr('cd.aside'))}">${g.got.map(v => miniDie(v)).join('')}</div>
       </div>
       <div class="cd-foot">${foot}</div>`;
+    if (online()) tickBar();
   }
 
   /* ---------- Konfetti ---------- */
@@ -740,10 +812,10 @@
   }
 
   function undo() {
-    if (!undoSnap) return;
+    if (!undoSnap || online()) return;
     const tab = state.tab;
     const duo = state.duo;
-    try { state = normalize(JSON.parse(undoSnap)); } catch (e) { return; }
+    try { state = local = normalize(JSON.parse(undoSnap)); } catch (e) { return; }
     state.tab = tab;
     state.duo = duo;
     undoSnap = null;
@@ -829,7 +901,8 @@
   const WAVE = { step: 55, land: 265, end: 340 };
 
   // ends: die Zahlen, die am Ende oben liegen. Bei der Welle zeigt jeder Würfel seine Zahl schon,
-  // sobald er landet, und wechselt vor dem Absprung noch nicht.
+  // sobald er landet, und wechselt vor dem Absprung noch nicht. Online ist ends eine Funktion: Die Zahlen
+  // kommen erst vom Server, bis dahin rollen die Würfel weiter (höchstens 5 Sekunden länger).
   function flicker(els, done, kind, ends) {
     if (!els.length || reduced()) { done(); return; }
     rolling = true;
@@ -856,15 +929,18 @@
       return [w * WAVE.step, w * WAVE.step + WAVE.land];
     });
     const stop = kind === 'wave' ? (els.length - 1) * WAVE.step + WAVE.end : ROLL_MS;
+    const waiting = typeof ends === 'function';
+    const final = waiting ? ends : () => ends || null;
     const t0 = Date.now();
     const iv = setInterval(() => {
       const t = Date.now() - t0;
+      const f = final();
       els.forEach((el, i) => {
         if (t < air[i][0]) return;
-        if (t < air[i][1]) setFace(el, d6());
-        else if (ends) setFace(el, ends[i]);
+        if (t < air[i][1] || (waiting && !f)) setFace(el, d6());
+        else if (f) setFace(el, f[i]);
       });
-      if (t >= stop) {
+      if (t >= stop && (!waiting || f || t >= stop + 5000)) {
         clearInterval(iv);
         rolling = false;
         done();
@@ -873,6 +949,7 @@
   }
 
   function roll(byBot) {
+    if (online()) { onlineRoll(); return; }
     if (rolling || (!byBot && botActor())) return;
     if (turnDone()) {
       if (cdPending()) { askCountdown(); return; }
@@ -937,6 +1014,7 @@
   }
 
   function toggleHold(i, byBot) {
+    if (online()) { onlineHold(i); return; }
     const d = state.dice;
     if (rolling || !d.vals || !d.rolls || d.rolls >= 3 || turnDone() || (!byBot && botActor())) return;
     d.held[i] = !d.held[i];
@@ -989,6 +1067,7 @@
     const owner = d.owner ? playerById(d.owner) : null;
     const f = F[key];
     if (!f || !owner || owner.bot || !d.vals || !d.rolls || turnDone() || scoreOf(owner.id, key) !== null) return;
+    if (online() && owner.id !== room.you) return;
     const pts = scoreFor(key, d.vals);
     const name = fieldName(key);
     openSheet(`
@@ -1000,6 +1079,12 @@
         <button type="button" class="btn ${pts ? 'btn-pen' : 'btn-danger'}" data-act="sheet-do" data-do="ok">${tr(pts ? 'quick.enter' : 'quick.strike')}</button>
       </div>`, {
       ok: () => {
+        // Online trägt der Server ein. Die Meldung kommt mit dem neuen Stand.
+        if (online()) {
+          closeSheet();
+          if (!Online.send({ t: 'enter', field: key })) toast(tr('online.offline'));
+          return;
+        }
         const snap = snapshot();
         const wasOver = isOver();
         setScore(owner.id, key, pts);
@@ -1122,6 +1207,7 @@
 
   /* ---------- Countdown ---------- */
   function startCountdown() {
+    if (online() && !state.cdGame) return;
     if (!state.cdGame) {
       const o = state.dice.cd && state.dice.cd.owner && playerById(state.dice.cd.owner) ? state.dice.cd.owner : null;
       state.cdGame = { owner: o, stage: 0, pts: 0, last: null, hit: -1, status: 'play', got: [] };
@@ -1151,6 +1237,7 @@
   }
 
   function cdRoll(byBot) {
+    if (online()) { onlineCdRoll(); return; }
     const g = state.cdGame;
     if (!g || g.status !== 'play' || rolling || (!byBot && isBot(g.owner))) return;
     const n = 6 - g.stage;
@@ -1506,7 +1593,7 @@
   }
 
   function focusView() {
-    const el = state.started ? $('.tab.on') : $('#view-players .h-view');
+    const el = state.started ? $('.tab.on') : $(online() ? '#view-online .h-view' : '#view-players .h-view');
     if (el) { try { el.focus({ preventScroll: true }); } catch (e) { /* egal */ } }
   }
 
@@ -1526,6 +1613,7 @@
 
   // „Menü“ unten in der Leiste und das Logo oben
   function openMenu() {
+    if (online()) { openOnlineMenu(); return; }
     if (!state.started) { showStart(); return; }
     // Noch nichts gewürfelt oder eingetragen: Beim nächsten Mal geht es wieder zur Spieler-Auswahl.
     if (!gameTouched()) { state.started = false; save(); showStart(); return; }
@@ -1885,6 +1973,8 @@
     if (!state.started) sub.textContent = tr('start.localNew');
     else if (isOver()) sub.textContent = tr('start.localOver');
     else sub.textContent = tr('start.localResume', { r: roundNo(), total: NF });
+    const code = Online.code();
+    $('#onlineSub').textContent = code ? tr('online.startResume', { code }) : tr('online.startSub');
   }
 
   // Sechs Würfel mit 1 bis 6, die beim Erscheinen einmal kurz rollen
@@ -1949,10 +2039,700 @@
       state.duo = true;
       if (PAIR.indexOf(state.tab) < 0) state.tab = 'dice';
     }
-    save();
+    // Online zeigt state nur den Stand vom Server. Die Ansicht gehört zum Gerät und bleibt im lokalen Stand.
+    if (online()) { local.duo = state.duo; saveLocal(); } else save();
     render();
     try { window.scrollTo(0, 0); } catch (e) { /* egal */ }
   }
+
+  /* ---------- Online ---------- */
+  // Verbindung, Geräteschlüssel und Lobby-Code verwaltet js/online.js. Hier stehen die Ansichten dazu:
+  // Online-Start, Lobby, Zugleiste und alles, was online anders läuft als lokal. Der Server würfelt und
+  // prüft jeden Zug. Die App schickt nur Wünsche und zeigt, was zurückkommt.
+  const ONLINE_ERR = {
+    'room-not-found': 'notFound', 'room-closed': 'closed', 'game-running': 'running', 'room-full': 'full',
+    'name-invalid': 'name', 'too-many': 'tooMany', 'not-host': 'notHost', 'not-your-turn': 'notYourTurn',
+    'update-needed': 'update', 'server-old': 'serverOld', removed: 'removed', 'not-in-room': 'notInRoom',
+  };
+  const NAME_CHARS = /[^A-Za-z0-9ÄÖÜäöüß _.!?-]/g;
+  let serverTimes = { turn: 60000, cd: 30000, grace: 1000 };
+  let seenEvent = 0;        // letztes schon gemeldetes Ereignis
+  let olBusy = false;       // Lobby wird gerade erstellt oder betreten
+  let olPending = null;     // Nachricht, die rausgeht, sobald die Verbindung steht
+  let pendingHolds = {};    // eigene Tipps auf Würfel, die der Server noch nicht bestätigt hat
+  let myRoll = null;        // eigener Wurf, auf dessen Zahlen die rollenden Würfel noch warten
+  let myCdRoll = null;      // dasselbe im Countdown
+  let leaveHome = false;    // nach dem Verlassen zum Startbildschirm statt zum Online-Start
+  let resultFor = null;     // Spiel, dessen Ergebnis schon gezeigt wurde
+  let barTimer = 0;
+  let tickSec = null;
+  let expiredFor = null;
+
+  const myTurn = () => online() && !!room && room.status === 'playing' && !!room.turn && room.turn.player === room.you;
+  // Beim Zuschauen: Wie viele sind noch vor dir? Wer alle Felder voll hat, schaut nur noch zu.
+  function waitText() {
+    const P = room.players;
+    const me = P.findIndex(p => p.id === room.you);
+    const cur = P.findIndex(p => p.id === room.turn.player);
+    if (me < 0 || cur < 0 || Object.keys(room.scores[room.you] || {}).length >= NF) return tr('online.watchSub');
+    const before = (me - cur + P.length) % P.length - 1;
+    return before > 0 ? tr('online.nextIn', { n: before }) : tr('online.nextYou');
+  }
+  const onlinePlayer = id => (room ? room.players.find(p => p.id === id) || null : null);
+  const fmtClock = sec => Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0');
+  const errText = code => tr(`online.err.${ONLINE_ERR[code] || 'other'}`);
+
+  // Der Online-Stand in derselben Form wie der lokale. So zeichnen Würfel, Block und Countdown ihn wie gewohnt.
+  function onlineView(r) {
+    const d = r ? r.dice : null;
+    const held = d ? d.held.slice() : [false, false, false, false, false, false];
+    // Eigene Tipps gleich zeigen, bis der Server sie bestätigt
+    Object.keys(pendingHolds).forEach(i => {
+      if (!d || held[i] === pendingHolds[i]) delete pendingHolds[i];
+      else held[i] = pendingHolds[i];
+    });
+    return {
+      v: 1, tab: state.tab || 'dice', duo: local.duo, started: !!r && r.status === 'playing', via: 'app',
+      players: r ? r.players.map(p => ({ id: p.id, name: p.name })) : [],
+      scores: r ? r.scores : {},
+      cds: r ? r.cds : {},
+      dice: d ? { vals: d.vals, held, rolls: d.rolls, owner: d.owner, ownerFilled: 0, turn: d.turn, cd: d.cd } : freshDice(),
+      cdGame: r ? r.cdGame : null,
+      gameId: r ? 'online-' + r.code + '-' + r.game : 'online',
+      history: local.history,
+      skipHist: null,
+    };
+  }
+
+  // Vom Startbildschirm in den Online-Modus. Mit gemerktem Code geht es direkt zurück in die Lobby.
+  function enterOnline() {
+    mode = 'online';
+    room = null;
+    seenEvent = 0;
+    resultFor = null;
+    pendingHolds = {};
+    myRoll = null;
+    myCdRoll = null;
+    olBusy = false;
+    olPending = null;
+    state = onlineView(null);
+    state.tab = 'dice';
+    atStart = false;
+    syncSky();
+    render();
+    syncTheme();
+    try { window.scrollTo(0, 0); } catch (e) { /* egal */ }
+    clearInterval(barTimer);
+    barTimer = setInterval(tickBar, 250);
+    Online.connect();
+    focusView();
+  }
+
+  // Zurück zum Startbildschirm. Die Verbindung geht zu, im Spiel gilt man dann als nicht verbunden.
+  function exitOnline() {
+    Online.disconnect();
+    clearInterval(barTimer);
+    barTimer = 0;
+    mode = 'local';
+    room = null;
+    state = local;
+    $('#olBar').hidden = true;
+    $('.app').classList.remove('ol-on');
+    // Meldungen aus dem Spiel gehören nicht auf den Startbildschirm
+    clearTimeout(toastTimer);
+    $('#toast').classList.remove('show');
+    showStart();
+  }
+
+  // Lobby oder Spiel verlassen. home: danach zum Startbildschirm, sonst zum Online-Start.
+  function leaveRoom(home) {
+    leaveHome = !!home;
+    if (!Online.send({ t: 'leave' })) { Online.forget(); afterLeft(); }
+  }
+  function afterLeft() {
+    room = null;
+    state = onlineView(null);
+    closeSheet(true);
+    hideCountdown();
+    if (leaveHome) { leaveHome = false; exitOnline(); return; }
+    render();
+    focusView();
+  }
+
+  // Nachricht zum Erstellen oder Beitreten. Steht die Verbindung noch nicht, geht sie danach raus.
+  function olRequest(msg) {
+    olBusy = true;
+    if (!Online.send(msg)) {
+      olPending = msg;
+      if (Online.status() === 'off') Online.connect();
+    }
+    if (!$('#view-online').hidden) renderOnline();
+  }
+
+  // Spitzname prüfen: Online sind nur Buchstaben, Zahlen und - _ . ! ? erlaubt.
+  function onlineNameFromInput() {
+    const inp = $('#olName');
+    const name = window.HexaRules.onlineName(inp ? inp.value : Online.name());
+    if (!name) {
+      if (inp) shake(inp);
+      toast(errText('name-invalid'));
+      return null;
+    }
+    Online.setName(name);
+    if (inp) inp.value = name;
+    return name;
+  }
+
+  function openJoin() {
+    if (!onlineNameFromInput()) return;
+    openSheet(`
+      <h3 class="s-title">${tr('online.joinTitle')}</h3>
+      <p class="s-note">${tr('online.joinNote')}</p>
+      <input id="olCode" class="input ol-code-in" type="text" maxlength="4" autocomplete="off" autocapitalize="characters" spellcheck="false" enterkeyhint="go" aria-label="${esc(tr('online.codeLabel'))}" placeholder="${esc(tr('online.codePh'))}">
+      <div class="s-acts split">
+        <button type="button" class="btn btn-line" data-act="sheet-close">${tr('common.cancel')}</button>
+        <button type="button" class="btn btn-pen" data-act="sheet-do" data-do="go">${tr('online.joinGo')}</button>
+      </div>`, { go: joinWithCode }, tr('online.joinTitle'));
+    const inp = $('#olCode');
+    if (inp) { try { inp.focus({ preventScroll: true }); } catch (e) { inp.focus(); } }
+  }
+  function joinWithCode() {
+    const inp = $('#olCode');
+    const code = inp ? inp.value.trim().toUpperCase() : '';
+    if (!/^[A-Z]{4}$/.test(code)) { if (inp) shake(inp); return; }
+    olRequest({ t: 'join', code, name: Online.name() });
+  }
+
+  /* Ansichten: Online-Start und Lobby */
+  function statusLine() {
+    const s = Online.status();
+    return s === 'online' ? '' : tr(s === 'connecting' ? 'online.connecting' : 'online.statusOff');
+  }
+
+  function renderOnline() {
+    const root = $('#view-online');
+    if (room && room.status === 'lobby') { root.innerHTML = lobbyHTML(); return; }
+    // Mit gemerktem Code: Gleich geht es zurück in die Lobby oder ins Spiel.
+    if (!room && Online.code() && Online.status() !== 'off') {
+      root.innerHTML = `
+        <button type="button" class="back" data-act="ol-home">${ICON.back}<span>${tr('setup.back')}</span></button>
+        <h1 class="h-view" tabindex="-1">${tr('online.title')}</h1>
+        <p class="lead">${esc(tr('online.resuming', { code: Online.code() }))}</p>
+        <p class="ol-status" role="status">${statusLine()}</p>`;
+      return;
+    }
+    const choice = (act, icon, title, sub) => `
+        <button type="button" class="choice" data-act="${act}"${olBusy ? ' disabled' : ''}>
+          <span class="choice-ic">${icon}</span>
+          <span class="choice-tx"><span class="choice-t">${title}</span><span class="choice-s">${sub}</span></span>
+          ${ICON.chev}
+        </button>`;
+    root.innerHTML = `
+      <button type="button" class="back" data-act="ol-home">${ICON.back}<span>${tr('setup.back')}</span></button>
+      <h1 class="h-view" tabindex="-1">${tr('online.title')}</h1>
+      <p class="lead">${tr('online.lead')}</p>
+      <label class="ol-label" for="olName">${tr('online.nameLabel')}</label>
+      <input id="olName" class="input" type="text" maxlength="20" value="${esc(Online.name())}" placeholder="${esc(tr('online.namePh'))}" autocomplete="nickname" autocapitalize="words" spellcheck="false" enterkeyhint="done" aria-describedby="olNameHint">
+      <p class="ol-hint" id="olNameHint">${tr('online.nameHint')}</p>
+      <div class="choices">
+        ${choice('ol-create', ICON.plus, tr('online.create'), tr('online.createSub'))}
+        ${choice('ol-join', ICON.enter, tr('online.join'), tr('online.joinSub'))}
+      </div>
+      <p class="ol-status" role="status">${olBusy ? tr('online.busy') : statusLine()}</p>`;
+  }
+
+  function rankList(ranking, you) {
+    let place = 0;
+    let last = null;
+    return ranking.map((x, i) => {
+      if (x.total !== last) { place = i + 1; last = x.total; }
+      const me = x.id === you ? ` <small>${tr('online.you')}</small>` : '';
+      return `<li${place === 1 ? ' class="win"' : ''}><span class="pl">${place}.</span><span class="pn">${esc(x.name)}${me}</span><span class="ps">${x.total}</span></li>`;
+    }).join('');
+  }
+
+  function lobbyHTML() {
+    const r = room;
+    const host = r.host === r.you;
+    const P = r.players;
+    const hostP = onlinePlayer(r.host);
+    const rows = P.map((p, i) => {
+      const me = p.id === r.you;
+      const tags = [me ? tr('online.you') : '', p.id === r.host ? tr('online.host') : ''].filter(Boolean).join(', ');
+      const acts = host ? `
+          <span class="pacts">
+            <button type="button" class="ibtn" data-act="ol-move" data-pid="${p.id}" data-dir="-1" aria-label="${esc(tr('setup.up', { name: p.name }))}"${i === 0 ? ' disabled' : ''}>${ICON.up}</button>
+            <button type="button" class="ibtn" data-act="ol-move" data-pid="${p.id}" data-dir="1" aria-label="${esc(tr('setup.down', { name: p.name }))}"${i === P.length - 1 ? ' disabled' : ''}>${ICON.down}</button>
+            ${me ? '' : `<button type="button" class="ibtn ibtn-x" data-act="ol-kick" data-pid="${p.id}" aria-label="${esc(tr('online.kickLabel', { name: p.name }))}">${ICON.x}</button>`}
+          </span>` : '';
+      return `
+        <li class="prow">
+          <span class="pnum">${i + 1}</span>
+          <span class="pname ol-pname"><i class="odot${p.online ? '' : ' off'}" aria-hidden="true"></i><span class="ol-nm">${esc(p.name)}</span> ${tags ? `<small>${esc(tags)}</small> ` : ''}<span class="sr">${esc(tr(p.online ? 'online.dotOn' : 'online.dotOff'))}</span></span>${acts}
+        </li>`;
+    }).join('');
+    const start = host
+      ? `<button type="button" class="btn btn-pen ol-start" data-act="ol-start">${tr(P.length > 1 ? 'online.start' : 'online.startSolo')}</button>`
+      : `<p class="ol-wait">${esc(tr('online.waitHost', { name: hostP ? hostP.name : '' }))}</p>`;
+    const last = r.last ? `
+      <section class="end ol-last" aria-label="${esc(tr('online.lastTitle'))}">
+        <h2>${tr('online.lastTitle')}</h2>
+        <ol class="rank">${rankList(r.last.ranking, r.you)}</ol>
+      </section>` : '';
+    return `
+      <button type="button" class="back" data-act="ol-leave">${ICON.back}<span>${tr('online.leaveLobby')}</span></button>
+      <h1 class="h-view sr-h" tabindex="-1">${tr('online.lobbyTitle')}</h1>
+      <div class="ol-code-box">
+        <span class="ol-code-l">${tr('online.codeLabel')}</span>
+        <span class="ol-code" aria-label="${esc(r.code.split('').join(' '))}">${esc(r.code)}</span>
+        <span class="ol-code-s">${tr('online.codeHint')}</span>
+        <button type="button" class="ol-copy" data-act="ol-copy">${ICON.copy}<span>${tr('online.copy')}</span></button>
+      </div>
+      <h2 class="h-sec">${tr('online.order')}</h2>
+      <ol class="plist">${rows}</ol>
+      <p class="ol-rule">${tr('online.rule', { n: Math.round(serverTimes.turn / 1000) })}</p>
+      ${start}
+      <p class="ol-status" role="status">${statusLine()}</p>
+      ${last}`;
+  }
+
+  /* Zugleiste: wer dran ist, Restzeit und ein Balken, der abläuft */
+  function renderBar() {
+    const bar = $('#olBar');
+    const playing = online() && !atStart && !!room && room.status === 'playing' && !!room.turn;
+    const lost = online() && !atStart && Online.status() !== 'online' && (!!room || !!Online.code());
+    bar.hidden = !(playing || lost);
+    $('.app').classList.toggle('ol-on', !bar.hidden);
+    if (bar.hidden) return;
+    bar.classList.toggle('lost', lost);
+    if (lost) {
+      bar.classList.remove('mine', 'urgent');
+      bar.innerHTML = `<div class="ol-row"><span class="ol-who">${tr('online.lost')}</span></div>`;
+      return;
+    }
+    const t = room.turn;
+    const cur = onlinePlayer(t.player);
+    const mine = t.player === room.you;
+    let who;
+    if (mine) who = tr(t.phase === 'cd' ? 'online.barYourCd' : 'online.yourTurn');
+    else who = tr(t.phase === 'cd' ? 'online.barCd' : 'dice.turn', { name: cur ? cur.name : '' });
+    bar.classList.toggle('mine', mine);
+    bar.innerHTML = `
+      <div class="ol-row"><span class="ol-who">${esc(who)}</span><span class="ol-time"></span></div>
+      <div class="ol-track" aria-hidden="true"><i class="ol-fill"></i></div>`;
+    tickBar();
+  }
+
+  // Viermal pro Sekunde: Restzeit, Balken, ab 10 Sekunden rot und blinkend, Ticken für die Person am Zug
+  function tickBar() {
+    if (!online() || !room || room.status !== 'playing' || !room.turn) return;
+    const t = room.turn;
+    const bar = $('#olBar');
+    const total = t.phase === 'cd' ? serverTimes.cd : serverTimes.turn;
+    const left = Math.max(0, t.deadline - Online.now());
+    const sec = Math.ceil(left / 1000);
+    const urgent = left <= 10000;
+    const time = $('.ol-time', bar);
+    if (time) time.textContent = fmtClock(sec);
+    const fill = $('.ol-fill', bar);
+    if (fill) fill.style.transform = 'scaleX(' + Math.max(0, Math.min(1, left / total)).toFixed(3) + ')';
+    bar.classList.toggle('urgent', urgent);
+    const cdTime = $('#cd .cd-time');
+    if (cdTime) { cdTime.textContent = fmtClock(sec); cdTime.classList.toggle('urgent', urgent); }
+    if (urgent && sec > 0 && t.player === room.you && sec !== tickSec && !document.hidden) {
+      tickSec = sec;
+      Sound.tick();
+    }
+    // Zeit um: Der Server merkt es selbst. Zur Sicherheit fragt die App einmal pro Zug nach.
+    const key = t.no + t.phase;
+    if (Online.now() > t.deadline + serverTimes.grace + 700 && expiredFor !== key) {
+      expiredFor = key;
+      Online.send({ t: 'expired' });
+    }
+  }
+
+  /* Aktionen im Spiel */
+  // Würfeln: Die Würfel rollen sofort los, die Zahlen kommen vom Server.
+  function onlineRoll() {
+    const d = state.dice;
+    if (rolling || !myTurn() || room.turn.phase !== 'roll') return;
+    const first = d.turn !== room.turn.no || !d.rolls;
+    const n = first ? 1 : d.rolls + 1;
+    if (n > 3 || (!first && d.held.every(Boolean))) return;
+    if (!Online.send({ t: 'roll', n })) { toast(tr('online.offline')); return; }
+    const idx = [0, 1, 2, 3, 4, 5].filter(i => first || !d.held[i]);
+    const els = idx.map(i => $('#view-dice .die[data-i="' + i + '"]')).filter(Boolean);
+    els.forEach(el => el.classList.remove('idle', 'dim', 'held'));
+    const btn = $('#view-dice [data-act="roll"]');
+    if (btn) btn.disabled = true;
+    vibrate(10);
+    const kind = pickThrow();
+    Sound.roll(idx.length, kind);
+    const wait = { vals: null, before: first ? 0 : maxSame(d.vals), wasStraight: !first && isStraight(d.vals), first };
+    myRoll = wait;
+    flicker(els, () => {
+      myRoll = null;
+      renderDice();
+      renderTop();
+      if (wait.vals) landed(wait.vals, wait.before, wait.wasStraight, wait.first && !!state.dice.cd);
+    }, kind, () => (wait.vals ? idx.map(i => wait.vals[i]) : null));
+  }
+
+  // Würfel eines anderen: dieselbe Animation, sobald der neue Stand da ist
+  function remoteRoll(prev, r) {
+    const all = $$('#view-dice .die');
+    if ($('#view-dice').hidden || rolling || all.length !== 6) return;
+    const first = prev.dice.turn !== r.dice.turn;
+    const idx = [0, 1, 2, 3, 4, 5].filter(i => first || !r.dice.held[i]);
+    const els = idx.map(i => all[i]);
+    els.forEach(el => el.classList.remove('idle', 'dim', 'held'));
+    const vals = r.dice.vals.slice();
+    const before = first ? 0 : maxSame(prev.dice.vals);
+    const wasStraight = !first && isStraight(prev.dice.vals);
+    const kind = pickThrow();
+    Sound.roll(idx.length, kind);
+    flicker(els, () => {
+      renderDice();
+      renderTop();
+      landed(vals, before, wasStraight, first && !!r.dice.cd);
+    }, kind, idx.map(i => vals[i]));
+  }
+
+  // Halten: sofort zeigen und dem Server sagen. „halten“ oder „loslassen“, nie „umschalten“.
+  function onlineHold(i) {
+    const d = state.dice;
+    if (rolling || !myTurn() || room.turn.phase !== 'roll' || d.turn !== room.turn.no || !d.rolls || d.rolls >= 3) return;
+    const on = !d.held[i];
+    if (!Online.send({ t: 'hold', i, on })) { toast(tr('online.offline')); return; }
+    pendingHolds[i] = on;
+    d.held[i] = on;
+    const el = $('#view-dice .die[data-i="' + i + '"]');
+    if (el) {
+      el.classList.toggle('held', on);
+      el.setAttribute('aria-pressed', on ? 'true' : 'false');
+      el.setAttribute('aria-label', tr(on ? 'dice.dieHeld' : 'dice.dieValue', { n: i + 1, v: d.vals[i] }));
+    }
+    patchRoll();
+    vibrate(6);
+    Sound.hold(on);
+  }
+
+  // Tipp auf ein Feld im Block: Online trägt man nur im eigenen Zug über die Würfel ein.
+  function onlineCell(pid, key) {
+    const d = state.dice;
+    if (myTurn() && pid === room.you && room.turn.phase === 'roll' && d.turn === room.turn.no && d.rolls && scoreOf(pid, key) === null) openQuick(key);
+    else toast(tr('online.blockHint'));
+  }
+
+  function onlineCdRoll() {
+    const g = state.cdGame;
+    if (!g || g.status !== 'play' || rolling || !myTurn() || room.turn.phase !== 'cd') return;
+    const n = 6 - g.stage;
+    if (!Online.send({ t: 'cdRoll', stage: g.stage })) { toast(tr('online.offline')); return; }
+    const box = $('#cd .cd-dice');
+    const btn = $('#cd [data-act="cd-roll"]');
+    if (btn) btn.disabled = true;
+    if (box) {
+      box.style.setProperty('--per', n >= 5 || n === 3 ? 3 : n === 1 ? 1 : 2);
+      box.innerHTML = Array.from({ length: n }, (_, i) => `<div class="die" style="--k:${i}">${faceHTML(d6())}</div>`).join('');
+    }
+    vibrate(10);
+    const kind = pickThrow();
+    Sound.roll(n, kind);
+    const wait = { vals: null };
+    myCdRoll = wait;
+    flicker(box ? $$('.die', box) : [], () => { myCdRoll = null; cdLanded(); }, kind, () => wait.vals);
+  }
+  function remoteCdRoll(r) {
+    const box = $('#cd .cd-dice');
+    if ($('#cd').hidden || rolling || !box) return;
+    const vals = r.cdGame.last.slice();
+    const n = vals.length;
+    box.style.setProperty('--per', n >= 5 || n === 3 ? 3 : n === 1 ? 1 : 2);
+    box.innerHTML = vals.map((_, i) => `<div class="die" style="--k:${i}">${faceHTML(d6())}</div>`).join('');
+    const kind = pickThrow();
+    Sound.roll(n, kind);
+    flicker($$('.die', box), cdLanded, kind, vals);
+  }
+  function cdLanded() {
+    renderCountdown();
+    renderTop();
+    const g = state.cdGame;
+    if (!g || !g.last) return;
+    if (g.hit >= 0) vibrate([8, 40, 8]);
+    if (g.status === 'perfect') {
+      Sound.fanfare();
+      confetti($('#cd .cd-dice'));
+    } else if (g.hit >= 0) Sound.cdHit(g.stage);
+    else Sound.cdMiss();
+  }
+
+  function yourTurn() {
+    vibrate([30, 60, 30]);
+    Sound.turn();
+    activity();
+    if (state.tab !== 'dice' && !duoOn()) setTab('dice');
+  }
+
+  /* Menü, Verlassen, Ergebnis */
+  function openOnlineMenu() {
+    if (!room || room.status !== 'playing') { exitOnline(); return; }
+    const choice = (act, cls, icon, title, sub) => `
+          <button type="button" class="choice${cls}" data-act="sheet-do" data-do="${act}">
+            <span class="choice-ic">${ICON[icon]}</span>
+            <span class="choice-tx"><span class="choice-t">${title}</span><span class="choice-s">${sub}</span></span>
+          </button>`;
+    openSheet(`
+      <h3 class="s-title">${tr('pause.title')}</h3>
+      <p class="s-note">${esc(tr('online.menuNote', { r: roundNo(), total: NF, code: room.code }))}</p>
+      <div class="choices">
+        ${choice('away', '', 'pause', tr('online.away'), tr('online.awaySub'))}
+        ${choice('leave', ' choice-danger', 'x', tr('online.leaveGame'), tr('online.leaveGameSub'))}
+      </div>
+      <div class="s-acts"><button type="button" class="btn btn-quiet" data-act="sheet-close">${tr('pause.back')}</button></div>`, {
+      away: () => exitOnline(),
+      leave: confirmLeave,
+    }, tr('pause.label'));
+  }
+  function confirmLeave() {
+    openSheet(`
+      <h3 class="s-title">${tr('online.leaveTitle')}</h3>
+      <p class="s-note">${tr('online.leaveText')}</p>
+      <div class="s-acts">
+        <button type="button" class="btn btn-danger" data-act="sheet-do" data-do="ok">${tr('online.leaveGame')}</button>
+        <button type="button" class="btn btn-quiet" data-act="sheet-close">${tr('common.cancel')}</button>
+      </div>`, { ok: () => { closeSheet(true); leaveRoom(true); } }, tr('online.leaveTitle'));
+  }
+  function confirmKick(pid) {
+    const p = onlinePlayer(pid);
+    if (!p || !room || room.host !== room.you) return;
+    openSheet(`
+      <h3 class="s-title">${esc(tr('online.kickTitle', { name: p.name }))}</h3>
+      <p class="s-note">${tr('online.kickText')}</p>
+      <div class="s-acts">
+        <button type="button" class="btn btn-danger" data-act="sheet-do" data-do="ok">${tr('online.kick')}</button>
+        <button type="button" class="btn btn-quiet" data-act="sheet-close">${tr('common.cancel')}</button>
+      </div>`, {
+      ok: () => {
+        closeSheet();
+        if (!Online.send({ t: 'kick', id: pid })) toast(tr('online.offline'));
+      },
+    }, tr('online.kick'));
+  }
+  // Reihenfolge ändern: gleich zeigen, der Server bestätigt mit dem neuen Stand.
+  function olMove(pid, dir) {
+    if (!room || room.host !== room.you) return;
+    const ids = room.players.map(p => p.id);
+    const i = ids.indexOf(pid);
+    const j = i + dir;
+    if (i < 0 || j < 0 || j >= ids.length) return;
+    [ids[i], ids[j]] = [ids[j], ids[i]];
+    if (!Online.send({ t: 'order', ids })) { toast(tr('online.offline')); return; }
+    room.players = ids.map(id => onlinePlayer(id));
+    renderOnline();
+    const b = $('#view-online [data-act="ol-move"][data-pid="' + pid + '"][data-dir="' + dir + '"]');
+    if (b && !b.disabled) b.focus();
+  }
+  function copyCode() {
+    if (!room) return;
+    const done = () => toast(tr('online.copied', { code: room.code }));
+    try {
+      navigator.clipboard.writeText(room.code).then(done, () => toast(room.code));
+    } catch (e) {
+      toast(room.code);
+    }
+  }
+
+  // Das eigene Ergebnis kommt in die Highscores dieses Geräts, die der anderen nicht.
+  function saveOnlineResult(r) {
+    const me = r.last.ranking.find(x => x.id === r.you);
+    if (!me) return;
+    local.history['online-' + r.code + '-' + r.last.game + '-' + r.last.at] = { t: r.last.at, r: [{ n: me.name, s: me.total }] };
+    saveLocal();
+  }
+
+  function openOnlineResult() {
+    if (!room || !room.last) return;
+    const R = room.last.ranking;
+    if (!R.length) return;
+    const top = R[0].total;
+    const winners = R.filter(x => x.total === top);
+    let title;
+    let note;
+    if (R.length === 1) {
+      title = trPts(top);
+      note = tr(top >= 300 ? 'result.soloAbove' : 'result.soloBelow');
+    } else if (winners.length > 1) {
+      title = tr('result.tie');
+      note = tr('result.tieText', { names: nameList(winners.map(x => x.name)), n: top });
+    } else {
+      title = winners[0].id === room.you ? tr('online.youWin') : tr('result.wins', { name: winners[0].name });
+      note = tr('result.winsText', { n: top });
+    }
+    const mine = R.some(x => x.id === room.you);
+    openSheet(`
+      <div class="res-top"><span class="res-ic">${ICON.trophy}</span></div>
+      <h3 class="s-title">${esc(title)}</h3>
+      <p class="s-note">${esc(note)}</p>
+      ${R.length > 1 ? `<ol class="rank">${rankList(R, room.you)}</ol>` : ''}
+      ${mine ? `<p class="saved">${ICON.phone}<span>${tr('online.savedYou')}</span></p>` : ''}
+      <div class="s-acts">
+        <button type="button" class="btn btn-pen" data-act="sheet-do" data-do="again">${tr('online.again')}</button>
+        <button type="button" class="btn btn-line" data-act="sheet-do" data-do="home">${tr('common.toMenu')}</button>
+      </div>`, {
+      again: () => { closeSheet(); render(); focusView(); },
+      home: () => { closeSheet(true); leaveRoom(true); },
+    }, tr('result.label'));
+    if (R.length > 1 && winners.length === 1 && winners[0].id === room.you) {
+      setTimeout(() => {
+        if ($('#sheet').hidden) return;
+        confetti($('#sheet .res-ic'));
+        Sound.sparkle();
+      }, 320);
+    }
+  }
+
+  /* Was der Server schickt */
+  function showEvent(e, r) {
+    const me = e.player === r.you;
+    const p = onlinePlayer(e.player);
+    const name = e.name || (p ? p.name : '');
+    switch (e.type) {
+      case 'join': if (!me) toast(tr('online.evJoin', { name })); break;
+      case 'leave': if (!me) toast(tr('online.evLeave', { name })); break;
+      case 'kick': if (!me) toast(tr('online.evKick', { name })); break;
+      case 'host': toast(me ? tr('online.evHostYou') : tr('online.evHost', { name })); break;
+      case 'enter': {
+        const field = fieldName(e.field);
+        Sound.score(e.pts);
+        if (me) toast(e.pts ? tr('quick.entered', { field, n: e.pts }) : tr('quick.struck', { field }));
+        else toast(e.pts ? tr('bot.entered', { name, field, pts: trPts(e.pts) }) : tr('bot.struck', { name, field }));
+        break;
+      }
+      case 'timeout': {
+        const field = fieldName(e.field);
+        Sound.score(0);
+        toast(me ? tr('online.evTimeoutYou', { field }) : tr('online.evTimeout', { name, field }));
+        break;
+      }
+      case 'countdown':
+        if (!me) toast(e.pts ? tr('online.evCd', { name, pts: trPts(e.pts) }) : tr('online.evCdNone', { name }));
+        else if (e.timeout) toast(tr('online.evCdTimeout', { pts: trPts(e.pts) }));
+        break;
+      default: break;
+    }
+  }
+
+  function onOnlineState(msg) {
+    if (!online()) return;
+    if (msg.times) serverTimes = msg.times;
+    const prev = room;
+    const r = msg.room;
+    const same = !!prev && prev.code === r.code;
+    room = r;
+    olBusy = false;
+    olPending = null;
+    if (!$('#sheet').hidden && $('#olCode')) closeSheet();
+    // Neuer Wurf oder neuer Zug: Eigene Tipps von vorher gelten nicht mehr.
+    if (!same || prev.dice.turn !== r.dice.turn || prev.dice.rolls !== r.dice.rolls) pendingHolds = {};
+    const events = same ? r.events.filter(e => e.no > seenEvent) : [];
+    if (r.events.length) seenEvent = r.events[r.events.length - 1].no;
+    const wasStarted = state.started;
+    const tab = state.tab;
+    state = onlineView(r);
+    state.tab = wasStarted || !state.started ? tab : 'dice';
+
+    const rolled = same && r.status === 'playing' && !!r.turn && r.dice.turn === r.turn.no && r.dice.rolls > 0 &&
+      (prev.dice.turn !== r.dice.turn || r.dice.rolls > prev.dice.rolls);
+    const cdRolled = same && !!r.cdGame && !!r.cdGame.last && !!prev.cdGame && r.cdGame.owner === prev.cdGame.owner &&
+      (r.cdGame.stage !== prev.cdGame.stage || r.cdGame.status !== prev.cdGame.status || JSON.stringify(r.cdGame.last) !== JSON.stringify(prev.cdGame.last));
+    if (rolled && myRoll) myRoll.vals = r.dice.vals;
+    else if (rolled) remoteRoll(prev, r);
+    if (cdRolled && myCdRoll) myCdRoll.vals = r.cdGame.last;
+    else if (cdRolled) remoteCdRoll(r);
+
+    // Läuft ein Wurf, zeichnet er am Ende die Würfel neu. Bis dahin nur Leiste und Block.
+    if (rolling) {
+      renderTop();
+      if (!$('#view-block').hidden) renderBlock();
+    } else {
+      render();
+      if (!$('#cd').hidden) renderCountdown();
+    }
+
+    const newTurn = !same || !prev.turn || !r.turn || prev.turn.no !== r.turn.no;
+    if (r.status === 'playing' && r.turn && r.turn.player === r.you && r.turn.phase === 'roll' && newTurn) yourTurn();
+    // Eigener Countdown beginnt: Fenster auf, wie lokal nach dem Eintragen
+    const cdNow = r.turn && r.turn.phase === 'cd' && r.turn.player === r.you;
+    const cdBefore = same && prev.turn && prev.turn.phase === 'cd' && prev.turn.no === r.turn.no;
+    if (cdNow && !cdBefore) {
+      setTimeout(() => {
+        if (online() && cdPending() && myTurn() && $('#cd').hidden && $('#sheet').hidden) startCountdown();
+      }, 450);
+    }
+    // Countdown einer anderen Person vorbei: Das Ergebnis bleibt kurz stehen, dann geht das Fenster zu.
+    // Das eigene bleibt offen, bis man „Fertig“ tippt oder die nächste Person würfelt.
+    const cdOver = same && prev.turn && prev.turn.phase === 'cd' && (!r.turn || r.turn.no !== prev.turn.no);
+    if (cdOver && prev.turn.player !== r.you && !$('#cd').hidden) {
+      setTimeout(() => {
+        const g = state.cdGame;
+        if (online() && !$('#cd').hidden && !(g && g.status === 'play')) hideCountdown();
+      }, 2500);
+    }
+    if (same && prev.status === 'lobby' && r.status === 'playing') {
+      closeSheet(true);
+      toast(tr('online.started'));
+      try { window.scrollTo(0, 0); } catch (e) { /* egal */ }
+    }
+    // Spielende: Ergebnis zeigen und das eigene in die Highscores. Ein altes Ergebnis beim Betreten nicht.
+    if (r.last) {
+      const key = r.code + ':' + r.last.game + ':' + r.last.at;
+      if (resultFor !== key) {
+        resultFor = key;
+        if (same && prev.status === 'playing' && r.status === 'lobby') {
+          saveOnlineResult(r);
+          hideCountdown();
+          setTimeout(() => { if (online() && room && room.last) openOnlineResult(); }, 900);
+        }
+      }
+    }
+    events.forEach(e => showEvent(e, r));
+  }
+
+  function onOnlineError(m) {
+    if (!online()) return;
+    const code = m.code;
+    if (m.re === 'roll' && myRoll) myRoll.vals = state.dice.vals || [1, 2, 3, 4, 5, 6];
+    if (m.re === 'cdRoll' && myCdRoll) myCdRoll.vals = (state.cdGame && state.cdGame.last) || [];
+    if (m.re === 'hold') pendingHolds = {};
+    olBusy = false;
+    olPending = null;
+    // Doppelter Tipp oder veraltete Ansicht: einfach den aktuellen Stand zeigen
+    if (code === 'stale') { if (!rolling) render(); return; }
+    const gone = ['removed', 'room-closed', 'not-in-room'].includes(code) || (code === 'room-not-found' && m.re === 'hello');
+    if (gone) {
+      room = null;
+      state = onlineView(null);
+      if (!$('#sheet').hidden && !$('#olCode')) closeSheet(true);
+      hideCountdown();
+    }
+    if (!rolling) render();
+    toast(code === 'room-not-found' && m.re === 'hello' ? tr('online.err.gone') : errText(code));
+  }
+
+  Online.on((type, msg) => {
+    if (!online()) return;
+    if (type === 'state') onOnlineState(msg);
+    else if (type === 'error') onOnlineError(msg);
+    else if (type === 'left') afterLeft();
+    else if (type === 'welcome') {
+      if (olPending) { const m = olPending; olPending = null; Online.send(m); }
+    } else if (type === 'status') {
+      if (msg.status !== 'online' && myRoll) myRoll.vals = state.dice.vals || [1, 2, 3, 4, 5, 6];
+      if (!state.started && !$('#view-online').hidden) renderOnline();
+      renderBar();
+    }
+  });
 
   /* ---------- Ereignisse ---------- */
   document.addEventListener('click', e => {
@@ -1962,6 +2742,15 @@
       case 'tab': setTab(t.dataset.tab); break;
       case 'duo': toggleDuo(); break;
       case 'local': enterLocal(); break;
+      case 'online': enterOnline(); break;
+      case 'ol-home': exitOnline(); break;
+      case 'ol-create': { const name = onlineNameFromInput(); if (name) olRequest({ t: 'create', name }); break; }
+      case 'ol-join': openJoin(); break;
+      case 'ol-leave': leaveRoom(false); break;
+      case 'ol-start': if (!Online.send({ t: 'start' })) toast(tr('online.offline')); break;
+      case 'ol-move': olMove(t.dataset.pid, Number(t.dataset.dir)); break;
+      case 'ol-kick': confirmKick(t.dataset.pid); break;
+      case 'ol-copy': copyCode(); break;
       case 'home': showStart(); break;
       case 'menu': openMenu(); break;
       case 'scores': openHighscores(); break;
@@ -1975,12 +2764,12 @@
       case 'roll': roll(); break;
       case 'hold': toggleHold(Number(t.dataset.i)); break;
       case 'quick': openQuick(t.dataset.key); break;
-      case 'cell': openFieldSheet(t.dataset.pid, t.dataset.key); break;
-      case 'cd-cell': openCdSheet(t.dataset.pid); break;
+      case 'cell': if (online()) onlineCell(t.dataset.pid, t.dataset.key); else openFieldSheet(t.dataset.pid, t.dataset.key); break;
+      case 'cd-cell': if (online()) toast(tr('online.blockHint')); else openCdSheet(t.dataset.pid); break;
       case 'add': addPlayer(); break;
       case 'add-bot': addBot(); break;
       case 'start-game': startGame(t.dataset.via); break;
-      case 'player': openPlayerSheet(t.dataset.pid); break;
+      case 'player': if (!online()) openPlayerSheet(t.dataset.pid); break;
       case 'end-game': openResult(); break;
       case 'up': movePlayer(t.dataset.pid, -1); break;
       case 'down': movePlayer(t.dataset.pid, 1); break;
@@ -1988,8 +2777,8 @@
       case 'cd-open': startCountdown(); break;
       case 'cd-roll': cdRoll(); break;
       case 'cd-pick': cdPick = t.dataset.pid; renderCountdown(); break;
-      case 'cd-save': cdSave(false); break;
-      case 'cd-discard': cdSave(true); break;
+      case 'cd-save': if (online()) closeCountdown(); else cdSave(false); break;
+      case 'cd-discard': if (online()) closeCountdown(); else cdSave(true); break;
       case 'cd-close': closeCountdown(); break;
       case 'sheet-close': closeSheet(); break;
       case 'sheet-do': {
@@ -2059,6 +2848,8 @@
     }
     if (e.key !== 'Enter' || !t) return;
     if (t.id === 'newName') { e.preventDefault(); addPlayer(); }
+    else if (t.id === 'olCode') { e.preventDefault(); joinWithCode(); }
+    else if (t.id === 'olName') { e.preventDefault(); t.blur(); }
     else if (t.id === 'renameInp') { e.preventDefault(); if (sheetFns.save) sheetFns.save(); }
     else if (t.classList && t.classList.contains('pname')) { e.preventDefault(); t.blur(); }
   });
@@ -2070,6 +2861,22 @@
 
   document.addEventListener('input', e => {
     const t = e.target;
+    // Online-Spitzname: Erlaubtes bleibt, alles andere fällt gleich raus. Der Hinweis darunter leuchtet kurz auf.
+    if (t && t.id === 'olName') {
+      const clean = t.value.normalize('NFC').replace(NAME_CHARS, '');
+      if (clean !== t.value) {
+        t.value = clean;
+        const h = $('#olNameHint');
+        if (h) { h.classList.remove('warn'); void h.offsetWidth; h.classList.add('warn'); }
+      }
+      Online.setName(clean.replace(/\s+/g, ' ').trim());
+      return;
+    }
+    if (t && t.id === 'olCode') {
+      const c = t.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 4);
+      if (c !== t.value) t.value = c;
+      return;
+    }
     if (t && t.classList && t.classList.contains('vol')) {
       Sound.set({ [t.dataset.ch + 'Vol']: Number(t.value) / 100 });
       syncSettings();

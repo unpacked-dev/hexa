@@ -19,6 +19,36 @@ const MSG_HARD = 300;                 // noch mehr: Verbindung zu
 const BEAT_MS = 10_000;
 const KEY_RE = /^[A-Za-z0-9_-]{16,128}$/;
 
+// Die App selbst liefert der Server auch aus. Dann reicht zum Testen eine Adresse für App und WebSocket.
+// Nur diese Dateien und Ordner, alles andere im Repo (Server-Code, Doku, Werkzeuge) bleibt verborgen.
+const ROOT = new URL('../', import.meta.url);
+const PUBLIC_FILES = ['index.html', 'favicon.svg', 'manifest.webmanifest'];
+const PUBLIC_DIRS = ['css/', 'js/', 'lang/', 'fonts/', 'icons/'];
+const TYPES = {
+  html: 'text/html; charset=utf-8', css: 'text/css; charset=utf-8', js: 'text/javascript; charset=utf-8',
+  svg: 'image/svg+xml', png: 'image/png', webp: 'image/webp', woff2: 'font/woff2',
+  webmanifest: 'application/manifest+json', txt: 'text/plain; charset=utf-8',
+};
+async function appFile(pathname) {
+  let p;
+  try { p = decodeURIComponent(pathname).replace(/^\/+/, ''); } catch (e) { return null; }
+  if (p === '') p = 'index.html';
+  if (/\.\.|\\|\0|\/\/|[?#]/.test(p)) return null;
+  if (!PUBLIC_FILES.includes(p) && !PUBLIC_DIRS.some(d => p.startsWith(d))) return null;
+  const type = TYPES[p.split('.').pop()];
+  if (!type) return null;
+  try {
+    const body = await Deno.readFile(new URL(p, ROOT));
+    // Code immer frisch, damit nach einem neuen Build nicht noch alte Teile im Browser stecken. Schriften und Icons ändern sich kaum.
+    const still = p.startsWith('fonts/') || p.startsWith('icons/');
+    return new Response(body, {
+      headers: { 'content-type': type, 'cache-control': still ? 'public, max-age=86400' : 'no-cache', 'x-content-type-options': 'nosniff' },
+    });
+  } catch (e) {
+    return null;
+  }
+}
+
 // Der Geräteschlüssel liegt nur als Hash auf dem Server.
 async function hashKey(key) {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('hexa:' + key));
@@ -367,12 +397,15 @@ export function createHub({ kv, instance = G.randomId(8), times = G.TIMES, rng =
   }
 
   /* ---------- HTTP ---------- */
-  function handle(req, info) {
+  async function handle(req, info) {
     const url = new URL(req.url);
-    if (url.pathname === '/') {
+    if (url.pathname === '/health') {
       return Response.json({ app: 'hexa', protocol: G.PROTOCOL, ok: true }, { headers: { 'access-control-allow-origin': '*' } });
     }
-    if (url.pathname !== '/ws') return new Response('Nicht gefunden', { status: 404 });
+    if (url.pathname !== '/ws') {
+      const file = req.method === 'GET' || req.method === 'HEAD' ? await appFile(url.pathname) : null;
+      return file || new Response('Nicht gefunden', { status: 404 });
+    }
     if ((req.headers.get('upgrade') || '').toLowerCase() !== 'websocket') {
       return new Response('Hier geht es nur per WebSocket.', { status: 426 });
     }

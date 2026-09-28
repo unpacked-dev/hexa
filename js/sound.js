@@ -373,6 +373,20 @@ window.HexaSound = (() => {
     tone(t, mtof(67), { type: 'triangle', gain: 0.11, attack: 0.005, decay: 0.16 });
     tone(t + 0.17, mtof(62), { type: 'triangle', gain: 0.11, attack: 0.005, decay: 0.38, slide: 0.94 });
   }
+  // Online: Die eigene Zugzeit läuft ab. Leises Ticken wie bei einer Uhr, einmal pro Sekunde.
+  function tick() {
+    if (!ready()) return;
+    const t = ctx.currentTime + 0.005;
+    hit(t, { freq: 3200, q: 6, gain: 0.35, decay: 0.012 });
+    tone(t, 1900, { type: 'triangle', gain: 0.035, attack: 0.001, decay: 0.03 });
+  }
+  // Online: Du bist dran
+  function turn() {
+    if (!ready()) return;
+    const t = ctx.currentTime + 0.02;
+    pluck(t, 79, 0.14, 0.2);
+    pluck(t + 0.11, 84, 0.14, 0.2);
+  }
 
   /* ---------- Lo-Fi-Musik ---------- */
   // Schleife aus 8 Takten mit weichen Jazz-Akkorden. Kleine Zufälle bei Schlagzeug,
@@ -701,5 +715,5 @@ window.HexaSound = (() => {
   });
   window.addEventListener('pagehide', sleep);
 
-  return { get: () => Object.assign({}, prefs), set, toggleAll, preview, roll, hold, score, fanfare, sparkle, combo, run, cdHit, cdMiss };
+  return { get: () => Object.assign({}, prefs), set, toggleAll, preview, roll, hold, score, fanfare, sparkle, combo, run, cdHit, cdMiss, tick, turn };
 })();

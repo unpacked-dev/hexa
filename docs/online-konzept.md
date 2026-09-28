@@ -1,6 +1,6 @@
 # Online-Modus – Konzept
 
-> **Der Server ist gebaut und getestet** (Schritte 1 und 2), die App nutzt ihn noch nicht. Als Nächstes prüfen wir ihn auf Deno Deploy (Schritt 0). Wie der Server arbeitet und welche Nachrichten es gibt, steht in [`server/README.md`](../server/README.md). Stand: 27. September 2026.
+> **Server und App sind gebaut und getestet** (Schritte 1 bis 3). Zum Testen liefert der Server die App gleich mit aus: die Adresse des Branches auf Deno Deploy öffnen, auf „Online“ tippen und mit einem zweiten Handy beitreten. Offen sind noch der Test mit echten Handys (Schritt 0) und alles vor dem Start (Schritt 4). Wie der Server arbeitet und welche Nachrichten es gibt, steht in [`server/README.md`](../server/README.md). Stand: 28. September 2026.
 
 ## Kurz gesagt
 
@@ -351,8 +351,8 @@ hexa/
 ├── index.html, css/, lang/   App wie bisher
 ├── js/
 │   ├── rules.js              Regeln, nutzen App und Server
-│   ├── online.js             neu: Verbindung zum Server, Online-Ansichten
-│   └── app.js                bekommt Anschlüsse für den Online-Modus
+│   ├── online.js             neu: Verbindung zum Server, Wiederverbinden, Geräteschlüssel
+│   └── app.js                Online-Ansichten: Start, Lobby, Zugleiste, Zuschauen, Ergebnis
 ├── deno.json                 Befehle dev, start und test, Deno KV und Einstiegspunkt für Deno Deploy
 └── server/                   neu
     ├── main.js               Einstieg für Deno Deploy: HTTP, WebSocket, Zugzeit, Bremsen
@@ -374,14 +374,14 @@ hexa/
 
 - `deno test`: Spielablauf mit festgelegten Würfeln, Zugzeit, Streichen bei Zeitablauf, Reihenfolge, Countdown, Revanche und Verlassen. Dazu doppelte Codes und Namen mit verbotenen Zeichen.
 - Zwei simulierte Apps spielen gegen den lokalen Server (`deno task dev`).
-- Playwright: Zwei Browserfenster spielen ein ganzes Spiel, eines davon mit einem Namen voller HTML.
+- Playwright: Zwei und drei Browser spielen gegen den lokalen Server, mit kurzer Zugzeit und vorgegebenen Würfeln. Geprüft sind Lobby, Reihenfolge, Entfernen, Host-Wechsel, Würfeln mit Zuschauen, Halten, Eintragen, Countdown, Zeit um, Hauptmenü und zurück, Neuladen, Verbindung weg, Verlassen, Spielende, Highscore und Revanche, dazu Deutsch und Englisch, hell und dunkel.
 
 ## Umsetzung in Schritten
 
 0. **Technik-Check zuerst, klein:** ein Mini-Server auf Deno Deploy mit WebSocket und `kv.watch()`, dazu zwei Handys. Wir messen, wie schnell Änderungen ankommen und was beim Sperren des Bildschirms passiert. Lokal klappt alles schon. Offen ist nur, ob `kv.watch()` auf dem neuen Deno Deploy genauso läuft, denn beschrieben ist es bisher nur für die alte Plattform. Plan B wäre, dass die Apps regelmäßig nachfragen. Das kostet aber viel mehr Anfragen.
 1. **Spielablauf auf dem Server** (`game.js`) mit Tests, noch ohne Netz. ✓ Erledigt.
-2. **Server fertig:** WebSocket, KV, Codes, Zugzeit, Wiederverbinden, Revanche, Sicherheit. ✓ Erledigt, mit 28 Deno-Tests. Lokal geprüft: eine ganze Partie zu dritt mit Wiederverbinden, die echte Zugzeit von 60 Sekunden, zwei Server-Prozesse an einer Datenbank und der Absturz einer Instanz. Weil `kv.watch()` lokal nur Änderungen aus dem eigenen Prozess meldet, fragt jede Instanz zusätzlich alle 5 Sekunden nach (Plan B als Sicherheitsnetz).
-3. **App:** Online-Start, Lobby mit Reihenfolge, Zugleiste mit Blinken und Ticken, Spiel, Ergebnis und Revanche. Alle Texte auf Deutsch und Englisch.
+2. **Server fertig:** WebSocket, KV, Codes, Zugzeit, Wiederverbinden, Revanche, Sicherheit. ✓ Erledigt, mit 29 Deno-Tests. Lokal geprüft: eine ganze Partie zu dritt mit Wiederverbinden, die echte Zugzeit von 60 Sekunden, zwei Server-Prozesse an einer Datenbank und der Absturz einer Instanz. Weil `kv.watch()` lokal nur Änderungen aus dem eigenen Prozess meldet, fragt jede Instanz zusätzlich alle 5 Sekunden nach (Plan B als Sicherheitsnetz).
+3. **App:** Online-Start, Lobby mit Reihenfolge, Zugleiste mit Blinken und Ticken, Spiel, Ergebnis und Revanche. Alle Texte auf Deutsch und Englisch. ✓ Erledigt. Die App merkt eine tote Verbindung nach wenigen Sekunden (Herzschlag alle 25 Sekunden) und verbindet sich von selbst neu.
 4. **Vor dem Start:** Impressum, Datenschutz, AVV, Limits des kostenlosen Tarifs prüfen, README, Changelog, Release.
 
 ## Später, vielleicht

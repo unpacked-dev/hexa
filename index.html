@@ -31,6 +31,7 @@
 <script src="js/rules.js" defer></script>
 <script src="js/bot.js" defer></script>
 <script src="js/sound.js" defer></script>
+<script src="js/online.js" defer></script>
 <script src="js/app.js" defer></script>
 </head>
 <body>
@@ -50,9 +51,10 @@
         <span class="mode-tx"><span class="mode-t" data-i18n="start.local"></span><span class="mode-s" id="localSub"></span></span>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mode-go" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
       </button>
-      <button type="button" class="mode mode-online" data-act="soon" data-what="online" aria-disabled="true">
+      <button type="button" class="mode mode-online" data-act="online">
         <span class="mode-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg></span>
-        <span class="mode-tx"><span class="mode-t" data-i18n="start.online"></span><span class="mode-s" data-i18n="common.soon"></span></span>
+        <span class="mode-tx"><span class="mode-t" data-i18n="start.online"></span><span class="mode-s" id="onlineSub"></span></span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mode-go" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
       </button>
     </div>
     <div class="start-links">
@@ -75,9 +77,11 @@
       <button type="button" class="icon-btn" data-act="settings" data-i18n-label="top.settings" data-i18n-title="top.settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/><circle cx="12" cy="12" r="3"/></svg></button>
     </div>
   </header>
+  <div class="olbar" id="olBar" hidden></div>
 
   <main>
     <section class="view" id="view-players" data-view="players" data-i18n-label="views.players" hidden></section>
+    <section class="view" id="view-online" data-view="online" data-i18n-label="views.online" hidden></section>
     <section class="view" id="view-dice" data-view="dice" data-i18n-label="views.dice" hidden></section>
     <section class="view" id="view-block" data-view="block" data-i18n-label="views.block" hidden></section>
     <section class="view" id="view-rules" data-view="rules" data-i18n-label="views.rules" hidden></section>
