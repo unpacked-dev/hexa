@@ -355,6 +355,11 @@ export function createHub({ kv, instance = G.randomId(8), times = G.TIMES, rng =
   function handle(req, info) {
     const url = new URL(req.url);
     if (url.pathname === '/') {
+      // Vorübergehend: Welche Adresse sieht der Server? Nur zur Prüfung auf Deno Deploy, wird wieder entfernt.
+      if (url.searchParams.has('whoami')) {
+        const remote = info && info.remoteAddr ? info.remoteAddr.hostname : null;
+        return Response.json({ remote, forwarded: req.headers.get('x-forwarded-for'), real: req.headers.get('x-real-ip') });
+      }
       return Response.json({ app: 'hexa', protocol: G.PROTOCOL, ok: true }, { headers: { 'access-control-allow-origin': '*' } });
     }
     if (url.pathname !== '/ws') return new Response('Nicht gefunden', { status: 404 });
