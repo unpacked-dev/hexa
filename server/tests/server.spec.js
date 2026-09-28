@@ -284,7 +284,7 @@ Deno.test('HTTP: Die App, der Status unter /health, sonst nur WebSocket', async 
   const page = await fetch(env.http(0) + '/');
   assert.equal(page.status, 200);
   assert.match(page.headers.get('content-type'), /text\/html/);
-  assert.match(await page.text(), /<title>HEXA<\/title>/);
+  assert.match(await page.text(), /<title>HEXA: Countdown<\/title>/);
   for (const [path, type] of [['/js/online.js', /javascript/], ['/css/hexa.css', /css/], ['/lang/de.js', /javascript/], ['/icons/icon-192.png', /png/], ['/manifest.webmanifest', /manifest/]]) {
     const r = await fetch(env.http(0) + path);
     assert.equal(r.status, 200, path);

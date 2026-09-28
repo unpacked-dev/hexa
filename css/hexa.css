@@ -915,7 +915,8 @@ html:not(.ready) .start-in > :not(noscript) { visibility: hidden; }
 .start-logo .pip { fill: var(--tray-2); }
 @keyframes spin-in { from { transform: scale(.72) rotate(-60deg); } to { transform: none; } }
 .start-name { margin: 6px 0 0; font-size: 64px; font-weight: 900; font-stretch: 125%; letter-spacing: .06em; line-height: .9; }
-.start-claim { margin: 0; font-size: 16px; font-weight: 600; color: rgba(255, 255, 255, .72); text-shadow: 0 1px 10px rgba(8, 11, 38, .6); text-wrap: balance; }
+/* Zweiter Teil des Namens, gesperrt ungefähr so breit wie „HEXA“. Der rechte Rand gleicht die Sperrung hinter dem letzten Buchstaben aus. */
+.start-sub { display: block; margin: 12px -.62em 0 0; font-size: 18px; font-weight: 800; letter-spacing: .62em; line-height: 1; text-transform: uppercase; color: var(--marker); }
 .start-dice { --s: 40px; display: flex; justify-content: center; gap: 10px; }
 .start-dice .die { cursor: default; }
 .start-modes { display: grid; gap: 10px; width: 100%; }

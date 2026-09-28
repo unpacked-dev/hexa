@@ -1,12 +1,14 @@
 # Changelog
 
-Alle wichtigen Änderungen an HEXA stehen hier.
+Alle wichtigen Änderungen an HEXA: Countdown stehen hier.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), die Versionen folgen [Semantic Versioning](https://semver.org/lang/de/).
 
 ## [Unreleased]
 
 ### Geändert
 
+- **Neuer Name: HEXA: Countdown.** Ein Spiel namens „HEXA“ gibt es schon. Deshalb heißt das Spiel nach außen jetzt „HEXA: Countdown“, nach dem Bonusspiel. Das steht im Seitentitel, beim Installieren, im README, im Vorschaubild für geteilte Links und in den Regeln. Unter dem App-Icon und in der Kopfzeile bleibt es kurz „HEXA“. Adressen, Spielstände, Highscores und Einstellungen bleiben, wie sie sind.
+- **Startbildschirm:** Unter „HEXA“ steht jetzt in Gelb „Countdown“. Der Spruch „Sechs Würfel. Drei Würfe. Ein Countdown.“ steht dafür nur noch in den Regeln, damit „Countdown“ nicht zweimal untereinander steht.
 - **Hauptmenü:** Unter „Online“ steht jetzt kurz „Jede Person am eigenen Gerät“, passend zu „Lokal“. Der Text passt so auch auf schmalen Handys in eine Zeile.
 - **README und Vorschaubild:** zeigen das aktuelle Hauptmenü, ohne „Bald verfügbar“ bei Online. Das Vorschaubild für geteilte Links zeigt außerdem einen Zug im Online-Spiel.
 

@@ -77,6 +77,6 @@ jobs:
         run: |
           # Gibt es den Tag noch nicht, legt gh ihn auf dem aktuellen Commit an.
           gh release create "$TAG" "hexa-${TAG}.zip" \
-            --title "HEXA ${TAG}" \
+            --title "HEXA: Countdown ${TAG}" \
             --notes-file notes.md \
             --target "$GITHUB_SHA"

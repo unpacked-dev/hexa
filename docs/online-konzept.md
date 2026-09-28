@@ -4,7 +4,7 @@
 
 ## Kurz gesagt
 
-Mehrere Leute spielen HEXA zusammen, jede Person am eigenen Gerät. Eine Person erstellt eine Lobby und bekommt einen Code aus 4 Buchstaben. Die anderen treten mit diesem Code bei. Man kann auch allein online spielen. Es gibt keine Konten, nur Spitznamen.
+Mehrere Leute spielen HEXA: Countdown zusammen, jede Person am eigenen Gerät. Eine Person erstellt eine Lobby und bekommt einen Code aus 4 Buchstaben. Die anderen treten mit diesem Code bei. Man kann auch allein online spielen. Es gibt keine Konten, nur Spitznamen.
 
 Der Server würfelt, prüft jeden Zug und achtet auf die Zugzeit von 60 Sekunden. Er läuft mit Deno auf Deno Deploy und speichert alles in Deno KV.
 

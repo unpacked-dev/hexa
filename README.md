@@ -2,7 +2,7 @@
 
 <img src="favicon.svg" width="80" height="80" alt="HEXA-Logo">
 
-# HEXA
+# HEXA: Countdown
 
 **Sechs Würfel. Drei Würfe. Ein Countdown.**
 
@@ -28,9 +28,9 @@ Läuft direkt im Browser, auf dem Handy wie am Laptop. Ohne Installation, ohne K
 
 ## Worum geht’s?
 
-Bei HEXA würfelst du um die besten Kombinationen: Pasche, Straßen, Paare und Drillinge – oder einfach um möglichst viele Augen. In 15 Runden füllst du deinen Spielblock Feld für Feld, und jedes Feld darfst du nur einmal belegen.
+Bei HEXA: Countdown würfelst du um die besten Kombinationen: Pasche, Straßen, Paare und Drillinge – oder einfach um möglichst viele Augen. In 15 Runden füllst du deinen Spielblock Feld für Feld, und jedes Feld darfst du nur einmal belegen.
 
-Wer geschickt plant, holt sich im oberen Block einen dicken Bonus. Und wer schon im ersten Wurf vier gleiche Zahlen hat, darf zusätzlich den **Countdown** spielen: von 6 bis 1 herunterzählen, 10 Punkte pro geschaffter Stufe.
+Wer geschickt plant, holt sich im oberen Block einen dicken Bonus. Und wer schon im ersten Wurf vier gleiche Zahlen hat, darf zusätzlich den **Countdown** spielen – daher der Name. Dabei zählst du von 6 bis 1 herunter, 10 Punkte pro geschaffter Stufe.
 
 Die App ersetzt Würfel, Becher, Block und Stift. Ihr gebt einfach das Handy reihum – oder legt es in die Mitte. Oder ihr spielt online, jede Person am eigenen Handy.
 

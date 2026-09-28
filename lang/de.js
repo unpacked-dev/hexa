@@ -25,7 +25,6 @@
     },
 
     start: {
-      claim: 'Sechs Würfel. Drei Würfe. Ein Countdown.',
       modes: 'Spielmodus',
       local: 'Lokal',
       localNew: 'Ein Gerät, reihum spielen',
@@ -479,8 +478,8 @@
         {
           title: 'Worum geht’s?',
           html: `
-          <p>Bei HEXA würfelst du um die besten Kombinationen: Pasche, Straßen, Paare und Drillinge – oder einfach um möglichst viele Augen. In 15 Runden füllst du deinen Spielblock Feld für Feld. Doch Vorsicht: Jedes Feld darfst du nur ein einziges Mal belegen.</p>
-          <p>Wer geschickt plant, holt sich im oberen Block einen dicken Bonus. Und wer schon im ersten Wurf vier gleiche Zahlen hat, darf zusätzlich den <b>Countdown</b> spielen.</p>
+          <p>Bei HEXA: Countdown würfelst du um die besten Kombinationen: Pasche, Straßen, Paare und Drillinge – oder einfach um möglichst viele Augen. In 15 Runden füllst du deinen Spielblock Feld für Feld. Doch Vorsicht: Jedes Feld darfst du nur ein einziges Mal belegen.</p>
+          <p>Wer geschickt plant, holt sich im oberen Block einen dicken Bonus. Und wer schon im ersten Wurf vier gleiche Zahlen hat, darf zusätzlich den <b>Countdown</b> spielen – daher der Name.</p>
           <p><b>Ziel des Spiels:</b> Sammle in 15 Runden möglichst viele Punkte. Wer am Ende die meisten hat, gewinnt.</p>`,
         },
         {

@@ -1,6 +1,6 @@
 # Lizenzen von Drittanbietern
 
-HEXA selbst steht unter der [MIT-Lizenz](LICENSE). Die Schriften und einige Icons stammen von anderen und stehen unter eigenen freien Lizenzen. Alles davon liegt direkt im Repository: Beim Spielen wird nichts von fremden Servern geladen.
+HEXA: Countdown selbst steht unter der [MIT-Lizenz](LICENSE). Die Schriften und einige Icons stammen von anderen und stehen unter eigenen freien Lizenzen. Alles davon liegt direkt im Repository: Beim Spielen wird nichts von fremden Servern geladen.
 
 ## Schriften
 

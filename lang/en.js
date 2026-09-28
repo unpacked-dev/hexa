@@ -23,7 +23,6 @@
     },
 
     start: {
-      claim: 'Six dice. Three rolls. One Countdown.',
       modes: 'Game mode',
       local: 'Local',
       localNew: 'One device, take turns',
@@ -477,8 +476,8 @@
         {
           title: 'What’s it all about?',
           html: `
-          <p>In HEXA, you roll for the best combinations: of-a-kinds, straights, pairs and triples – or simply as many pips as possible. Over 15 rounds, you fill in your scorecard box by box. But watch out: you can use each box only once.</p>
-          <p>Plan well and you’ll earn a big bonus in the upper section. And if you roll four of a kind on your very first roll, you also get to play the <b>Countdown</b>.</p>
+          <p>In HEXA: Countdown, you roll for the best combinations: of-a-kinds, straights, pairs and triples – or simply as many pips as possible. Over 15 rounds, you fill in your scorecard box by box. But watch out: you can use each box only once.</p>
+          <p>Plan well and you’ll earn a big bonus in the upper section. And if you roll four of a kind on your very first roll, you also get to play the <b>Countdown</b> – hence the name.</p>
           <p><b>Goal of the game:</b> Score as many points as possible in 15 rounds. Whoever has the most at the end wins.</p>`,
         },
         {

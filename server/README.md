@@ -1,4 +1,4 @@
-# HEXA-Server für den Online-Modus
+# Online-Server für HEXA: Countdown
 
 Der Server würfelt, prüft jeden Zug und achtet auf die Zugzeit. Er läuft mit [Deno](https://deno.com), ganz ohne weitere Pakete: `Deno.serve` für HTTP und WebSocket, [Deno KV](https://docs.deno.com/deploy/kv/) als Datenbank. Die Regeln kommen aus `../js/rules.js`, genau wie in der App.
 
