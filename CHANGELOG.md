@@ -3,14 +3,16 @@
 Alle wichtigen Änderungen an HEXA: Countdown stehen hier.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), die Versionen folgen [Semantic Versioning](https://semver.org/lang/de/).
 
-## [Unreleased]
+## [1.9.0] – 2026-09-28
+
+Das Spiel heißt jetzt HEXA: Countdown.
 
 ### Geändert
 
 - **Neuer Name: HEXA: Countdown.** Ein Spiel namens „HEXA“ gibt es schon. Deshalb heißt das Spiel nach außen jetzt „HEXA: Countdown“, nach dem Bonusspiel. Das steht im Seitentitel, beim Installieren, im README, im Vorschaubild für geteilte Links und in den Regeln. Unter dem App-Icon und in der Kopfzeile bleibt es kurz „HEXA“. Adressen, Spielstände, Highscores und Einstellungen bleiben, wie sie sind.
-- **Startbildschirm:** Unter „HEXA“ steht jetzt in Gelb „Countdown“. Der Spruch „Sechs Würfel. Drei Würfe. Ein Countdown.“ steht dafür nur noch in den Regeln, damit „Countdown“ nicht zweimal untereinander steht.
+- **Startbildschirm:** Unter „HEXA“ steht jetzt in Gelb „Countdown“. Der Spruch „Sechs Würfel. Drei Würfe. Ein Countdown.“ steht in der App dafür nur noch in den Regeln, damit „Countdown“ nicht zweimal untereinander steht.
 - **Hauptmenü:** Unter „Online“ steht jetzt kurz „Jede Person am eigenen Gerät“, passend zu „Lokal“. Der Text passt so auch auf schmalen Handys in eine Zeile.
-- **README und Vorschaubild:** zeigen das aktuelle Hauptmenü, ohne „Bald verfügbar“ bei Online. Das Vorschaubild für geteilte Links zeigt außerdem einen Zug im Online-Spiel.
+- **README und Vorschaubild:** zeigen den neuen Startbildschirm, ohne „Bald verfügbar“ bei Online. Das Vorschaubild für geteilte Links zeigt außerdem einen Zug im Online-Spiel.
 
 ## [1.8.0] – 2026-09-28
 
@@ -163,6 +165,7 @@ Die erste Version von HEXA.
 - **Web-App:** installierbar auf dem Home-Bildschirm, Bildschirm bleibt während des Spiels an.
 - **Tests:** Wertung aller Felder mit `node --test` abgedeckt.
 
+[1.9.0]: https://github.com/unpacked-dev/hexa/releases/tag/v1.9.0
 [1.8.0]: https://github.com/unpacked-dev/hexa/releases/tag/v1.8.0
 [1.7.0]: https://github.com/unpacked-dev/hexa/releases/tag/v1.7.0
 [1.6.0]: https://github.com/unpacked-dev/hexa/releases/tag/v1.6.0
