@@ -32,6 +32,18 @@
       onlineSoon: 'Online play is coming soon.',
       scores: 'High Scores',
       settings: 'Settings',
+      learn: 'Learn to Play',
+    },
+
+    learn: {
+      title: 'Learn to Play',
+      rules: 'Read the rules',
+      rulesSub: 'How it works, every box and the Countdown, with examples',
+      pip: 'Tutorial with Pip',
+      pipSub: 'A guided round to play along',
+      pipSoon: 'The tutorial with Pip is coming soon.',
+      back: 'Main menu',
+      backLabel: 'Back to the main menu',
     },
 
     top: {

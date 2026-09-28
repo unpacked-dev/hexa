@@ -3,6 +3,17 @@
 Alle wichtigen Änderungen an HEXA: Countdown stehen hier.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), die Versionen folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [Unreleased]
+
+### Neu
+
+- **Spiel lernen:** Im Hauptmenü öffnet „Spiel lernen“ ein kleines Fenster. Von dort kommst du zu den Regeln, jetzt schon vor dem ersten Spiel und als eigene Seite. Bisher gab es sie erst im laufenden Spiel. Das Tutorial mit Pip steht auch schon drin und kommt bald.
+
+### Geändert
+
+- **Einstellungen im Hauptmenü:** sitzen jetzt oben rechts als Zahnrad, an derselben Stelle wie im Spiel. Unten stehen dafür „Spiel lernen“ und „Highscores“.
+- **README:** Das Titelbild zeigt das neue Hauptmenü.
+
 ## [1.9.0] – 2026-09-28
 
 Das Spiel heißt jetzt HEXA: Countdown.

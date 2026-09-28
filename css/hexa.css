@@ -691,6 +691,17 @@ table.t tr.total td { border-top: 2px solid var(--rule-strong); border-bottom: 0
 .sheet .choice-ic, .sheet .choice + .choice .choice-ic { background: var(--sheet); color: var(--pen); box-shadow: inset 0 0 0 1px var(--rule); }
 .sheet .choice.choice-danger .choice-ic, .choice-danger .choice-t { color: var(--danger); }
 @media (hover: hover) { .sheet .choice:hover { box-shadow: inset 0 0 0 2px var(--pen); } .sheet .choice-danger:hover { box-shadow: inset 0 0 0 2px var(--danger); } }
+/* Kommt noch: sichtbar, aber gedämpft. Antippen zeigt einen Hinweis. */
+.choice-soon .choice-ic { opacity: .6; }
+.choice-soon .choice-t { color: var(--ink-2); }
+.choice-t .chip { display: inline-block; margin-left: 6px; vertical-align: 2px; font-stretch: 100%; }
+@media (hover: hover) { .sheet .choice-soon:hover { box-shadow: inset 0 0 0 1px var(--rule); } }
+/* Pips Gesicht: das Sechseck aus dem Logo mit zwei Augen */
+.choice-ic .pip-face { width: 32px; height: 32px; }
+.pf-body { fill: var(--pen); stroke: var(--pen); stroke-width: 3; stroke-linejoin: round; }
+.pf-eye { fill: #FFFFFF; }
+.pf-pupil { fill: #0F1440; }
+.pf-line { fill: none; stroke: var(--on-pen); stroke-width: 1.7; stroke-linecap: round; }
 /* Ergebnis und Highscores */
 .saved { display: flex; align-items: flex-start; gap: 8px; margin: 14px 0 0; font-size: 13px; line-height: 1.45; color: var(--ink-2); }
 .saved svg { flex: none; width: 16px; height: 16px; margin-top: 1px; color: var(--ink-3); }
@@ -952,6 +963,37 @@ html:not(.ready) .start-in > :not(noscript) { visibility: hidden; }
 .start-set:active { transform: translateY(1px); }
 @media (hover: hover) { .start-set:hover { box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, .5); } }
 .start-ns { margin: 0; text-align: center; color: rgba(255, 255, 255, .8); }
+/* Einstellungen oben rechts, an derselben Stelle wie im Spiel */
+.start-top {
+  position: absolute; top: 0; left: 0; right: 0; z-index: 2; display: flex; justify-content: flex-end;
+  max-width: 720px; margin: 0 auto; padding: calc(env(safe-area-inset-top, 0px) + 14px) 16px 0;
+  pointer-events: none;
+}
+html:not(.ready) .start-top { visibility: hidden; }
+.start-gear {
+  display: grid; place-items: center; width: 40px; height: 36px; margin: -3px 0; padding: 0; border: 0; border-radius: 12px;
+  background: rgba(255, 255, 255, .09); color: #FFFFFF; box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, .24);
+  cursor: pointer; pointer-events: auto; transition: box-shadow .15s ease;
+}
+.start-gear svg { width: 19px; height: 19px; }
+.start-gear:active { transform: translateY(1px); }
+@media (hover: hover) { .start-gear:hover { box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, .5); } }
+
+/* ---------- Regeln als eigene Seite (aus dem Hauptmenü) ---------- */
+.rules-page {
+  position: fixed; inset: 0; z-index: 46; overflow-y: auto; overscroll-behavior: contain;
+  background: var(--page); animation: fade .18s ease both;
+}
+.rp-in { max-width: 720px; margin: 0 auto; padding: 0 16px calc(env(safe-area-inset-bottom, 0px) + 40px); }
+.rp-top { position: sticky; top: 0; z-index: 2; padding: calc(env(safe-area-inset-top, 0px) + 14px) 0 8px; background: var(--page); }
+.rp-back {
+  display: inline-flex; align-items: center; gap: 2px; min-height: 40px; margin: -5px 0 -5px -8px; padding: 0 14px 0 4px;
+  border: 0; border-radius: 12px; background: transparent; color: var(--ink);
+  font-size: 16px; font-weight: 700; cursor: pointer; transition: background-color .15s ease;
+}
+.rp-back svg { width: 24px; height: 24px; }
+.rp-back:active { background: var(--sheet-2); }
+@media (hover: hover) { .rp-back:hover { background: var(--sheet); } }
 
 /* ---------- Fallende Würfel im Hintergrund ---------- */
 /* Größe, Tempo, Drehung und Tiefe kommen je Würfel aus dem Skript, die Bewegung macht allein CSS. */

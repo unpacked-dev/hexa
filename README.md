@@ -69,7 +69,7 @@ Der Server würfelt und prüft jeden Zug. Ist die Zeit um, streicht er ein zufä
 
 ## Features
 
-- **Hauptmenü** – lokal auf einem Gerät reihum spielen oder online mit anderen, Highscores ansehen, Einstellungen öffnen.
+- **Hauptmenü** – lokal auf einem Gerät reihum spielen oder online mit anderen, das Spiel lernen, Highscores ansehen. Die Einstellungen stecken oben rechts im Zahnrad, wie im Spiel.
 - **Mit App- oder eigenen Würfeln** – vor dem Spiel wählen: Die App würfelt für euch, oder ihr würfelt selbst und nutzt nur den Spielblock.
 - **Würfeln mit Gefühl** – sechs Würfel mit Klackern und Vibration, geworfen auf sieben Arten: kullern, hochwerfen, über den Tisch rollen, schütteln, hüpfen, kreiseln oder als Welle. Keine Art kommt öfter als einmal in vier Würfen. Tippen hält einen Würfel fest, nochmal Tippen löst ihn wieder.
 - **Kleine Belohnungen** – steigende Töne bei 4, 5 und 6 gleichen, ein Lauf für die Große Straße und Konfetti für seltene Momente wie sechs gleiche oder einen neuen Rekord.
@@ -80,7 +80,7 @@ Der Server würfelt und prüft jeden Zug. Ist die Zeit um, streicht er ein zufä
 - **Online spielen** – jede Person am eigenen Gerät. Eine Person erstellt eine Lobby und bekommt einen Code aus 4 Buchstaben, die anderen treten damit bei. Allein geht auch. Der Server würfelt, jeder Zug hat 60 Sekunden, und alle sehen die Würfel live mitrollen. Kein Konto, nur ein Spitzname.
 - **Spielende und Highscores** – das Ergebnis zeigt alle Platzierungen und neue Rekorde. Die zehn besten Ergebnisse bleiben auf dem Gerät gespeichert, bei Online-Spielen dein eigenes.
 - **Nichts geht verloren** – Spiele lassen sich pausieren und bleiben auch nach dem Schließen erhalten. Einträge, entfernte Personen oder ein abgebrochenes Spiel lassen sich mit einem Tipp rückgängig machen.
-- **Regeln eingebaut** – Kurzübersicht, Beispiele und Wahrscheinlichkeiten für Neugierige.
+- **Regeln eingebaut** – Kurzübersicht, Beispiele und Wahrscheinlichkeiten für Neugierige. Schon vor dem ersten Spiel lesbar, über **Spiel lernen** im Hauptmenü.
 - **Einstellungen** – Design hell, dunkel oder automatisch. Musik und Spielsounds lassen sich getrennt an- und ausschalten und leiser stellen.
 - **Ton** – Effekte und entspannte Lo-Fi-Musik, live im Browser erzeugt.
 - **Fallende Würfel** – langsam fallende Würfel im Hintergrund, in den Einstellungen abschaltbar. Bei „Bewegung reduzieren“ stehen sie still.
@@ -130,7 +130,7 @@ Der Server würfelt und prüft jeden Zug. Ist die Zeit um, streicht er ein zufä
 | Höhenflug | jeder Würfel zeigt 4, 5 oder 6 | 25 |
 | Chance | keine | Augensumme |
 
-Die vollständigen Regeln mit Beispielen stehen in der App im Bereich **Regeln**.
+Die vollständigen Regeln mit Beispielen stehen in der App: im Hauptmenü unter **Spiel lernen** und im Spiel im Bereich **Regeln**.
 
 </details>
 

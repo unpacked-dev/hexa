@@ -43,6 +43,11 @@
     plus: svg('<path d="M5 12h14"/><path d="M12 5v14"/>'),
     enter: svg('<path d="m10 17 5-5-5-5"/><path d="M15 12H3"/><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>'),
     copy: svg('<rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>'),
+    rules: svg('<path d="M5 4.5A1.5 1.5 0 0 1 6.5 3H19v15H6.5A1.5 1.5 0 0 0 5 19.5z"/><path d="M5 19.5A1.5 1.5 0 0 0 6.5 21H19"/><path d="M9 7.5h6"/><path d="M9 11h4"/>'),
+    pip: '<svg class="pip-face" viewBox="0 0 40 40" aria-hidden="true"><path class="pf-body" d="M20 3 34.7 11.5v17L20 37 5.3 28.5v-17z"/>'
+      + '<ellipse class="pf-eye" cx="14.3" cy="17.6" rx="3.8" ry="4.5"/><ellipse class="pf-eye" cx="25.7" cy="17.6" rx="3.8" ry="4.5"/>'
+      + '<circle class="pf-pupil" cx="14.3" cy="17.9" r="2.2"/><circle class="pf-pupil" cx="25.7" cy="17.9" r="2.2"/>'
+      + '<path class="pf-line" d="M16.7 24.5Q20 27.8 23.3 24.5"/></svg>',
   };
   // Kleines Roboter-Zeichen vor Bot-Namen
   const botMark = ICON.bot.replace('<svg ', '<svg class="bot-ic" ');
@@ -148,6 +153,7 @@
   let local = load();   // das lokale Spiel, dazu die Highscores
   let state = local;    // was gerade zu sehen ist: das lokale Spiel oder der Stand eines Online-Spiels
   let atStart = true;   // Beim Öffnen kommt zuerst der Startbildschirm.
+  let rulesOpen = false; // Regeln als eigene Seite, aus dem Hauptmenü über „Spiel lernen“
 
   // Online-Modus: Verbindung in js/online.js, Ansichten im Abschnitt „Online“ weiter unten
   const Online = window.HexaOnline;
@@ -272,7 +278,8 @@
 
   // Startbildschirm, Spieler-Auswahl oder laufendes Spiel mit Leiste unten
   function syncFrame() {
-    $('#start').hidden = !atStart;
+    $('#start').hidden = !atStart || rulesOpen;
+    $('#rulesPage').hidden = !atStart || !rulesOpen;
     $('.app').hidden = atStart;
     $('.tabbar').hidden = atStart || !state.started;
   }
@@ -836,6 +843,7 @@
   function updateInert() {
     const modal = !$('#sheet').hidden || !$('#cd').hidden;
     $('#start').inert = modal;
+    $('#rulesPage').inert = modal;
     $('.app').inert = modal;
     $('.tabbar').inert = modal;
   }
@@ -1791,7 +1799,7 @@
 
   function syncTheme() {
     const t = chosenTheme();
-    const colors = atStart ? START_COLOR : THEME_COLOR;
+    const colors = atStart && !rulesOpen ? START_COLOR : THEME_COLOR;
     $$('meta[name="theme-color"]').forEach(m => {
       const own = /dark/.test(m.getAttribute('media') || '') ? 'dark' : 'light';
       m.setAttribute('content', colors[t || own]);
@@ -1938,6 +1946,7 @@
   function setLang(l) {
     if (!I18n.set(l)) return;
     renderRules();
+    if (rulesOpen) renderRules($('#rulesBody'));
     renderStart();
     render();
     if (!$('#cd').hidden) renderCountdown();
@@ -1992,12 +2001,51 @@
     closeSheet(true);
     hideCountdown();
     atStart = true;
+    rulesOpen = false;
     renderStart();
     syncFrame();
     syncSky();
     rollStartDice();
     syncTheme();
     const b = $('#start [data-act="local"]');
+    try { b.focus({ preventScroll: true }); } catch (e) { /* egal */ }
+  }
+
+  // Spiel lernen: Regeln lesen oder (bald) eine geführte Runde mit Pip, siehe Issue #3
+  function openLearn() {
+    const choice = (act, cls, icon, title, sub, chip) => `
+          <button type="button" class="choice${cls}" data-act="sheet-do" data-do="${act}"${chip ? ' aria-disabled="true"' : ''}>
+            <span class="choice-ic">${ICON[icon]}</span>
+            <span class="choice-tx"><span class="choice-t">${title}${chip ? ` <span class="chip">${chip}</span>` : ''}</span><span class="choice-s">${sub}</span></span>
+          </button>`;
+    openSheet(`
+      <h3 class="s-title">${tr('learn.title')}</h3>
+      <div class="choices">
+        ${choice('rules', '', 'rules', tr('learn.rules'), tr('learn.rulesSub'))}
+        ${choice('pip', ' choice-soon', 'pip', tr('learn.pip'), tr('learn.pipSub'), tr('common.soon'))}
+      </div>
+      <div class="s-acts"><button type="button" class="btn btn-quiet" data-act="sheet-close">${tr('common.close')}</button></div>`, {
+      rules: () => { closeSheet(true); openRulesPage(); },
+      pip: () => toast(tr('learn.pipSoon')),
+    }, tr('learn.title'));
+  }
+
+  function openRulesPage() {
+    rulesOpen = true;
+    renderRules($('#rulesBody'));
+    syncFrame();
+    syncTheme();
+    const page = $('#rulesPage');
+    page.scrollTop = 0;
+    try { $('.rp-back', page).focus({ preventScroll: true }); } catch (e) { /* egal */ }
+  }
+
+  function closeRulesPage() {
+    if (!rulesOpen) return;
+    rulesOpen = false;
+    syncFrame();
+    syncTheme();
+    const b = $('#start [data-act="learn"]');
     try { b.focus({ preventScroll: true }); } catch (e) { /* egal */ }
   }
 
@@ -2756,6 +2804,8 @@
       case 'scores': openHighscores(); break;
       case 'hs-tab': setHsTab(t.dataset.v); break;
       case 'settings': openSettings(); break;
+      case 'learn': openLearn(); break;
+      case 'rules-close': closeRulesPage(); break;
       case 'set-theme': setTheme(t.dataset.v); break;
       case 'set-sound': toggleChannel(t.dataset.ch); break;
       case 'set-sky': setSky(!skyOn); break;
@@ -2837,6 +2887,7 @@
     if (e.key === 'Escape') {
       if (!$('#sheet').hidden) { closeSheet(); e.preventDefault(); }
       else if (!$('#cd').hidden) { closeCountdown(); e.preventDefault(); }
+      else if (rulesOpen) { closeRulesPage(); e.preventDefault(); }
       return;
     }
     if (shortcut(e)) return;
@@ -2908,8 +2959,8 @@
 
   /* ---------- Regeln ---------- */
   // Kommen aus der Sprachdatei. Offene Abschnitte bleiben beim Sprachwechsel offen.
-  function renderRules() {
-    const root = $('#view-rules');
+  // Gezeichnet wird in den Tab im Spiel oder in die eigene Seite aus dem Hauptmenü.
+  function renderRules(root = $('#view-rules')) {
     const open = $$('details.acc', root).map(d => d.open);
     const chev = svg('<path d="m6 9 6 6 6-6"/>').replace('<svg ', '<svg class="chev" ');
     root.innerHTML = `

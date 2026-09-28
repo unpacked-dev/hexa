@@ -34,6 +34,18 @@
       onlineSoon: 'Online spielen kommt bald.',
       scores: 'Highscores',
       settings: 'Einstellungen',
+      learn: 'Spiel lernen',
+    },
+
+    learn: {
+      title: 'Spiel lernen',
+      rules: 'Regeln lesen',
+      rulesSub: 'Ablauf, alle Felder und der Countdown, mit Beispielen',
+      pip: 'Tutorial mit Pip',
+      pipSub: 'Eine geführte Runde zum Mitspielen',
+      pipSoon: 'Das Tutorial mit Pip kommt bald.',
+      back: 'Hauptmenü',
+      backLabel: 'Zurück zum Hauptmenü',
     },
 
     top: {
