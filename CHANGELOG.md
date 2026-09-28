@@ -3,6 +3,13 @@
 Alle wichtigen Änderungen an HEXA stehen hier.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), die Versionen folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [Unreleased]
+
+### Geändert
+
+- **Hauptmenü:** Unter „Online“ steht jetzt kurz „Jede Person am eigenen Gerät“, passend zu „Lokal“. Der Text passt so auch auf schmalen Handys in eine Zeile.
+- **README und Vorschaubild:** zeigen das aktuelle Hauptmenü, ohne „Bald verfügbar“ bei Online.
+
 ## [1.8.0] – 2026-09-28
 
 Online spielen, jede Person am eigenen Gerät.

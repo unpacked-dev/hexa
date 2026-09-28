@@ -344,7 +344,7 @@
     },
 
     online: {
-      startSub: 'Mit Code, jede Person am eigenen Gerät',
+      startSub: 'Jede Person am eigenen Gerät',
       startResume: 'Weiterspielen · Lobby {code}',
       title: 'Online spielen',
       lead: 'Jede Person spielt am eigenen Gerät. Eine erstellt die Lobby, die anderen treten mit dem Code bei. Allein geht auch.',

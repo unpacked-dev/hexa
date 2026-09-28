@@ -342,7 +342,7 @@
     },
 
     online: {
-      startSub: 'With a code, everyone on their own device',
+      startSub: 'Everyone on their own device',
       startResume: 'Resume · Lobby {code}',
       title: 'Play online',
       lead: 'Everyone plays on their own device. One person creates the lobby, the others join with the code. You can also play alone.',
