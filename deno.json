@@ -1,5 +1,7 @@
 {
-  "unstable": ["kv"],
+  "unstable": [
+    "kv"
+  ],
   "lock": false,
   "tasks": {
     "dev": "deno run --watch --allow-net --allow-env --allow-read --allow-write server/main.js",
@@ -7,6 +9,14 @@
     "test": "deno test --allow-net --allow-env --allow-read --allow-write"
   },
   "test": {
-    "include": ["server/tests/*.spec.js"]
+    "include": [
+      "server/tests/*.spec.js"
+    ]
+  },
+  "deploy": {
+    "runtime": {
+      "mode": "dynamic",
+      "entrypoint": "server/main.js"
+    }
   }
 }

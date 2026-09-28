@@ -353,7 +353,7 @@ hexa/
 │   ├── rules.js              Regeln, nutzen App und Server
 │   ├── online.js             neu: Verbindung zum Server, Online-Ansichten
 │   └── app.js                bekommt Anschlüsse für den Online-Modus
-├── deno.json                 Befehle dev, start und test, schaltet Deno KV frei
+├── deno.json                 Befehle dev, start und test, Deno KV und Einstiegspunkt für Deno Deploy
 └── server/                   neu
     ├── main.js               Einstieg für Deno Deploy: HTTP, WebSocket, Zugzeit, Bremsen
     ├── game.js               Spielablauf: würfeln, prüfen, Zugzeit, Streichen

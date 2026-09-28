@@ -28,19 +28,13 @@ deno task test   # alle Server-Tests
 
 ## Auf Deno Deploy einrichten
 
-1. Auf [console.deno.com](https://console.deno.com) eine neue App anlegen und das GitHub-Repo `unpacked-dev/hexa` verbinden.
-2. **Branch:** vorerst `claude/charming-maxwell-yrwmwc`, denn nur dort gibt es den Server schon. Später `main`.
-3. **Einstellungen:**
-   - App-Verzeichnis: leer lassen (Hauptordner des Repos)
-   - Framework: keins
-   - Install- und Build-Befehl: keine
-   - Einstiegspunkt (Entrypoint): `server/main.js`
-4. **Datenbank:** unter *Databases* eine Deno-KV-Datenbank anlegen (*Provision Database*) und der App zuweisen (*Assign*). Mehr ist nicht nötig, `Deno.openKv()` findet sie von selbst.
-5. **Prüfen:** Die Adresse der App im Browser öffnen. Dort muss `{"app":"hexa","protocol":1,"ok":true}` stehen. Der WebSocket ist dann `wss://<adresse>/ws`.
+1. Auf [console.deno.com](https://console.deno.com) eine neue App anlegen und das GitHub-Repo `unpacked-dev/hexa` verbinden. Das App-Verzeichnis bleibt leer (Hauptordner des Repos).
+2. **Datenbank:** unter *Databases* eine Deno-KV-Datenbank anlegen (*Provision Database*) und der App zuweisen (*Assign*). Mehr ist nicht nötig, `Deno.openKv()` findet sie von selbst. Jeder Branch bekommt automatisch eine eigene Datenbank.
+3. **Prüfen:** Die Adresse eines Builds mit dem Server öffnen. Dort muss `{"app":"hexa","protocol":1,"ok":true}` stehen. Der WebSocket ist dann `wss://<adresse>/ws`.
 
-Wichtig ist die `deno.json` mit `"unstable": ["kv"]`. Ohne sie bricht der Start mit „Deno.openKv is not a function“ ab. Sie liegt schon im Repo.
+Einstiegspunkt und Laufzeit stehen in der `deno.json` unter `deploy.runtime`: `mode: "dynamic"` mit `entrypoint: "server/main.js"`. Diese Angabe geht den Einstellungen im Dashboard vor. Ohne sie findet Deno Deploy die `index.html` im Hauptordner und liefert einfach die Website aus. Die `deno.json` schaltet außerdem mit `"unstable": ["kv"]` Deno KV frei, sonst bricht der Start mit „Deno.openKv is not a function“ ab.
 
-Deno Deploy baut bei jedem Push neu. Laufende Spiele verbinden sich danach kurz neu, das macht die App später automatisch.
+Solange der Server nur auf dem Branch `claude/charming-maxwell-yrwmwc` liegt, baut `main` weiter die Website. Die Adresse zum Testen ist die des Branches, zu finden unter *Timelines*. Deno Deploy baut bei jedem Push neu. Laufende Spiele verbinden sich danach kurz neu, das macht die App später automatisch.
 
 ### Einstellungen über Umgebungsvariablen
 
