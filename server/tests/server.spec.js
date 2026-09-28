@@ -1,7 +1,7 @@
 // Tests für den ganzen Server: echte WebSocket-Verbindungen gegen echte Server-Instanzen.
 // Zwei Instanzen teilen sich eine Datenbank, wie auf Deno Deploy. Ausführen mit: deno task test
 import assert from 'node:assert/strict';
-import { createHub } from '../main.js';
+import { createHub, ipKey } from '../main.js';
 import * as G from '../game.js';
 
 const quiet = { error: () => {}, warn: () => {}, log: () => {} };
@@ -286,4 +286,15 @@ Deno.test('HTTP: Startseite für einen schnellen Test, sonst nur WebSocket', asy
   assert.equal(missing.status, 404);
   await missing.body.cancel();
   await env.stop();
+});
+
+Deno.test('Bremsen zählen pro Anschluss: IPv4 einzeln, IPv6 pro /64-Netz', () => {
+  assert.equal(ipKey('160.79.106.134'), '160.79.106.134');
+  assert.equal(ipKey('::ffff:160.79.106.134'), '160.79.106.134');
+  assert.equal(ipKey('2001:db8:1234:5678:abcd::1'), '2001:db8:1234:5678::/64');
+  assert.equal(ipKey('2001:0db8:1234:5678:0:0:0:1'), '2001:db8:1234:5678::/64');
+  assert.equal(ipKey('[2001:DB8:1234:5678::9]'), '2001:db8:1234:5678::/64');
+  assert.equal(ipKey('2001:db8::1'), '2001:db8:0:0::/64');
+  assert.equal(ipKey('fe80::1%eth0'), 'fe80:0:0:0::/64');
+  assert.equal(ipKey(undefined), '?');
 });

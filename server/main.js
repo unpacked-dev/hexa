@@ -28,6 +28,21 @@ const codeOf = raw => {
   const s = typeof raw === 'string' ? raw.trim().toUpperCase() : '';
   return G.CODE_RE.test(s) ? s : null;
 };
+// Die Bremsen zählen pro Internetverbindung. Bei IPv6 hat ein Anschluss meist ein ganzes /64-Netz mit
+// unzähligen Adressen, darum zählt dort nur der vordere Teil. IPv4 kommt manchmal als ::ffff:1.2.3.4 an.
+// Den Header X-Forwarded-For nutzt der Server bewusst nicht: Deno Deploy reicht ihn ungeprüft durch.
+export function ipKey(host) {
+  if (typeof host !== 'string' || !host) return '?';
+  const h = host.toLowerCase().replace(/^\[|\]$/g, '').replace(/%.*$/, '');
+  const v4 = h.match(/^(?:::ffff:)?(\d{1,3}(?:\.\d{1,3}){3})$/);
+  if (v4) return v4[1];
+  if (!h.includes(':')) return h;
+  const [head, tail = ''] = h.split('::');
+  const a = head ? head.split(':') : [];
+  const b = tail ? tail.split(':') : [];
+  const full = h.includes('::') ? a.concat(Array(Math.max(0, 8 - a.length - b.length)).fill('0'), b) : a;
+  return full.slice(0, 4).map(x => x.replace(/^0+(?=.)/, '')).join(':') + '::/64';
+}
 const replace = (target, source) => {
   Object.keys(target).forEach(k => { delete target[k]; });
   Object.assign(target, source);
@@ -355,18 +370,13 @@ export function createHub({ kv, instance = G.randomId(8), times = G.TIMES, rng =
   function handle(req, info) {
     const url = new URL(req.url);
     if (url.pathname === '/') {
-      // Vorübergehend: Welche Adresse sieht der Server? Nur zur Prüfung auf Deno Deploy, wird wieder entfernt.
-      if (url.searchParams.has('whoami')) {
-        const remote = info && info.remoteAddr ? info.remoteAddr.hostname : null;
-        return Response.json({ remote, forwarded: req.headers.get('x-forwarded-for'), real: req.headers.get('x-real-ip') });
-      }
       return Response.json({ app: 'hexa', protocol: G.PROTOCOL, ok: true }, { headers: { 'access-control-allow-origin': '*' } });
     }
     if (url.pathname !== '/ws') return new Response('Nicht gefunden', { status: 404 });
     if ((req.headers.get('upgrade') || '').toLowerCase() !== 'websocket') {
       return new Response('Hier geht es nur per WebSocket.', { status: 426 });
     }
-    const ip = (info && info.remoteAddr && info.remoteAddr.hostname) || '?';
+    const ip = ipKey(info && info.remoteAddr && info.remoteAddr.hostname);
     const who = ipInfo(ip);
     if (who.open >= MAX_CONNS_PER_IP) return new Response('Zu viele Verbindungen', { status: 429 });
     let upgraded;

@@ -51,7 +51,7 @@ Solange der Server nur auf dem Branch `claude/charming-maxwell-yrwmwc` liegt, ba
 - **Mehrere Instanzen:** Jede Instanz beobachtet ihre Lobbys mit `kv.watch()` und schickt Änderungen sofort an ihre Verbindungen. Zusätzlich fragt sie alle 5 Sekunden nach (siehe `HEXA_POLL_MS`).
 - **Zugzeit:** Gespeichert wird nur das Ende des Zugs. Kurz danach (1 Sekunde Puffer) streicht die Instanz ein zufälliges freies Feld. Ein Countdown bekommt eigene 30 Sekunden. Wer zweimal hintereinander die Zeit verpasst und nicht verbunden ist, wird sofort übersprungen.
 - **Anwesenheit:** Jede Instanz meldet sich alle 10 Sekunden in der Datenbank. Stürzt eine ab, gelten ihre Verbindungen nach etwa 40 Sekunden als getrennt.
-- **Aufräumen:** Lobbys ohne Start verschwinden nach 1 Stunde, Spiele 24 Stunden nach der letzten Aktion. IP-Adressen kommen nie in die Datenbank, die Bremsen merken sie sich nur kurz im Arbeitsspeicher.
+- **Aufräumen:** Lobbys ohne Start verschwinden nach 1 Stunde, Spiele 24 Stunden nach der letzten Aktion. IP-Adressen kommen nie in die Datenbank, die Bremsen merken sie sich nur kurz im Arbeitsspeicher. Bei IPv6 zählt der ganze Anschluss (/64-Netz), sonst ließe sich die Bremse mit immer neuen Adressen umgehen.
 
 ## Nachrichten
 
