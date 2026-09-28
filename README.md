@@ -36,7 +36,7 @@ Die App ersetzt Würfel, Becher, Block und Stift. Ihr gebt einfach das Handy rei
 
 ## So läuft ein Spiel
 
-1. Im Hauptmenü **Lokal** wählen und eintragen, wer mitspielt. Mit **Bot hinzufügen** kommen Computergegner dazu.
+1. Im Hauptmenü auf **Spielen** tippen, **Lokal** wählen und eintragen, wer mitspielt. Mit **Bot hinzufügen** kommen Computergegner dazu.
 2. Entscheiden, **womit ihr würfelt**: mit der App oder mit euren eigenen Würfeln. Den Spielblock führt die App in beiden Fällen. Mit Bots würfelt immer die App.
 3. Reihum spielen. Über **Menü** könnt ihr jederzeit pausieren und später weitermachen.
 4. Nach 15 Runden auf **Spiel beenden** tippen. Das Ergebnis zeigt die Platzierung, die Punkte landen in den **Highscores**.
@@ -52,13 +52,13 @@ Die App ersetzt Würfel, Becher, Block und Stift. Ihr gebt einfach das Handy rei
 
 Jede Person spielt am eigenen Handy, egal wo. Es gibt keine Konten, nur Spitznamen.
 
-1. Im Hauptmenü **Online** wählen und einen Spitznamen eingeben.
+1. Im Hauptmenü auf **Spielen** tippen, **Online** wählen und einen Spitznamen eingeben.
 2. Eine Person tippt auf **Lobby erstellen** und bekommt einen Code aus 4 Buchstaben. Die anderen tippen auf **Lobby beitreten** und geben den Code ein.
 3. Der Host legt die Reihenfolge fest und startet das Spiel. Allein geht auch.
 4. Jeder Zug hat 60 Sekunden. Die Zugleiste oben zeigt, wer dran ist und wie viel Zeit bleibt. Ab 10 Sekunden wird sie rot. Die anderen sehen die Würfel live mitrollen.
 5. Nach dem Spiel geht es mit **Nochmal** zurück in dieselbe Lobby. Dein Ergebnis landet in deinen Highscores.
 
-Der Server würfelt und prüft jeden Zug. Ist die Zeit um, streicht er ein zufälliges freies Feld. Handy gesperrt oder kurz kein Netz? Die App verbindet sich von selbst neu. Über **Menü → Zum Hauptmenü** läuft das Spiel ohne dich weiter, im Hauptmenü steht dann **Weiterspielen**.
+Der Server würfelt und prüft jeden Zug. Ist die Zeit um, streicht er ein zufälliges freies Feld. Handy gesperrt oder kurz kein Netz? Die App verbindet sich von selbst neu. Über **Menü → Zum Hauptmenü** läuft das Spiel ohne dich weiter, im Hauptmenü steht dann unter **Spielen** „Weiterspielen“.
 
 <div align="center">
 <picture>
@@ -69,7 +69,7 @@ Der Server würfelt und prüft jeden Zug. Ist die Zeit um, streicht er ein zufä
 
 ## Features
 
-- **Hauptmenü** – lokal auf einem Gerät reihum spielen oder online mit anderen, das Spiel lernen, Highscores ansehen. Die Einstellungen stecken oben rechts im Zahnrad, wie im Spiel.
+- **Hauptmenü** – ein Knopf **Spielen**, danach lokal auf einem Gerät reihum oder online mit anderen. Läuft noch ein Spiel, steht das gleich darunter. Dazu das Spiel lernen und die Highscores. Die Einstellungen stecken oben rechts im Zahnrad, wie im Spiel.
 - **Mit App- oder eigenen Würfeln** – vor dem Spiel wählen: Die App würfelt für euch, oder ihr würfelt selbst und nutzt nur den Spielblock.
 - **Würfeln mit Gefühl** – sechs Würfel mit Klackern und Vibration, geworfen auf sieben Arten: kullern, hochwerfen, über den Tisch rollen, schütteln, hüpfen, kreiseln oder als Welle. Keine Art kommt öfter als einmal in vier Würfen. Tippen hält einen Würfel fest, nochmal Tippen löst ihn wieder.
 - **Kleine Belohnungen** – steigende Töne bei 4, 5 und 6 gleichen, ein Lauf für die Große Straße und Konfetti für seltene Momente wie sechs gleiche oder einen neuen Rekord.

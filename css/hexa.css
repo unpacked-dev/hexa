@@ -942,17 +942,10 @@ html:not(.ready) .start-in > :not(noscript) { visibility: hidden; }
 .mode-t { display: block; font-size: 21px; font-weight: 800; font-stretch: 112%; line-height: 1.15; }
 .mode-s { display: block; margin-top: 2px; font-size: 14px; font-weight: 600; line-height: 1.3; text-wrap: balance; }
 .mode-go { width: 22px; height: 22px; }
-.mode-local { background: var(--marker); color: #1C2030; box-shadow: inset 0 -4px 0 rgba(0, 0, 0, .14), 0 18px 30px -18px rgba(0, 0, 0, .8); }
-.mode-local .mode-ic { background: #1C2030; color: var(--marker); }
-.mode-local .mode-s { color: rgba(28, 32, 48, .72); }
-.mode-online {
-  background: rgba(255, 255, 255, .09); color: #FFFFFF;
-  box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, .24), 0 18px 30px -18px rgba(0, 0, 0, .8);
-  transition: transform .1s ease, background-color .15s ease;
-}
-.mode-online .mode-ic { background: #FFFFFF; color: #1C2030; }
-.mode-online .mode-s { color: rgba(255, 255, 255, .74); }
-@media (hover: hover) { .mode-online:hover { background: rgba(255, 255, 255, .15); } }
+.mode-play { background: var(--marker); color: #1C2030; box-shadow: inset 0 -4px 0 rgba(0, 0, 0, .14), 0 18px 30px -18px rgba(0, 0, 0, .8); }
+.mode-play .mode-ic { background: #1C2030; color: var(--marker); }
+.mode-play .mode-ic svg { margin-left: 2px; }
+.mode-play .mode-s { color: rgba(28, 32, 48, .72); }
 .start-links { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
 .start-set {
   display: inline-flex; align-items: center; gap: 8px; min-height: 48px; padding: 10px 18px;

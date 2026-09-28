@@ -3,6 +3,13 @@
 Alle wichtigen Änderungen an HEXA: Countdown stehen hier.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), die Versionen folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [Unreleased]
+
+### Geändert
+
+- **Hauptmenü mit einem Knopf „Spielen“:** Statt „Lokal“ in Gelb und „Online“ daneben gibt es jetzt einen Knopf „Spielen“. Danach kommt ein Fenster mit „Lokal“ und „Online“, beide gleichwertig. Läuft noch ein Spiel, steht das direkt unter „Spielen“, etwa „Weiterspielen · Runde 9 von 15“ oder „Weiterspielen · Lobby ABCD“.
+- **README und Vorschaubild:** zeigen das neue Hauptmenü.
+
 ## [1.10.0] – 2026-09-28
 
 „Spiel lernen“ im Hauptmenü: die Regeln schon vor dem ersten Spiel.

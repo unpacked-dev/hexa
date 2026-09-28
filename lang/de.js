@@ -25,7 +25,9 @@
     },
 
     start: {
-      modes: 'Spielmodus',
+      play: 'Spielen',
+      playSub: 'Lokal oder online',
+      playBoth: 'Weiterspielen · lokal und online',
       local: 'Lokal',
       localNew: 'Ein Gerät, reihum spielen',
       localOver: 'Spiel beendet · Ergebnis ansehen',
@@ -314,7 +316,7 @@
       round: 'Ihr seid in Runde {r} von {total}.',
       cdOpen: 'Alle Runden sind gespielt, nur der Countdown ist noch offen.',
       pause: 'Pausieren',
-      pauseSub: 'Das Spiel bleibt gespeichert. Im Menü geht es mit „Lokal“ weiter.',
+      pauseSub: 'Das Spiel bleibt gespeichert. Im Menü geht es mit „Spielen“ weiter.',
       abort: 'Spiel abbrechen',
       abortSub: 'Alle Punkte werden gelöscht. Es gibt keinen Highscore.',
       back: 'Zurück zum Spiel',
@@ -417,7 +419,7 @@
       playerOff: '{name}, gerade nicht verbunden',
       menuNote: 'Runde {r} von {total} · Lobby {code}',
       away: 'Zum Hauptmenü',
-      awaySub: 'Das Spiel läuft ohne dich weiter. Bei jedem verpassten Zug wird ein Feld gestrichen. Über „Online“ kommst du zurück.',
+      awaySub: 'Das Spiel läuft ohne dich weiter. Bei jedem verpassten Zug wird ein Feld gestrichen. Über „Spielen“ kommst du zurück.',
       leaveGame: 'Spiel verlassen',
       leaveGameSub: 'Du bist raus, deine Punkte sind weg.',
       leaveTitle: 'Spiel wirklich verlassen?',

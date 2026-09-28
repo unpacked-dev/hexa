@@ -44,6 +44,7 @@
     enter: svg('<path d="m10 17 5-5-5-5"/><path d="M15 12H3"/><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>'),
     copy: svg('<rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>'),
     rules: svg('<path d="M5 4.5A1.5 1.5 0 0 1 6.5 3H19v15H6.5A1.5 1.5 0 0 0 5 19.5z"/><path d="M5 19.5A1.5 1.5 0 0 0 6.5 21H19"/><path d="M9 7.5h6"/><path d="M9 11h4"/>'),
+    users: svg('<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><path d="M16 3.128a4 4 0 0 1 0 7.744"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><circle cx="9" cy="7" r="4"/>'),
     pip: '<svg class="pip-face" viewBox="0 0 40 40" aria-hidden="true"><path class="pf-body" d="M20 3 34.7 11.5v17L20 37 5.3 28.5v-17z"/>'
       + '<ellipse class="pf-eye" cx="14.3" cy="17.6" rx="3.8" ry="4.5"/><ellipse class="pf-eye" cx="25.7" cy="17.6" rx="3.8" ry="4.5"/>'
       + '<circle class="pf-pupil" cx="14.3" cy="17.9" r="2.2"/><circle class="pf-pupil" cx="25.7" cy="17.9" r="2.2"/>'
@@ -1977,13 +1978,43 @@
   }
 
   /* ---------- Startbildschirm ---------- */
-  function renderStart() {
-    const sub = $('#localSub');
-    if (!state.started) sub.textContent = tr('start.localNew');
-    else if (isOver()) sub.textContent = tr('start.localOver');
-    else sub.textContent = tr('start.localResume', { r: roundNo(), total: NF });
+  // Ein Knopf „Spielen“, darunter steht, ob noch ein Spiel läuft. Lokal oder online wählt man im Fenster danach.
+  function startSubs() {
     const code = Online.code();
-    $('#onlineSub').textContent = code ? tr('online.startResume', { code }) : tr('online.startSub');
+    const resume = state.started && !isOver();
+    return {
+      resume,
+      code,
+      local: !state.started ? tr('start.localNew') : isOver() ? tr('start.localOver') : tr('start.localResume', { r: roundNo(), total: NF }),
+      online: code ? tr('online.startResume', { code }) : tr('online.startSub'),
+    };
+  }
+
+  function renderStart() {
+    const s = startSubs();
+    $('#playSub').textContent = s.resume && s.code ? tr('start.playBoth')
+      : s.resume ? s.local
+        : s.code ? s.online
+          : tr('start.playSub');
+  }
+
+  function openPlay() {
+    const s = startSubs();
+    const choice = (act, icon, title, sub) => `
+          <button type="button" class="choice" data-act="sheet-do" data-do="${act}">
+            <span class="choice-ic">${ICON[icon]}</span>
+            <span class="choice-tx"><span class="choice-t">${title}</span><span class="choice-s">${sub}</span></span>
+          </button>`;
+    openSheet(`
+      <h3 class="s-title">${tr('start.play')}</h3>
+      <div class="choices">
+        ${choice('local', 'users', tr('start.local'), s.local)}
+        ${choice('online', 'globe', tr('start.online'), s.online)}
+      </div>
+      <div class="s-acts"><button type="button" class="btn btn-quiet" data-act="sheet-close">${tr('common.close')}</button></div>`, {
+      local: () => { closeSheet(true); enterLocal(); },
+      online: () => { closeSheet(true); enterOnline(); },
+    }, tr('start.play'));
   }
 
   // Sechs Würfel mit 1 bis 6, die beim Erscheinen einmal kurz rollen
@@ -2007,7 +2038,7 @@
     syncSky();
     rollStartDice();
     syncTheme();
-    const b = $('#start [data-act="local"]');
+    const b = $('#start [data-act="play"]');
     try { b.focus({ preventScroll: true }); } catch (e) { /* egal */ }
   }
 
@@ -2789,8 +2820,7 @@
     switch (t.dataset.act) {
       case 'tab': setTab(t.dataset.tab); break;
       case 'duo': toggleDuo(); break;
-      case 'local': enterLocal(); break;
-      case 'online': enterOnline(); break;
+      case 'play': openPlay(); break;
       case 'ol-home': exitOnline(); break;
       case 'ol-create': { const name = onlineNameFromInput(); if (name) olRequest({ t: 'create', name }); break; }
       case 'ol-join': openJoin(); break;

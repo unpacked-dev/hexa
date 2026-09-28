@@ -23,7 +23,9 @@
     },
 
     start: {
-      modes: 'Game mode',
+      play: 'Play',
+      playSub: 'Local or online',
+      playBoth: 'Continue · local and online',
       local: 'Local',
       localNew: 'One device, take turns',
       localOver: 'Game over · See the results',
@@ -312,7 +314,7 @@
       round: 'You’re in round {r} of {total}.',
       cdOpen: 'All rounds have been played, only the Countdown is still open.',
       pause: 'Pause',
-      pauseSub: 'The game is saved. Tap “Local” in the menu to carry on.',
+      pauseSub: 'The game is saved. Tap “Play” in the menu to carry on.',
       abort: 'Quit game',
       abortSub: 'All points will be deleted. There’s no high score.',
       back: 'Back to the game',
@@ -415,7 +417,7 @@
       playerOff: '{name}, not connected right now',
       menuNote: 'Round {r} of {total} · Lobby {code}',
       away: 'To the main menu',
-      awaySub: 'The game goes on without you. Each missed turn strikes a field. Tap “Online” to come back.',
+      awaySub: 'The game goes on without you. Each missed turn strikes a field. Tap “Play” to come back.',
       leaveGame: 'Leave game',
       leaveGameSub: 'You are out and your points are gone.',
       leaveTitle: 'Really leave the game?',
