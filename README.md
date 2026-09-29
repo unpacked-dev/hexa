@@ -54,7 +54,7 @@ Jede Person spielt am eigenen Handy, egal wo. Es gibt keine Konten, nur Spitznam
 
 1. Im Hauptmenü auf **Spielen** tippen, **Online** wählen und einen Spitznamen eingeben.
 2. Eine Person tippt auf **Lobby erstellen** und bekommt einen Code aus 4 Buchstaben. Die anderen tippen auf **Lobby beitreten** und geben den Code ein.
-3. Der Host legt die Reihenfolge fest und startet das Spiel. Allein geht auch.
+3. Der Host holt auf Wunsch mit **Bot hinzufügen** Computergegner dazu, legt die Reihenfolge fest und startet das Spiel. Allein geht auch, auch allein gegen Bots.
 4. Jeder Zug hat 60 Sekunden. Die Zugleiste oben zeigt, wer dran ist und wie viel Zeit bleibt. Ab 10 Sekunden wird sie rot. Die anderen sehen die Würfel live mitrollen.
 5. Nach dem Spiel geht es mit **Nochmal** zurück in dieselbe Lobby. Dein Ergebnis landet in deinen Highscores.
 
@@ -76,8 +76,8 @@ Der Server würfelt und prüft jeden Zug. Ist die Zeit um, streicht er ein zufä
 - **Spielblock, der mitrechnet** – Summen, Bonus und Endstand werden automatisch berechnet. Nach jedem Wurf zeigt die App, wie viele Punkte jedes freie Feld bringen würde.
 - **Countdown als Bonusspiel** – wird automatisch freigeschaltet und direkt nach dem Zug gestartet.
 - **Mehrere Personen oder solo** – Reihenfolge vor dem Spiel festlegen. Im Spiel lassen sich Namen ändern und Personen entfernen.
-- **Bots als Gegner** – Computergegner mit Namen wie Pasch-Paula oder Dr. Wurf. Sie spielen sichtbar Zug für Zug und fast perfekt: im Schnitt 322 Punkte, perfektes Spiel bringt 324. In die Highscores kommen nur Menschen.
-- **Online spielen** – jede Person am eigenen Gerät. Eine Person erstellt eine Lobby und bekommt einen Code aus 4 Buchstaben, die anderen treten damit bei. Allein geht auch. Der Server würfelt, jeder Zug hat 60 Sekunden, und alle sehen die Würfel live mitrollen. Kein Konto, nur ein Spitzname.
+- **Bots als Gegner** – Computergegner mit Namen wie Pasch-Paula oder Dr. Wurf, lokal und online. Sie spielen sichtbar Zug für Zug und fast perfekt: im Schnitt 322 Punkte, perfektes Spiel bringt 324. Online spielt sie der Server. In die Highscores kommen nur Menschen.
+- **Online spielen** – jede Person am eigenen Gerät. Eine Person erstellt eine Lobby und bekommt einen Code aus 4 Buchstaben, die anderen treten damit bei. Allein geht auch, Bots können mitspielen. Der Server würfelt, jeder Zug hat 60 Sekunden, und alle sehen die Würfel live mitrollen. Kein Konto, nur ein Spitzname.
 - **Spielende und Highscores** – das Ergebnis zeigt alle Platzierungen und neue Rekorde. Die zehn besten Ergebnisse bleiben auf dem Gerät gespeichert, bei Online-Spielen dein eigenes.
 - **Nichts geht verloren** – Spiele lassen sich pausieren und bleiben auch nach dem Schließen erhalten. Einträge, entfernte Personen oder ein abgebrochenes Spiel lassen sich mit einem Tipp rückgängig machen.
 - **Regeln eingebaut** – Kurzübersicht, Beispiele und Wahrscheinlichkeiten für Neugierige. Schon vor dem ersten Spiel lesbar, über **Spiel lernen** im Hauptmenü.
@@ -156,6 +156,20 @@ Auch so geöffnet spielt die App online über den Server unter hexa.unpacked-dev
 
 **Als App aufs Handy:** Seite im Browser öffnen und *Zum Home-Bildschirm hinzufügen* wählen.
 
+### Einstellungen
+
+Das Wichtigste lässt sich ohne Programmieren in [`js/config.js`](js/config.js) ändern. App und Server lesen dieselbe Datei:
+
+| Eintrag | Wofür |
+| --- | --- |
+| `enableOnline` | Online spielen an (`true`) oder aus (`false`), etwa wenn der kostenlose Tarif von Deno Deploy knapp wird |
+| `maxPlayers`, `maxBots` | Höchstens so viele Personen und Bots pro Spiel, lokal wie online |
+| `botNames` | Namen der Bots |
+| `turnSeconds`, `countdownSeconds` | Online: Zeit pro Zug und für den Countdown |
+| `botDelays` | Tempo der Bots |
+
+Danach committen und auf `main` bringen. GitHub Pages und Deno Deploy übernehmen die Änderung von selbst. `node --test` prüft, ob die Werte gültig sind.
+
 ### Tastatur
 
 | Taste | Aktion |
@@ -188,6 +202,7 @@ hexa/
 │   └── hexa.css           # Design, hell und dunkel
 ├── js/
 │   ├── theme-init.js      # setzt das gewählte Design vor dem ersten Zeichnen
+│   ├── config.js          # Einstellungen: Online an/aus, Bots, Grenzen, Zugzeiten
 │   ├── rules.js           # Felder, Punkte und Wertung
 │   ├── bot.js             # Computergegner: welche Würfel liegen bleiben, welches Feld
 │   ├── sound.js           # Effekte und Lo-Fi-Musik (Web Audio)
@@ -203,6 +218,7 @@ hexa/
 ├── tests/
 │   ├── rules.test.js      # Tests für die Wertung
 │   ├── lang.test.js       # prüft, dass beide Sprachen vollständig sind
+│   ├── config.test.js     # prüft die Werte in js/config.js
 │   └── bot.test.js        # Tests für die Bots
 ├── tools/
 │   ├── bot-optimal.js     # rechnet das perfekte Spiel für alle Spielstände aus
@@ -216,7 +232,7 @@ hexa/
 
 ### Tests
 
-Wertung, Sprachen und Bots sind mit dem eingebauten Test-Runner von Node.js abgedeckt (Node 18 oder neuer, keine Installation nötig):
+Wertung, Sprachen, Einstellungen und Bots sind mit dem eingebauten Test-Runner von Node.js abgedeckt (Node 18 oder neuer, keine Installation nötig):
 
 ```bash
 node --test

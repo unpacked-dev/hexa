@@ -7,16 +7,26 @@
    ctx, das viele Funktionen bekommen: { now, rng, times }
      now   Uhrzeit des Servers in ms
      rng   Zufall: { d6() → 1…6, int(n) → 0…n-1 }, in Tests vorgegeben
-     times Zugzeit, Countdown-Zeit und Puffer in ms, siehe TIMES */
+     times Zugzeit, Countdown-Zeit und Puffer in ms, siehe TIMES
+
+   Bots spielt der Server selbst, mit derselben Logik wie die App (js/bot.js). Wann ihr nächster Schritt
+   fällig ist, steht in turn.botAt. tick() macht dann genau einen Schritt. */
+import '../js/config.js';
 import '../js/rules.js';
+import '../js/bot.js';
 
 const { FIELDS, UPPER, LOWER, NF, BONUS_MIN, BONUS_PTS, scoreFor, countFaces, onlineName } = globalThis.HexaRules;
+const Config = globalThis.HexaConfig;
+const Bot = globalThis.HexaBot;
 
-export const PROTOCOL = 1;
-// 60 Sekunden pro Zug, 30 für einen freigeschalteten Countdown, 1 Sekunde Puffer für langsames Netz
-export const TIMES = { turn: 60_000, cd: 30_000, grace: 1_000 };
-// Keine Grenze fürs Spiel, nur eine technische gegen Lobbys voller Fake-Personen
-export const MAX_PLAYERS = 50;
+// 2: Bots in der Lobby. Ältere Apps müssen aktualisiert werden.
+export const PROTOCOL = 2;
+// Zugzeit und Countdown-Zeit aus js/config.js, dazu 1 Sekunde Puffer für langsames Netz
+export const TIMES = { turn: Config.turnSeconds * 1000, cd: Config.countdownSeconds * 1000, grace: 1_000 };
+// Höchstens so viele Personen (Menschen und Bots) und Bots pro Lobby, siehe js/config.js
+export const MAX_PLAYERS = Config.maxPlayers;
+export const MAX_BOTS = Config.maxBots;
+const BOT_MS = Config.botDelays;
 // Codes aus 4 Konsonanten: Ohne A, E, I, O, U und Y entstehen kaum echte Wörter. 20^4 = 160.000 Codes.
 export const CODE_LETTERS = 'BCDFGHJKLMNPQRSTVWXZ';
 export const CODE_RE = /^[BCDFGHJKLMNPQRSTVWXZ]{4}$/;
@@ -71,12 +81,12 @@ export function newRoom(code, now) {
     seq: 0,               // zählt bei jeder gespeicherten Änderung hoch
     game: 0,              // wie viele Spiele in dieser Lobby gestartet wurden
     host: null,
-    players: [],          // { id, name, key (Hash des Geräteschlüssels), conns, missed }
+    players: [],          // { id, name, key (Hash des Geräteschlüssels), conns, missed }, Bots mit bot: true und ohne key
     scores: {},           // wie lokal: { Person: { Feld: Punkte } }
     cds: {},              // wie lokal: { Person: [Countdown-Punkte] }
     dice: freshDice(),
     cdGame: null,         // wie lokal: { owner, stage, pts, got, last, hit, status }
-    turn: null,           // { no, player, phase: 'roll' | 'cd', deadline }
+    turn: null,           // { no, player, phase: 'roll' | 'cd', deadline }, bei Bots dazu botAt
     turnNo: 0,
     events: [],           // die letzten Ereignisse, z. B. „Zeit um – Große Straße gestrichen“
     eventNo: 0,
@@ -90,7 +100,9 @@ export const playerByKey = (room, key) => room.players.find(p => p.key === key) 
 const has = (obj, k) => Object.prototype.hasOwnProperty.call(obj, k);
 const scoresOf = (room, id) => (has(room.scores, id) ? room.scores[id] : (room.scores[id] = {}));
 const filled = (room, id) => (has(room.scores, id) ? FIELD_KEYS.filter(k => has(room.scores[id], k)).length : 0);
+const freeFields = (room, id) => FIELD_KEYS.filter(k => !(has(room.scores, id) && has(room.scores[id], k)));
 export const isOnline = p => p.conns.length > 0;
+const humans = room => room.players.filter(p => !p.bot);
 
 function event(room, e) {
   room.eventNo += 1;
@@ -127,8 +139,24 @@ export function join(room, { id, name, key }) {
   return p;
 }
 
+// Bots holt nur der Host dazu, und nur in der Lobby. Die Namen kommen aus js/config.js, keiner doppelt.
+export function addBot(room, by, ctx) {
+  if (room.status !== 'lobby') fail('game-running');
+  if (room.host !== by) fail('not-host');
+  if (room.players.length >= MAX_PLAYERS) fail('room-full');
+  if (room.players.filter(p => p.bot).length >= MAX_BOTS) fail('bots-full');
+  const taken = new Set(room.players.map(p => p.name.toLowerCase()));
+  const free = Config.botNames.filter(n => !taken.has(n.toLowerCase()));
+  if (!free.length) fail('bots-full');
+  const p = { id: randomId(), name: free[ctx.rng.int(free.length)], key: null, conns: [], missed: 0, bot: true };
+  room.players.push(p);
+  event(room, { type: 'join', player: p.id, name: p.name, bot: true });
+  return p;
+}
+
 // Verlassen (why 'leave') oder vom Host entfernt ('kick'). Die Punkte der Person sind dann weg.
-// Ist niemand mehr da, bekommt der Stand gone = true und wird gelöscht.
+// Host wird der nächste Mensch. Ist keiner mehr da, bekommt der Stand gone = true und wird gelöscht:
+// Bots allein spielen nicht weiter.
 export function leave(room, id, ctx, why = 'leave') {
   const i = room.players.findIndex(p => p.id === id);
   if (i < 0) fail('not-in-room');
@@ -136,12 +164,13 @@ export function leave(room, id, ctx, why = 'leave') {
   delete room.scores[id];
   delete room.cds[id];
   event(room, { type: why, player: id, name: p.name });
+  const left = humans(room);
   if (room.host === id) {
-    const next = room.players[0] || null;
+    const next = left[0] || null;
     room.host = next ? next.id : null;
     if (next) event(room, { type: 'host', player: next.id, name: next.name });
   }
-  if (!room.players.length) {
+  if (!left.length) {
     room.gone = true;
     return;
   }
@@ -200,6 +229,7 @@ function nextTurn(room, ctx) {
   if (!p) { finish(room, ctx); return; }
   room.turnNo += 1;
   room.turn = { no: room.turnNo, player: p.id, phase: 'roll', deadline: ctx.now + ctx.times.turn };
+  if (p.bot) room.turn.botAt = ctx.now + BOT_MS.start;
 }
 
 function myTurn(room, by, phase) {
@@ -300,6 +330,8 @@ function endCountdown(room, ctx, timeout) {
   if (room.dice.cd) room.dice.cd.played = true;
   event(room, { type: 'countdown', player: g.owner, pts: g.pts, perfect: g.status === 'perfect', timeout: !!timeout });
   nextTurn(room, ctx);
+  // Ist danach ein Bot dran, bleibt das Ergebnis des Countdowns noch einen Moment stehen.
+  if (room.turn && room.turn.botAt) room.turn.botAt += BOT_MS.land + BOT_MS.cd;
 }
 
 /* ---------- Zugzeit ---------- */
@@ -313,6 +345,12 @@ export function tick(room, ctx) {
     const t = room.turn;
     const p = playerById(room, t.player);
     if (!p) { nextTurn(room, ctx); changed = true; continue; }
+    // Bots: ein Schritt, sobald er fällig ist. Nur einer pro Aufruf, damit man zuschauen kann,
+    // auch wenn das Spiel eine Weile stand. Die Zugzeit gilt für Bots nicht.
+    if (p.bot) {
+      if (ctx.now >= (t.botAt || 0)) { botStep(room, p, ctx); changed = true; }
+      break;
+    }
     const due = ctx.now > t.deadline + ctx.times.grace;
     if (!due && !isAbsent(room, p)) break;
     changed = true;
@@ -325,6 +363,61 @@ export function tick(room, ctx) {
 function isAbsent(room, p) {
   if (p.missed < 2 || isOnline(p)) return false;
   return room.players.some(q => q !== p && isOnline(q));
+}
+
+/* ---------- Bots ---------- */
+// Ein Schritt wie in der App: würfeln, Würfel einzeln halten oder lösen, eintragen, im Countdown würfeln.
+// Was als Nächstes kommt, ergibt sich jedes Mal neu aus dem Stand. Die Pausen dazwischen kommen aus
+// js/config.js (botDelays) und stehen als Zeitpunkt in turn.botAt.
+function botStep(room, p, ctx) {
+  const t = room.turn;
+  const no = t.no;
+  let wait = BOT_MS.land + BOT_MS.cd;
+  try {
+    if (t.phase === 'cd') {
+      cdRoll(room, p.id, room.cdGame.stage, ctx);
+    } else {
+      const d = room.dice;
+      const free = freeFields(room, p.id);
+      const up = totals(room, p.id).upper;
+      // Soll der Bot nach diesem Wurf Würfel halten? Dann Liste, sonst null (eintragen).
+      const plan = () => {
+        if (room.dice.rolls >= 3) return null;
+        const want = Bot.hold(free, up, room.dice.vals, 3 - room.dice.rolls);
+        return want.every(Boolean) ? null : want;
+      };
+      if (d.turn !== t.no || !d.rolls) {
+        roll(room, p.id, 1, ctx);
+        wait = BOT_MS.land + BOT_MS.think + (plan() ? 0 : BOT_MS.enter);
+      } else {
+        const want = plan();
+        const i = want ? want.findIndex((w, k) => w !== d.held[k]) : -1;
+        if (i >= 0) {
+          hold(room, p.id, i, want[i]);
+          const more = want.some((w, k) => w !== room.dice.held[k]);
+          wait = BOT_MS.hold + (more ? 0 : BOT_MS.roll);
+        } else if (want) {
+          roll(room, p.id, d.rolls + 1, ctx);
+          wait = BOT_MS.land + BOT_MS.think + (plan() ? 0 : BOT_MS.enter);
+        } else {
+          enter(room, p.id, Bot.pick(free, up, d.vals), ctx);
+          wait = BOT_MS.after + BOT_MS.cd;   // Countdown freigeschaltet: kurz Luft holen, bevor er startet
+        }
+      }
+    }
+  } catch (e) {
+    // Darf nicht passieren. Damit das Spiel nicht hängen bleibt, zählt es wie „Zeit um“.
+    if (room.turn && room.turn.no === no && room.turn.player === p.id) {
+      if (room.turn.phase === 'cd') endCountdown(room, ctx, true);
+      else strike(room, p, ctx);
+    }
+  }
+  const cur = room.turn;
+  if (!cur) return;
+  if (cur.no === no) { cur.botAt = ctx.now + wait; return; }
+  // Zug vorbei. Ist wieder ein Bot dran, wartet er etwas länger, damit man den letzten Zug noch sieht.
+  const next = playerById(room, cur.player);
+  if (next && next.bot) cur.botAt = Math.max(cur.botAt || 0, ctx.now + BOT_MS.after);
 }
 
 function strike(room, p, ctx) {
@@ -351,7 +444,7 @@ export function totals(room, id) {
 // Alle Felder voll: Das Ergebnis kommt nach last, die Lobby wartet wieder. Block und Würfel bleiben
 // bis zur Revanche sichtbar. In der Pause können auch neue Leute dazukommen.
 function finish(room, ctx) {
-  const ranking = room.players.map(p => Object.assign({ id: p.id, name: p.name }, totals(room, p.id)))
+  const ranking = room.players.map(p => Object.assign({ id: p.id, name: p.name }, p.bot ? { bot: true } : {}, totals(room, p.id)))
     .sort((a, b) => b.total - a.total);
   room.last = { game: room.game, at: ctx.now, ranking };
   room.status = 'lobby';
@@ -395,7 +488,7 @@ export function view(room, you) {
     game: room.game,
     host: room.host,
     you,
-    players: room.players.map(p => ({ id: p.id, name: p.name, online: isOnline(p), missed: p.missed })),
+    players: room.players.map(p => Object.assign({ id: p.id, name: p.name, online: isOnline(p), missed: p.missed }, p.bot ? { bot: true } : {})),
     scores: room.scores,
     cds: room.cds,
     dice: room.dice,

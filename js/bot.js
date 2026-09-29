@@ -5,11 +5,14 @@
    (tools/bot-optimal.js und tools/bot-fit.js). In 100.000 Testspielen (tools/bot-sim.js) holt er
    im Schnitt 322,5 Punkte, perfektes Spiel 323,7.
    Der Countdown braucht keine Entscheidung: Er hängt nur am ersten Wurf, den immer alle sechs Würfel machen.
-   Läuft im Browser (window.HexaBot), in Node (Tests, Simulation) und in Deno (Server). */
+   Läuft im Browser (window.HexaBot), in Node (Tests, Simulation) und in Deno (Server).
+   Braucht js/rules.js und js/config.js (Namen der Bots). */
 (function (root) {
   'use strict';
 
-  const Rules = typeof module === 'object' && module.exports ? require('./rules.js') : root.HexaRules;
+  const node = typeof module === 'object' && module.exports;
+  const Rules = node ? require('./rules.js') : root.HexaRules;
+  const Config = node ? require('./config.js') : root.HexaConfig;
   const { FIELDS, BONUS_MIN, BONUS_PTS, scoreFor } = Rules;
   const NF = FIELDS.length;
   const ALL = (1 << NF) - 1;   // Bitmaske: alle Felder frei
@@ -257,12 +260,8 @@
     return bestF;
   }
 
-  // Namen für Bots: Wortspiele rund ums Würfeln, die auf Deutsch und Englisch klappen.
-  const NAMES = [
-    'Randy', 'Alea', 'Tessa', 'Dado', 'Pip', 'Rollo', 'Hexi', 'Sixtus', 'Fortuna',
-    'Lady Luck', 'Mr. Chance', 'Dr. Wurf', 'Knobel-Knut', 'Pasch-Paula', 'Paschinator',
-    'Würfel-Willi', 'Kubus', 'Glücks-Gustav',
-  ];
+  // Namen für Bots stehen in js/config.js
+  const NAMES = Config.botNames;
 
   const api = {
     NAMES,

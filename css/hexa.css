@@ -1097,6 +1097,8 @@ html:not(.ready) .start-top { visibility: hidden; }
 .ol-pname { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; }
 .ol-nm { min-width: 0; overflow-wrap: anywhere; }
 .ol-pname small { font-size: 13px; font-weight: 700; color: var(--ink-3); }
+/* Bots stehen mit Roboter-Zeichen statt Punkt in der Lobby, gleich breit wie der Punkt */
+.ol-pname .bot-ic { width: 18px; height: 18px; margin: 0 -4px; color: var(--ink-2); }
 .ol-rule { margin: 14px 2px 0; font-size: 14px; color: var(--ink-2); }
 .ol-start { width: 100%; min-height: 58px; margin-top: 14px; font-size: 18px; font-stretch: 108%; }
 .ol-wait {

@@ -6,12 +6,12 @@ import * as G from '../game.js';
 
 const quiet = { error: () => {}, warn: () => {}, log: () => {} };
 
-async function servers(n, times = G.TIMES) {
+async function servers(n, times = G.TIMES, opts = {}) {
   const kv = await Deno.openKv(':memory:');
   const hubs = [];
   const running = [];
   for (let i = 0; i < n; i++) {
-    const hub = createHub({ kv, instance: 'inst' + i, times, log: quiet });
+    const hub = createHub(Object.assign({ kv, instance: 'inst' + i, times, log: quiet }, opts));
     hubs.push(hub);
     running.push(Deno.serve({ port: 0, hostname: '127.0.0.1', onListen() {} }, hub.handle));
   }
@@ -235,6 +235,8 @@ Deno.test('Kaputte und bösartige Nachrichten bringen den Server nicht aus dem T
   assert.equal(await c.error('roll'), 'no-hello');
   c.send({ t: 'hello', v: 0, key: KEY('Lena') });
   assert.equal(await c.error('hello'), 'update-needed');
+  c.send({ t: 'hello', v: G.PROTOCOL - 1, key: KEY('Lena') });   // Apps von vor den Online-Bots
+  assert.equal(await c.error('hello'), 'update-needed');
   c.send({ t: 'hello', v: G.PROTOCOL + 1, key: KEY('Lena') });
   assert.equal(await c.error('hello'), 'server-old');
   c.send({ t: 'hello', v: G.PROTOCOL, key: 'kurz' });
@@ -279,7 +281,7 @@ Deno.test('Bremsen: nicht zu viele neue Lobbys, nicht zu viele Nachrichten', asy
 Deno.test('HTTP: Die App, der Status unter /health, sonst nur WebSocket', async () => {
   const env = await servers(1);
   const health = await fetch(env.http(0) + '/health');
-  assert.deepEqual(await health.json(), { app: 'hexa', protocol: G.PROTOCOL, ok: true });
+  assert.deepEqual(await health.json(), { app: 'hexa', protocol: G.PROTOCOL, online: true, ok: true });
   assert.equal(health.headers.get('access-control-allow-origin'), '*');
   const page = await fetch(env.http(0) + '/');
   assert.equal(page.status, 200);
@@ -313,4 +315,56 @@ Deno.test('Bremsen zählen pro Anschluss: IPv4 einzeln, IPv6 pro /64-Netz', () =
   assert.equal(ipKey('2001:db8::1'), '2001:db8:0:0::/64');
   assert.equal(ipKey('fe80::1%eth0'), 'fe80:0:0:0::/64');
   assert.equal(ipKey(undefined), '?');
+});
+
+Deno.test('Bots: Der Host holt sie dazu, sie spielen auf zwei Instanzen genau einmal und alle sehen zu', async () => {
+  // Schnelleres Tempo nur für diesen Test. botDelays aus js/config.js ist dasselbe Objekt, das der Server nutzt.
+  const pace = globalThis.HexaConfig.botDelays;
+  const saved = Object.assign({}, pace);
+  Object.keys(pace).forEach(k => { pace[k] = 30; });
+  const env = await servers(2);
+  try {
+    const { apps: [lena, tim], ids: [lenaId, timId] } = await lobbyOf(env, ['Lena', 'Tim']);
+    tim.send({ t: 'addBot' });
+    assert.equal(await tim.error('addBot'), 'not-host');
+    lena.send({ t: 'addBot' });
+    const withBot = await tim.until(r => r.players.length === 3);   // über die andere Instanz
+    const bot = withBot.players.find(p => p.bot);
+    assert.ok(bot && G.onlineName(bot.name) === bot.name);
+    assert.equal(bot.online, false);
+    lena.send({ t: 'order', ids: [bot.id, lenaId, timId] });
+    await tim.until(r => r.players[0].id === bot.id);
+    lena.send({ t: 'start' });
+    // Der Bot spielt seinen Zug allein, danach ist Lena dran
+    const after = await tim.until(r => r.status === 'playing' && r.turn.player === lenaId, 15000);
+    assert.equal(Object.keys(after.scores[bot.id]).length, 1, 'genau ein Feld: kein Schritt doppelt, obwohl zwei Instanzen zuschauen');
+    const lenaView = await lena.until(r => r.seq === after.seq);
+    assert.deepEqual(lenaView.scores, after.scores);
+    // Beide Apps haben die Würfel des Bots gesehen
+    for (const a of [lena, tim]) assert.ok(a.msgs.some(m => m.t === 'state' && m.room.dice.owner === bot.id && m.room.dice.rolls >= 1));
+    // Lena spielt, danach wieder Tim und dann der Bot: Die Reihe läuft weiter
+    lena.send({ t: 'roll', n: 1 });
+    await lena.until(r => r.dice.owner === lenaId && r.dice.rolls === 1);
+    lena.send({ t: 'enter', field: free(lena.state, lenaId)[0] });
+    await tim.until(r => r.turn.player === timId);
+    await env.stop(lena, tim);
+  } catch (e) {
+    await env.stop();
+    throw e;
+  } finally {
+    Object.assign(pace, saved);
+  }
+});
+
+Deno.test('Online aus (enableOnline: false): Der Server nimmt niemanden an', async () => {
+  const env = await servers(1, G.TIMES, { online: false });
+  const c = app(env.ws(0));
+  await c.opened;
+  c.send({ t: 'hello', v: G.PROTOCOL, key: KEY('Lena') });
+  assert.equal(await c.error('hello'), 'online-off');
+  c.send({ t: 'create', name: 'Lena' });
+  assert.equal(await c.error('create'), 'no-hello');
+  const health = await fetch(env.http(0) + '/health');
+  assert.deepEqual(await health.json(), { app: 'hexa', protocol: G.PROTOCOL, online: false, ok: true });
+  await env.stop(c);
 });

@@ -1,12 +1,13 @@
 /* HEXA – App: Startbildschirm, Spieler, Würfel, Spielblock, Countdown, Highscores, Bots.
-   Braucht js/i18n.js (window.HexaI18n, Texte aus lang/*.js), js/rules.js (window.HexaRules),
-   js/bot.js (window.HexaBot) und js/sound.js (window.HexaSound). */
+   Braucht js/config.js (window.HexaConfig), js/i18n.js (window.HexaI18n, Texte aus lang/*.js),
+   js/rules.js (window.HexaRules), js/bot.js (window.HexaBot) und js/sound.js (window.HexaSound). */
 (() => {
   'use strict';
 
   const { UPPER, LOWER, FIELDS, F, NF, BONUS_MIN, BONUS_PTS, sum, countFaces, scoreFor } = window.HexaRules;
   const Sound = window.HexaSound;
   const Bot = window.HexaBot;
+  const Config = window.HexaConfig;
   const I18n = window.HexaI18n;
   const tr = I18n.t;
   const trPts = n => tr('common.points', { n });
@@ -478,7 +479,7 @@
     }).join('');
 
     let hint;
-    if (watching) hint = tr('online.watchHint');
+    if (watching) hint = tr(cur.bot ? 'bot.hint' : 'online.watchHint');
     else if (ot && ot.phase === 'roll' && (idle || done)) hint = tr('dice.hintIdle');
     else if (bot) hint = tr('bot.hint');
     else if (idle) hint = tr('dice.hintIdle');
@@ -533,7 +534,7 @@
     }
 
     root.innerHTML = `${endHTML}
-      <div class="turnbar"><div class="turn-who"><div class="who">${bot ? botMark : ''}${esc(who)}</div>${subHTML}</div>${meter}</div>
+      <div class="turnbar"><div class="turn-who"><div class="who">${bot || (watching && cur.bot) ? botMark : ''}${esc(who)}</div>${subHTML}</div>${meter}</div>
       <div class="tray">
         <div class="dice">${dice}</div>
         <div class="tray-foot"><span>${idle ? '' : tr('dice.sum', { n: sum(d.vals) })}</span><span class="hint">${hint}</span></div>
@@ -599,8 +600,9 @@
       const o = online() ? onlinePlayer(p.id) : null;
       if (!o) return `<button type="button" class="pad-name${turn(p)}" data-act="player" data-pid="${p.id}" title="${esc(p.name)}" aria-label="${esc(tr(p.bot ? 'block.botName' : 'block.editName', { name: p.name }))}">${p.bot ? botMark : ''}${esc(p.name)}</button>`;
       const me = p.id === room.you;
-      const label = tr(me ? 'online.playerYou' : o.online ? 'online.playerOn' : 'online.playerOff', { name: p.name });
-      return `<button type="button" class="pad-name${turn(p)}" data-act="player" data-pid="${p.id}" title="${esc(p.name)}" aria-label="${esc(label)}"><span class="pad-n"><i class="odot${o.online ? '' : ' off'}" aria-hidden="true"></i>${esc(p.name)}</span>${me ? `<small class="you">${tr('online.you')}</small>` : ''}</button>`;
+      const label = tr(o.bot ? 'online.playerBot' : me ? 'online.playerYou' : o.online ? 'online.playerOn' : 'online.playerOff', { name: p.name });
+      const mark = o.bot ? botMark : `<i class="odot${o.online ? '' : ' off'}" aria-hidden="true"></i>`;
+      return `<button type="button" class="pad-name${turn(p)}" data-act="player" data-pid="${p.id}" title="${esc(p.name)}" aria-label="${esc(label)}"><span class="pad-n">${mark}${esc(p.name)}</span>${me ? `<small class="you">${tr('online.you')}</small>` : ''}</button>`;
     };
 
     let rows = `<div class="p-sec"><span>${tr('block.upper')}</span></div>`;
@@ -716,7 +718,7 @@
 
     box.innerHTML = `
       <div class="cd-head"><h2 class="cd-title">${tr('cd.title')}</h2><button type="button" class="cd-x" data-act="cd-close" aria-label="${esc(tr('cd.close'))}">${ICON.x}</button></div>
-      <div class="cd-sub"><span>${owner ? esc(tr('cd.for', { name: owner.name })) : tr('cd.intro')}</span><span>${tr('cd.pts', { n: g.pts })}${online() && g.status === 'play' ? ' · <span class="cd-time" role="timer"></span>' : ''}</span></div>
+      <div class="cd-sub"><span>${owner ? esc(tr('cd.for', { name: owner.name })) : tr('cd.intro')}</span><span>${tr('cd.pts', { n: g.pts })}${online() && g.status === 'play' && !(owner && owner.bot) ? ' · <span class="cd-time" role="timer"></span>' : ''}</span></div>
       <div class="hexes" role="list" aria-label="${esc(tr('cd.stages'))}">${hexes}</div>
       <div class="cd-msg" aria-live="polite">${msg}</div>
       <div class="cd-stage">
@@ -1395,14 +1397,14 @@
   // entfernt, Spiel abgebrochen), macht er mit dem neuen Stand weiter. Ein offenes Fenster, der
   // Startbildschirm oder eine versteckte Seite halten ihn an. Solange „Rückgängig“ angeboten wird,
   // wartet er auch, damit niemand seinen Wurf zurückdrehen kann.
-  const BOT_MS = { start: 800, land: 600, think: 900, hold: 260, roll: 400, enter: 700, after: 1200, cd: 900 };
+  const BOT_MS = Config.botDelays;   // Tempo, einstellbar in js/config.js
   let botTimer = 0;
   let botStatus = null;   // was der Bot gerade tut: ready, think, roll, enter
 
   // Ist gerade ein Bot am Zug, dann dieser Bot, sonst null.
   // Ein offener Countdown eines Menschen geht vor: So lange wartet der nächste Bot.
   function botActor() {
-    if (!state.started || gameDone()) return null;
+    if (online() || !state.started || gameDone()) return null;   // Online spielt der Server die Bots
     const d = state.dice;
     const g = state.cdGame;
     if (g && isBot(g.owner)) return playerById(g.owner);
@@ -1549,6 +1551,7 @@
     if (!inp) return;
     const name = cleanName(inp.value);
     if (!name) { shake(inp); return; }
+    if (state.players.length >= Config.maxPlayers) { toast(tr('setup.full', { n: Config.maxPlayers })); return; }
     state.players.push({ id: uid(), name });
     dropStrayRoll();
     save();
@@ -1558,10 +1561,12 @@
     if (n) n.focus();
   }
 
-  // Ein Name aus der Bot-Liste, den noch niemand hat. Sind alle vergeben, gibt es keinen Bot mehr.
+  // Ein Name aus der Bot-Liste, den noch niemand hat. Sind alle vergeben oder ist die Grenze aus
+  // js/config.js erreicht (Bots oder Personen insgesamt), gibt es keinen Bot mehr.
   function nextBotName() {
+    if (state.players.length >= Config.maxPlayers || state.players.filter(p => p.bot).length >= Config.maxBots) return null;
     const taken = state.players.map(p => p.name.toLowerCase());
-    const free = Bot.NAMES.filter(n => taken.indexOf(n.toLowerCase()) < 0);
+    const free = Config.botNames.filter(n => taken.indexOf(n.toLowerCase()) < 0);
     return free.length ? free[Math.floor(Math.random() * free.length)] : null;
   }
 
@@ -2064,7 +2069,7 @@
   /* ---------- Startbildschirm ---------- */
   // Ein Knopf „Spielen“, darunter steht, ob noch ein Spiel läuft. Lokal oder online wählt man im Fenster danach.
   function startSubs() {
-    const code = Online.code();
+    const code = Config.enableOnline ? Online.code() : null;
     const resume = state.started && !isOver();
     return {
       resume,
@@ -2084,8 +2089,9 @@
 
   function openPlay() {
     const s = startSubs();
-    const choice = (act, icon, title, sub) => `
-          <button type="button" class="choice" data-act="sheet-do" data-do="${act}">
+    const off = !Config.enableOnline;
+    const choice = (act, icon, title, sub, soon) => `
+          <button type="button" class="choice${soon ? ' choice-soon' : ''}" data-act="sheet-do" data-do="${act}"${soon ? ' aria-disabled="true"' : ''}>
             <span class="choice-ic">${ICON[icon]}</span>
             <span class="choice-tx"><span class="choice-t">${title}</span><span class="choice-s">${sub}</span></span>
           </button>`;
@@ -2093,11 +2099,11 @@
       <h3 class="s-title">${tr('start.play')}</h3>
       <div class="choices">
         ${choice('local', 'users', tr('start.local'), s.local)}
-        ${choice('online', 'globe', tr('start.online'), s.online)}
+        ${choice('online', 'globe', tr('start.online'), off ? tr('online.paused') : s.online, off)}
       </div>
       <div class="s-acts"><button type="button" class="btn btn-quiet" data-act="sheet-close">${tr('common.close')}</button></div>`, {
       local: () => { closeSheet(true); enterLocal(); },
-      online: () => { closeSheet(true); enterOnline(); },
+      online: () => { if (off) { toast(tr('online.paused')); return; } closeSheet(true); enterOnline(); },
     }, tr('start.play'));
   }
 
@@ -2216,6 +2222,7 @@
     'room-not-found': 'notFound', 'room-closed': 'closed', 'game-running': 'running', 'room-full': 'full',
     'name-invalid': 'name', 'too-many': 'tooMany', 'not-host': 'notHost', 'not-your-turn': 'notYourTurn',
     'update-needed': 'update', 'server-old': 'serverOld', removed: 'removed', 'not-in-room': 'notInRoom',
+    'bots-full': 'botsFull', 'online-off': 'onlineOff',
   };
   const NAME_CHARS = /[^A-Za-z0-9ÄÖÜäöüß _.!?-]/g;
   let serverTimes = { turn: 60000, cd: 30000, grace: 1000 };
@@ -2256,7 +2263,7 @@
     });
     return {
       v: 1, tab: state.tab || 'dice', duo: local.duo, started: !!r && r.status === 'playing', via: 'app',
-      players: r ? r.players.map(p => ({ id: p.id, name: p.name })) : [],
+      players: r ? r.players.map(p => Object.assign({ id: p.id, name: p.name }, p.bot ? { bot: true } : {})) : [],
       scores: r ? r.scores : {},
       cds: r ? r.cds : {},
       dice: d ? { vals: d.vals, held, rolls: d.rolls, owner: d.owner, ownerFilled: 0, turn: d.turn, cd: d.cd } : freshDice(),
@@ -2269,6 +2276,7 @@
 
   // Vom Startbildschirm in den Online-Modus. Mit gemerktem Code geht es direkt zurück in die Lobby.
   function enterOnline() {
+    if (!Config.enableOnline) { toast(tr('online.paused')); return; }
     mode = 'online';
     room = null;
     seenEvent = 0;
@@ -2374,7 +2382,16 @@
 
   function renderOnline() {
     const root = $('#view-online');
-    if (room && room.status === 'lobby') { root.innerHTML = lobbyHTML(); return; }
+    if (room && room.status === 'lobby') {
+      // Fokus behalten, etwa auf „Bot hinzufügen“ oder einem Pfeil, auch wenn die Lobby neu gezeichnet wird
+      const a = document.activeElement;
+      const keep = a && root.contains(a) && a.dataset.act
+        ? `[data-act="${a.dataset.act}"]${a.dataset.pid ? `[data-pid="${a.dataset.pid}"]` : ''}${a.dataset.dir ? `[data-dir="${a.dataset.dir}"]` : ''}` : null;
+      root.innerHTML = lobbyHTML();
+      const el = keep ? $(keep, root) : null;
+      if (el && !el.disabled) { try { el.focus({ preventScroll: true }); } catch (e) { /* egal */ } }
+      return;
+    }
     // Mit gemerktem Code: Gleich geht es zurück in die Lobby oder ins Spiel.
     if (!room && Online.code() && Online.status() !== 'off') {
       root.innerHTML = `
@@ -2410,7 +2427,7 @@
     return ranking.map((x, i) => {
       if (x.total !== last) { place = i + 1; last = x.total; }
       const me = x.id === you ? ` <small>${tr('online.you')}</small>` : '';
-      return `<li${place === 1 ? ' class="win"' : ''}><span class="pl">${place}.</span><span class="pn">${esc(x.name)}${me}</span><span class="ps">${x.total}</span></li>`;
+      return `<li${place === 1 ? ' class="win"' : ''}><span class="pl">${place}.</span><span class="pn">${x.bot ? botMark : ''}${esc(x.name)}${me}</span><span class="ps">${x.total}</span></li>`;
     }).join('');
   }
 
@@ -2422,6 +2439,8 @@
     const rows = P.map((p, i) => {
       const me = p.id === r.you;
       const tags = [me ? tr('online.you') : '', p.id === r.host ? tr('online.host') : ''].filter(Boolean).join(', ');
+      const mark = p.bot ? botMark : `<i class="odot${p.online ? '' : ' off'}" aria-hidden="true"></i>`;
+      const said = tr(p.bot ? 'setup.botTag' : p.online ? 'online.dotOn' : 'online.dotOff');
       const acts = host ? `
           <span class="pacts">
             <button type="button" class="ibtn" data-act="ol-move" data-pid="${p.id}" data-dir="-1" aria-label="${esc(tr('setup.up', { name: p.name }))}"${i === 0 ? ' disabled' : ''}>${ICON.up}</button>
@@ -2431,9 +2450,13 @@
       return `
         <li class="prow">
           <span class="pnum">${i + 1}</span>
-          <span class="pname ol-pname"><i class="odot${p.online ? '' : ' off'}" aria-hidden="true"></i><span class="ol-nm">${esc(p.name)}</span> ${tags ? `<small>${esc(tags)}</small> ` : ''}<span class="sr">${esc(tr(p.online ? 'online.dotOn' : 'online.dotOff'))}</span></span>${acts}
+          <span class="pname ol-pname">${mark}<span class="ol-nm">${esc(p.name)}</span> ${tags ? `<small>${esc(tags)}</small> ` : ''}<span class="sr">${esc(said)}</span></span>${acts}
         </li>`;
     }).join('');
+    // Bots holt nur der Host dazu. Grenzen und Namen wie lokal aus js/config.js.
+    const taken = new Set(P.map(p => p.name.toLowerCase()));
+    const canBot = P.length < Config.maxPlayers && P.filter(p => p.bot).length < Config.maxBots && Config.botNames.some(n => !taken.has(n.toLowerCase()));
+    const addBot = host ? `<button type="button" class="btn btn-line add-bot" data-act="ol-add-bot"${canBot ? '' : ' disabled'}>${ICON.bot}<span>${tr(canBot ? 'setup.addBot' : 'setup.botsFull')}</span></button>` : '';
     const start = host
       ? `<button type="button" class="btn btn-pen ol-start" data-act="ol-start">${tr(P.length > 1 ? 'online.start' : 'online.startSolo')}</button>`
       : `<p class="ol-wait">${esc(tr('online.waitHost', { name: hostP ? hostP.name : '' }))}</p>`;
@@ -2453,6 +2476,7 @@
       </div>
       <h2 class="h-sec">${tr('online.order')}</h2>
       <ol class="plist">${rows}</ol>
+      ${addBot}
       <p class="ol-rule">${tr('online.rule', { n: Math.round(serverTimes.turn / 1000) })}</p>
       ${start}
       <p class="ol-status" role="status">${statusLine()}</p>
@@ -2479,9 +2503,14 @@
     let who;
     if (mine) who = tr(t.phase === 'cd' ? 'online.barYourCd' : 'online.yourTurn');
     else who = tr(t.phase === 'cd' ? 'online.barCd' : 'dice.turn', { name: cur ? cur.name : '' });
+    // Bots brauchen keine Zugzeit: kein Balken, keine Restzeit
+    const bot = !!(cur && cur.bot);
     bar.classList.toggle('mine', mine);
-    bar.innerHTML = `
-      <div class="ol-row"><span class="ol-who">${esc(who)}</span><span class="ol-time"></span></div>
+    bar.classList.toggle('bot', bot);
+    if (bot) bar.classList.remove('urgent');
+    bar.innerHTML = bot
+      ? `<div class="ol-row"><span class="ol-who">${botMark}${esc(who)}</span></div>`
+      : `<div class="ol-row"><span class="ol-who">${esc(who)}</span><span class="ol-time"></span></div>
       <div class="ol-track" aria-hidden="true"><i class="ol-fill"></i></div>`;
     tickBar();
   }
@@ -2490,6 +2519,8 @@
   function tickBar() {
     if (!online() || !room || room.status !== 'playing' || !room.turn) return;
     const t = room.turn;
+    const tp = onlinePlayer(t.player);
+    if (tp && tp.bot) return;
     const bar = $('#olBar');
     const total = t.phase === 'cd' ? serverTimes.cd : serverTimes.turn;
     const left = Math.max(0, t.deadline - Online.now());
@@ -2865,6 +2896,8 @@
   function onOnlineError(m) {
     if (!online()) return;
     const code = m.code;
+    // Online ist abgeschaltet (enableOnline in js/config.js): zurück ins Hauptmenü, lokal geht es weiter
+    if (code === 'online-off') { exitOnline(); toast(errText(code)); return; }
     if (m.re === 'roll' && myRoll) myRoll.vals = state.dice.vals || [1, 2, 3, 4, 5, 6];
     if (m.re === 'cdRoll' && myCdRoll) myCdRoll.vals = (state.cdGame && state.cdGame.last) || [];
     if (m.re === 'hold') pendingHolds = {};
@@ -2912,6 +2945,7 @@
       case 'ol-start': if (!Online.send({ t: 'start' })) toast(tr('online.offline')); break;
       case 'ol-move': olMove(t.dataset.pid, Number(t.dataset.dir)); break;
       case 'ol-kick': confirmKick(t.dataset.pid); break;
+      case 'ol-add-bot': if (!Online.send({ t: 'addBot' })) toast(tr('online.offline')); break;
       case 'ol-copy': copyCode(); break;
       case 'home': showStart(); break;
       case 'menu': openMenu(); break;

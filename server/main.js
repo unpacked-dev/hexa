@@ -81,7 +81,8 @@ const replace = (target, source) => {
 // Ein Hub ist eine Server-Instanz. Tests starten mehrere mit derselben Datenbank.
 // poll: Sicherheitsnetz. Zusätzlich zu kv.watch fragt die Instanz so oft nach dem Stand ihrer Lobbys (ms, 0 = aus).
 // Klappt kv.watch, merkt man davon nichts. Klappt es nicht, läuft das Spiel trotzdem, nur etwas verzögert.
-export function createHub({ kv, instance = G.randomId(8), times = G.TIMES, rng = G.fairRandom, poll = 5000, log = console } = {}) {
+// online: false nimmt keine Verbindungen an (enableOnline in js/config.js).
+export function createHub({ kv, instance = G.randomId(8), times = G.TIMES, rng = G.fairRandom, poll = 5000, online = globalThis.HexaConfig.enableOnline, log = console } = {}) {
   const conns = new Set();
   const rooms = new Map();            // Code → { conns, stop, poll, timer, room }: Lobbys mit Verbindungen hier
   const ips = new Map();              // Internetverbindung → { open, create: [Zeiten], join: [Zeiten] }
@@ -153,8 +154,10 @@ export function createHub({ kv, instance = G.randomId(8), times = G.TIMES, rng =
     }
   }
 
-  // Zugzeit im Blick behalten: Kurz nach Ablauf prüft die Instanz selbst. Hängen Leute derselben Lobby
-  // an mehreren Instanzen, versuchen es alle, gespeichert wird aber nur einmal.
+  // Zugzeit und Bots im Blick behalten: Kurz nach Ablauf der Zugzeit oder wenn der nächste Bot-Schritt
+  // fällig ist, prüft die Instanz selbst. Hängen Leute derselben Lobby an mehreren Instanzen, versuchen
+  // es alle, gespeichert wird aber nur einmal. Ohne Verbindungen hier gibt es keinen Timer: Dann steht
+  // das Spiel, auch für die Bots, bis jemand zurückkommt.
   function schedule(code, pause = 0) {
     const L = rooms.get(code);
     if (!L) return;
@@ -162,7 +165,9 @@ export function createHub({ kv, instance = G.randomId(8), times = G.TIMES, rng =
     L.timer = 0;
     const room = L.room;
     if (!room || room.status !== 'playing' || !room.turn) return;
-    const wait = Math.max(pause, room.turn.deadline + times.grace - Date.now()) + 20 + Math.floor(Math.random() * 150);
+    const bot = G.playerById(room, room.turn.player);
+    const due = bot && bot.bot ? room.turn.botAt : room.turn.deadline + times.grace;
+    const wait = Math.max(pause, due - Date.now()) + 20 + Math.floor(Math.random() * 150);
     L.timer = setTimeout(async () => {
       L.timer = 0;
       let retry = 0;
@@ -276,6 +281,7 @@ export function createHub({ kv, instance = G.randomId(8), times = G.TIMES, rng =
     },
     // Verbinden: Protokollversion und Geräteschlüssel. Mit code geht es zurück ins eigene Spiel.
     async hello(c, m) {
+      if (!online) G.fail('online-off');
       if (!Number.isInteger(m.v) || typeof m.key !== 'string' || !KEY_RE.test(m.key)) G.fail('bad-message');
       if (m.v < G.PROTOCOL) G.fail('update-needed');
       if (m.v > G.PROTOCOL) G.fail('server-old');
@@ -343,6 +349,8 @@ export function createHub({ kv, instance = G.randomId(8), times = G.TIMES, rng =
       if (typeof m.id !== 'string') G.fail('bad-message');
       return act(c, (room, pid, ctx) => G.kick(room, pid, m.id, ctx));
     },
+    // Nur der Host, nur in der Lobby. Entfernt werden Bots wie Menschen mit kick.
+    addBot: c => act(c, (room, pid, ctx) => G.addBot(room, pid, ctx)),
     roll: (c, m) => act(c, (room, pid, ctx) => G.roll(room, pid, m.n, ctx)),
     hold(c, m) {
       if (typeof m.on !== 'boolean') G.fail('bad-message');
@@ -400,7 +408,7 @@ export function createHub({ kv, instance = G.randomId(8), times = G.TIMES, rng =
   async function handle(req, info) {
     const url = new URL(req.url);
     if (url.pathname === '/health') {
-      return Response.json({ app: 'hexa', protocol: G.PROTOCOL, ok: true }, { headers: { 'access-control-allow-origin': '*' } });
+      return Response.json({ app: 'hexa', protocol: G.PROTOCOL, online, ok: true }, { headers: { 'access-control-allow-origin': '*' } });
     }
     if (url.pathname !== '/ws') {
       const file = req.method === 'GET' || req.method === 'HEAD' ? await appFile(url.pathname) : null;

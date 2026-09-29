@@ -5,7 +5,7 @@
 window.HexaOnline = (() => {
   'use strict';
 
-  const PROTOCOL = 1;
+  const PROTOCOL = 2;   // 2: Bots in der Lobby. Muss zum Server passen (server/game.js).
   const STORE = 'hexa-online';
   // Der HEXA-Server auf Deno Deploy. Kommt die App selbst von einem HEXA-Server (etwa zum Testen), nimmt sie den.
   const SERVER = 'wss://hexa.unpacked-dev.deno.net/ws';

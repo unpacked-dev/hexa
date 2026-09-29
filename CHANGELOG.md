@@ -3,6 +3,19 @@
 Alle wichtigen Änderungen an HEXA: Countdown stehen hier.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), die Versionen folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [Unreleased]
+
+### Neu
+
+- **Bots im Online-Modus:** Der Host holt in der Lobby mit „Bot hinzufügen“ Computergegner dazu und kann sie wie Menschen verschieben und entfernen. Die Bots spielt der Server, mit derselben Logik und demselben Tempo wie lokal. Alle sehen ihre Züge live, auch im Countdown. Sie stehen mit Roboter-Zeichen in Lobby, Zugleiste, Block und Ergebnis, kommen aber in keine Highscores. Allein gegen Bots geht auch. Bots spielen nur, solange mindestens ein Mensch verbunden ist, sonst steht das Spiel.
+- **Einstellungen in `js/config.js`:** Online an oder aus, höchstens erlaubte Personen und Bots, Bot-Namen, Zugzeiten und Bot-Tempo stehen an einer Stelle, für App und Server. Ist Online aus, ist es im Hauptmenü ausgegraut und der Server nimmt niemanden an.
+
+### Geändert
+
+- **Online-Protokoll 2:** Ältere Apps, etwa aus einer alten ZIP, müssen aktualisiert werden, bevor sie wieder online spielen können.
+- **Host:** Geht der Host, wird immer ein Mensch neuer Host. Sind nur noch Bots übrig, wird die Lobby geschlossen.
+- **Lobby:** Der Fokus bleibt beim Neuzeichnen erhalten, etwa auf „Bot hinzufügen“ oder den Pfeilen.
+
 ## [1.11.1] – 2026-09-29
 
 Fenster von unten lassen sich auf dem Handy wegwischen.
