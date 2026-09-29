@@ -641,12 +641,21 @@ table.t tr.total td { border-top: 2px solid var(--rule-strong); border-bottom: 0
   box-shadow: 0 -10px 40px rgba(0, 0, 0, .25); animation: up .28s cubic-bezier(.2, .8, .25, 1) both;
 }
 .sheet:focus { outline: none; }
+/* Beim Wegwischen folgt das Fenster dem Finger (js/app.js). Die Ein-Animation hielte sonst die Position fest.
+   Steht vor .closing, damit das Schließen per Knopf danach wieder seine Animation bekommt. */
+.sheet-wrap.drag .sheet, .sheet-wrap.drag .sheet-bg { animation: none; }
 .sheet-wrap.closing .sheet { animation: down .17s ease-in both; }
 .sheet-wrap.closing .sheet-bg { animation: fadeout .17s ease both; }
 @keyframes up { from { transform: translateY(100%); } to { transform: none; } }
 @keyframes down { from { transform: none; } to { transform: translateY(100%); } }
 @keyframes fadeout { from { opacity: 1; } to { opacity: 0; } }
 .grab { width: 40px; height: 5px; margin: 0 auto 14px; border-radius: 3px; background: var(--rule); }
+/* Mit Maus oder Trackpad wischt man nicht: kein Streifen, dafür etwas mehr Luft oben.
+   Dieselbe Abfrage wie beim Tastatur-Hinweis. Ohne Streifen ist auch das Wischen aus (js/app.js). */
+@media (hover: hover) and (pointer: fine) {
+  .grab { display: none; }
+  .sheet { padding-top: 24px; }
+}
 .s-title { margin: 0; font-size: 24px; font-weight: 800; font-stretch: 112%; line-height: 1.15; }
 .s-who { margin: 2px 0 0; font-weight: 600; color: var(--ink-2); }
 .s-note { margin: 10px 0 0; font-size: 15px; color: var(--ink-2); }

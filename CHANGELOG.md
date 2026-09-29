@@ -3,6 +3,13 @@
 Alle wichtigen Änderungen an HEXA: Countdown stehen hier.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), die Versionen folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [Unreleased]
+
+### Behoben
+
+- **Fenster von unten wegwischen:** Auf dem Handy schließt Wischen nach unten jetzt das Fenster, so wie es der Streifen oben verspricht. Das Fenster folgt dem Finger. Ein kurzes Stück schnappt zurück, ein weites Stück oder ein schneller Wisch schließt. In langen Fenstern greift das Wischen erst, wenn ganz oben gescrollt ist. Schieberegler und Eingabefelder lösen es nicht aus.
+- **Kein Streifen am Desktop:** Mit Maus oder Trackpad wischt man nicht, deshalb ist der Streifen dort ausgeblendet.
+
 ## [1.11.0] – 2026-09-28
 
 Ein Knopf „Spielen“ im Hauptmenü, Lokal und Online gleichwertig.

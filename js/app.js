@@ -857,6 +857,8 @@
     $('.sheet', wrap).setAttribute('aria-label', label || tr('common.dialog'));
     $('.sheet-body', wrap).innerHTML = html;
     wrap.classList.remove('closing');
+    // Neu geöffnet: Die Ein-Animation darf wieder laufen (siehe Wischen unten)
+    if (wrap.hidden) wrap.classList.remove('drag');
     wrap.hidden = false;
     document.body.classList.add('lock');
     updateInert();
@@ -873,7 +875,8 @@
     const finish = () => {
       if (gen !== sheetGen || wrap.hidden) return;
       wrap.hidden = true;
-      wrap.classList.remove('closing');
+      wrap.classList.remove('closing', 'drag');
+      resetSwipe();
       updateInert();
       if ($('#cd').hidden) document.body.classList.remove('lock');
       const back = sheetReturn;
@@ -888,6 +891,87 @@
       setTimeout(finish, 170);
     }
   }
+
+  // Fenster nach unten wegwischen. Nur wo der Streifen oben zu sehen ist, also auf Touch-Geräten
+  // (css/hexa.css blendet ihn bei Maus und Trackpad aus). Im Inhalt geht es nur, wenn ganz oben
+  // gescrollt ist, sonst scrollt das Fenster wie gewohnt. Touch- statt Pointer-Events, weil nur die
+  // das Scrollen gezielt verhindern können.
+  const SWIPE_SLOP = 6;       // ab so viel Pixel nach unten folgt das Fenster dem Finger
+  const SWIPE_FLICK = 0.5;    // schneller als 0,5 px/ms nach unten: zu, auch wenn es nur ein kurzes Stück war
+  let swipe = null;
+
+  function resetSwipe() {
+    swipe = null;
+    const sh = $('#sheet .sheet');
+    const bg = $('#sheet .sheet-bg');
+    sh.style.transform = sh.style.transition = '';
+    bg.style.opacity = bg.style.transition = '';
+  }
+
+  (() => {
+    const wrap = $('#sheet');
+    const sh = $('.sheet', wrap);
+    const bg = $('.sheet-bg', wrap);
+    const grab = $('.grab', wrap);
+
+    sh.addEventListener('touchstart', e => {
+      swipe = null;
+      if (e.touches.length !== 1 || wrap.classList.contains('closing')) return;
+      if (getComputedStyle(grab).display === 'none') return;
+      if (e.target.closest('input, textarea, select')) return;
+      const t = e.touches[0];
+      swipe = { x0: t.clientX, y0: t.clientY, dy: 0, on: false, y: t.clientY, t: e.timeStamp, v: 0 };
+    }, { passive: true });
+
+    sh.addEventListener('touchmove', e => {
+      if (!swipe) return;
+      const t = e.touches[0];
+      const dx = t.clientX - swipe.x0;
+      const dy = t.clientY - swipe.y0;
+      if (!swipe.on) {
+        // Nach oben, seitlich oder mitten im Inhalt: normal scrollen lassen
+        if (dy < 0 || Math.abs(dx) > Math.abs(dy) || sh.scrollTop > 0) {
+          if (Math.abs(dx) + Math.abs(dy) > SWIPE_SLOP) swipe = null;
+          return;
+        }
+        if (e.cancelable) e.preventDefault();
+        if (dy < SWIPE_SLOP) return;
+        swipe.on = true;
+        swipe.y0 = t.clientY;
+        wrap.classList.add('drag');
+      }
+      if (e.cancelable) e.preventDefault();
+      swipe.dy = Math.max(0, t.clientY - swipe.y0);
+      swipe.v = (t.clientY - swipe.y) / Math.max(1, e.timeStamp - swipe.t);
+      swipe.y = t.clientY;
+      swipe.t = e.timeStamp;
+      sh.style.transform = `translateY(${swipe.dy}px)`;
+      bg.style.opacity = String(Math.max(0, 1 - swipe.dy / sh.offsetHeight));
+    }, { passive: false });
+
+    const end = e => {
+      const s = swipe;
+      swipe = null;
+      if (!s || !s.on) return;
+      // Kurz vor dem Loslassen stillgehalten: kein Schwung mehr
+      const v = e.type === 'touchend' && e.timeStamp - s.t < 80 ? s.v : 0;
+      const close = e.type === 'touchend' && (s.dy > sh.offsetHeight / 3 || (v > SWIPE_FLICK && s.dy > SWIPE_SLOP * 4));
+      const ms = reduced() ? 0 : close ? 180 : 240;
+      sh.style.transition = `transform ${ms}ms ${close ? 'ease-in' : 'cubic-bezier(.2, .8, .25, 1)'}`;
+      bg.style.transition = `opacity ${ms}ms ease`;
+      if (close) {
+        sh.style.transform = 'translateY(100%)';
+        bg.style.opacity = '0';
+        const gen = sheetGen;
+        setTimeout(() => { if (gen === sheetGen) closeSheet(true); }, ms);
+      } else {
+        sh.style.transform = '';
+        bg.style.opacity = '';
+      }
+    };
+    sh.addEventListener('touchend', end);
+    sh.addEventListener('touchcancel', end);
+  })();
 
   /* ---------- Würfeln ---------- */
   let rolling = false;
