@@ -203,6 +203,25 @@
     return min < NF ? best : null;
   }
   const roundNo = () => (state.players.length ? Math.min(NF, Math.min.apply(null, state.players.map(p => filled(p.id))) + 1) : 0);
+
+  // Wie viele sind noch dran, bis jemand Bestimmtes an der Reihe ist? Die Person am Zug (curId) zählt mit:
+  // 1 heißt, nach ihr ist das Ziel dran. entered: Die Person am Zug hat ihr Feld schon eingetragen.
+  // Gezählt wird nach der Regel für den Zugwechsel: Dran ist, wer die wenigsten Felder hat,
+  // bei Gleichstand die Person weiter vorn. Gibt { n, who } zurück oder null, wenn das Ziel nicht mehr drankommt.
+  function queueTo(curId, entered, isTarget) {
+    const P = state.players;
+    const n = {};
+    P.forEach(p => { n[p.id] = filled(p.id); });
+    if (!entered && n[curId] !== undefined) n[curId] += 1;
+    for (let count = 1; count <= P.length * NF; count++) {
+      let next = null;
+      P.forEach(p => { if (!next || n[p.id] < n[next.id]) next = p; });
+      if (!next || n[next.id] >= NF) return null;
+      if (isTarget(next)) return { n: count, who: next };
+      n[next.id] += 1;
+    }
+    return null;
+  }
   // Online endet ein Spiel auf dem Server. Danach wartet die Lobby, und das Ergebnis kommt als Fenster.
   const isOver = () => !online() && state.players.length > 0 && state.players.every(p => filled(p.id) >= NF);
   const anyScores = () => state.players.some(p => filled(p.id) > 0 || cdList(p.id).length > 0);
@@ -1414,26 +1433,13 @@
     return c && c.bot ? c : null;
   }
 
-  // Unter dem Knopf, solange ein Bot spielt: wie online, wie viele noch vor dir dran sind.
-  // Spielen mehrere Menschen am Gerät, steht der Name der nächsten Person dabei.
-  // Gezählt wird nach derselben Regel wie bei currentPlayer: Dran ist, wer die wenigsten Felder hat,
-  // bei Gleichstand die Person weiter vorn. Der Bot, der gerade spielt, hat sein Feld dann schon.
+  // Unter dem Knopf, solange ein Bot spielt: wie online, wie viele noch vor dir dran sind, der Bot am Zug
+  // mitgezählt. Spielen mehrere Menschen am Gerät, steht der Name der nächsten Person dabei.
   function botWaitText(b) {
-    const P = state.players;
-    const n = {};
-    P.forEach(p => { n[p.id] = filled(p.id); });
-    if (!(state.dice.owner === b.id && turnDone())) n[b.id] += 1;
-    for (let before = 0; before <= P.length * NF; before++) {
-      let next = null;
-      P.forEach(p => { if (!next || n[p.id] < n[next.id]) next = p; });
-      if (!next || n[next.id] >= NF) break;   // Kein Mensch mehr dran: Die Bots spielen die letzten Züge.
-      if (!next.bot) {
-        if (humans().length === 1) return before ? tr('online.nextIn', { n: before }) : tr('online.nextYou');
-        return before ? tr('bot.nextIn', { n: before, name: next.name }) : tr('bot.nextName', { name: next.name });
-      }
-      n[next.id] += 1;
-    }
-    return tr('bot.buttonSub');
+    const q = queueTo(b.id, state.dice.owner === b.id && turnDone(), p => !p.bot);
+    if (!q) return tr('bot.buttonSub');   // Kein Mensch mehr dran: Die Bots spielen die letzten Züge.
+    if (humans().length === 1) return q.n > 1 ? tr('online.nextIn', { n: q.n }) : tr('online.nextYou');
+    return q.n > 1 ? tr('bot.nextIn', { n: q.n, name: q.who.name }) : tr('bot.nextName', { name: q.who.name });
   }
 
   function botNext() {
@@ -2262,13 +2268,12 @@
 
   const myTurn = () => online() && !!room && room.status === 'playing' && !!room.turn && room.turn.player === room.you;
   // Beim Zuschauen: Wie viele sind noch vor dir? Wer alle Felder voll hat, schaut nur noch zu.
+  // Online, während jemand anderes spielt: wie viele noch vor dir dran sind, die Person am Zug mitgezählt.
   function waitText() {
-    const P = room.players;
-    const me = P.findIndex(p => p.id === room.you);
-    const cur = P.findIndex(p => p.id === room.turn.player);
-    if (me < 0 || cur < 0 || Object.keys(room.scores[room.you] || {}).length >= NF) return tr('online.watchSub');
-    const before = (me - cur + P.length) % P.length - 1;
-    return before > 0 ? tr('online.nextIn', { n: before }) : tr('online.nextYou');
+    const t = room.turn;
+    const q = queueTo(t.player, t.phase === 'cd', p => p.id === room.you);
+    if (!q) return tr('online.watchSub');   // Du hast alle Felder, jetzt schaust du nur noch zu.
+    return q.n > 1 ? tr('online.nextIn', { n: q.n }) : tr('online.nextYou');
   }
   const onlinePlayer = id => (room ? room.players.find(p => p.id === id) || null : null);
   const fmtClock = sec => Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0');
