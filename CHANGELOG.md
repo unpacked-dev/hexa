@@ -3,12 +3,17 @@
 Alle wichtigen Änderungen an HEXA: Countdown stehen hier.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), die Versionen folgen [Semantic Versioning](https://semver.org/lang/de/).
 
-## [Unreleased]
+## [1.12.1] – 2026-09-30
+
+Beim Warten auf Bots steht jetzt auch lokal, wie viele noch vor dir dran sind.
 
 ### Geändert
 
 - **Warten auf Bots:** Spielt lokal ein Bot, steht unter dem Knopf jetzt wie online, wie viele noch vor dir dran sind, etwa „Noch 2 Personen vor dir“ oder „Du bist als Nächstes dran“. Spielen mehrere Menschen am Gerät, steht die nächste Person mit Namen dabei: „Noch 2 Personen, dann ist Tim dran“. Bisher stand dort nur „Einen Moment“.
-- **Zählung beim Warten, lokal und online:** Wer gerade spielt, zählt jetzt mit. Bei „Noch 2 Personen vor dir“ sind das die Person am Zug und eine danach. Nach dem letzten Hinweis, „Du bist als Nächstes dran“, bist du wirklich an der Reihe. Bisher kam danach noch jemand.
+
+### Behoben
+
+- **Zählung beim Warten:** Die Person am Zug zählt jetzt mit, lokal wie online. „Noch 2 Personen vor dir“ heißt: die Person am Zug und eine danach. Ist nur noch die Person am Zug vor dir, steht dort „Du bist als Nächstes dran“. Bisher zählte sie online nicht mit. Deshalb kam nach „Noch 1 Person vor dir“ noch jemand, bevor du dran warst.
 
 ## [1.12.0] – 2026-09-29
 
@@ -218,6 +223,7 @@ Die erste Version von HEXA.
 - **Web-App:** installierbar auf dem Home-Bildschirm, Bildschirm bleibt während des Spiels an.
 - **Tests:** Wertung aller Felder mit `node --test` abgedeckt.
 
+[1.12.1]: https://github.com/unpacked-dev/hexa/releases/tag/v1.12.1
 [1.12.0]: https://github.com/unpacked-dev/hexa/releases/tag/v1.12.0
 [1.11.1]: https://github.com/unpacked-dev/hexa/releases/tag/v1.11.1
 [1.11.0]: https://github.com/unpacked-dev/hexa/releases/tag/v1.11.0
