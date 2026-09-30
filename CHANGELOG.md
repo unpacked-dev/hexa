@@ -3,6 +3,12 @@
 Alle wichtigen Änderungen an HEXA: Countdown stehen hier.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), die Versionen folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [Unreleased]
+
+### Geändert
+
+- **Warten auf Bots:** Spielt lokal ein Bot, steht unter dem Knopf jetzt wie online, wie viele noch vor dir dran sind, etwa „Noch 2 Personen vor dir“ oder „Du bist als Nächstes dran“. Spielen mehrere Menschen am Gerät, steht die nächste Person mit Namen dabei: „Noch 1 Person, dann ist Tim dran“. Bisher stand dort nur „Einen Moment“.
+
 ## [1.12.0] – 2026-09-29
 
 Bots spielen jetzt auch online mit.

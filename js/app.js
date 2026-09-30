@@ -410,7 +410,7 @@
       return { label: tr('dice.rollAgain'), sub: tr(d.rolls === 2 ? 'dice.leftLast' : 'dice.left', { n: free }), off: false };
     }
     const b = botActor();
-    if (b) return { label: tr('bot.button', { name: b.name }), sub: tr('bot.buttonSub'), off: true };
+    if (b) return { label: tr('bot.button', { name: b.name }), sub: botWaitText(b), off: true };
     if (turnDone()) {
       const cp = currentPlayer();
       return { label: tr('dice.roll'), sub: cp ? tr('dice.nextTurn', { name: cp.name }) : tr('dice.newTurn'), off: false };
@@ -1412,6 +1412,28 @@
     if (d.rolls && d.owner && !turnDone()) return isBot(d.owner) ? playerById(d.owner) : null;
     const c = currentPlayer();
     return c && c.bot ? c : null;
+  }
+
+  // Unter dem Knopf, solange ein Bot spielt: wie online, wie viele noch vor dir dran sind.
+  // Spielen mehrere Menschen am Gerät, steht der Name der nächsten Person dabei.
+  // Gezählt wird nach derselben Regel wie bei currentPlayer: Dran ist, wer die wenigsten Felder hat,
+  // bei Gleichstand die Person weiter vorn. Der Bot, der gerade spielt, hat sein Feld dann schon.
+  function botWaitText(b) {
+    const P = state.players;
+    const n = {};
+    P.forEach(p => { n[p.id] = filled(p.id); });
+    if (!(state.dice.owner === b.id && turnDone())) n[b.id] += 1;
+    for (let before = 0; before <= P.length * NF; before++) {
+      let next = null;
+      P.forEach(p => { if (!next || n[p.id] < n[next.id]) next = p; });
+      if (!next || n[next.id] >= NF) break;   // Kein Mensch mehr dran: Die Bots spielen die letzten Züge.
+      if (!next.bot) {
+        if (humans().length === 1) return before ? tr('online.nextIn', { n: before }) : tr('online.nextYou');
+        return before ? tr('bot.nextIn', { n: before, name: next.name }) : tr('bot.nextName', { name: next.name });
+      }
+      n[next.id] += 1;
+    }
+    return tr('bot.buttonSub');
   }
 
   function botNext() {

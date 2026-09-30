@@ -302,6 +302,8 @@
       enter: '{name} trägt ein …',
       button: '{name} spielt',
       buttonSub: 'Einen Moment',
+      nextName: 'Als Nächstes ist {name} dran',
+      nextIn: { one: 'Noch {n} Person, dann ist {name} dran', other: 'Noch {n} Personen, dann ist {name} dran' },
       hint: 'Bots spielen ihren Zug selbst.',
       entered: '{name}: {field}, {pts}',
       struck: '{name} streicht {field}',

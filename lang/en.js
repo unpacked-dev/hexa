@@ -300,6 +300,8 @@
       enter: '{name} is scoring …',
       button: '{name} is playing',
       buttonSub: 'Just a moment',
+      nextName: '{name} is next',
+      nextIn: { one: '{n} more player, then it’s {name}’s turn', other: '{n} more players, then it’s {name}’s turn' },
       hint: 'Bots play their own turn.',
       entered: '{name}: {field}, {pts}',
       struck: '{name} crosses out {field}',
