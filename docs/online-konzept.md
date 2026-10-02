@@ -1,6 +1,6 @@
 # Online-Modus – Konzept
 
-> **Seit Version 1.8.0 ist der Online-Modus live:** App und Server unter [hexa.unpacked-dev.deno.net](https://hexa.unpacked-dev.deno.net/), die App auch unter [hexa-countdown.app](https://hexa-countdown.app/) (GitHub Pages). Vorher auf echten Handys getestet. Offen aus Schritt 4 sind noch Impressum, Datenschutz, AVV und ein Blick auf die Grenzen des kostenlosen Tarifs. Seit Version 1.12.0 spielen online auch Bots mit, der Server spielt sie selbst. Wie der Server arbeitet und welche Nachrichten es gibt, steht in [`server/README.md`](../server/README.md). Stand: 2. Oktober 2026.
+> **Seit Version 1.8.0 ist der Online-Modus live:** Die App läuft unter [hexa-countdown.app](https://hexa-countdown.app/) (GitHub Pages), der Server unter [backend.hexa-countdown.app](https://backend.hexa-countdown.app/) (Deno Deploy, auch noch unter hexa.unpacked-dev.deno.net). Vorher auf echten Handys getestet. Offen aus Schritt 4 sind noch Impressum, Datenschutz, AVV und ein Blick auf die Grenzen des kostenlosen Tarifs. Seit Version 1.12.0 spielen online auch Bots mit, der Server spielt sie selbst. Wie der Server arbeitet und welche Nachrichten es gibt, steht in [`server/README.md`](../server/README.md). Stand: 2. Oktober 2026.
 
 ## Kurz gesagt
 

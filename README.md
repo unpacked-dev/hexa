@@ -136,7 +136,7 @@ Die vollständigen Regeln mit Beispielen stehen in der App: im Hauptmenü unter 
 
 ## Loslegen
 
-**Im Browser:** [hexa-countdown.app](https://hexa-countdown.app/) öffnen und losspielen. Die App läuft auch unter [hexa.unpacked-dev.deno.net](https://hexa.unpacked-dev.deno.net/), dort läuft auch der Server für den Online-Modus.
+**Im Browser:** [hexa-countdown.app](https://hexa-countdown.app/) öffnen und losspielen. Der Server für den Online-Modus läuft auf Deno Deploy unter `backend.hexa-countdown.app`.
 
 **Lokal:** Repository klonen und `index.html` im Browser öffnen – fertig. Es gibt keinen Build-Schritt.
 
@@ -152,7 +152,7 @@ Wer lieber über einen lokalen Server testet (z. B. für das Web-App-Manifest):
 python3 -m http.server 8000   # dann http://localhost:8000 öffnen
 ```
 
-Auch so geöffnet spielt die App online über den Server unter hexa.unpacked-dev.deno.net. Wer den Server selbst laufen lassen möchte, braucht [Deno 2](https://docs.deno.com/runtime/getting_started/installation/): `deno task dev` startet App und Server auf http://localhost:8000, mehr dazu in [server/README.md](server/README.md).
+Auch so geöffnet spielt die App online über den Server unter backend.hexa-countdown.app. Wer den Server selbst laufen lassen möchte, braucht [Deno 2](https://docs.deno.com/runtime/getting_started/installation/): `deno task dev` startet App und Server auf http://localhost:8000, mehr dazu in [server/README.md](server/README.md).
 
 **Als App aufs Handy:** Seite im Browser öffnen und *Zum Home-Bildschirm hinzufügen* wählen.
 

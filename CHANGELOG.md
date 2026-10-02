@@ -7,7 +7,8 @@ Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), die V
 
 ### Geändert
 
-- **Eigene Adresse:** HEXA läuft jetzt unter [hexa-countdown.app](https://hexa-countdown.app/). Die alte Adresse `unpacked-dev.github.io/hexa` leitet automatisch dorthin weiter. Highscores, Einstellungen und ein laufendes Spiel von der alten Adresse kommen nicht mit, denn der Browser speichert sie pro Adresse. Der Server für den Online-Modus bleibt unter `hexa.unpacked-dev.deno.net`, auch ältere Versionen und die ZIP spielen also weiter online.
+- **Eigene Adresse:** HEXA läuft jetzt unter [hexa-countdown.app](https://hexa-countdown.app/). Die alte Adresse `unpacked-dev.github.io/hexa` leitet automatisch dorthin weiter. Highscores, Einstellungen und ein laufendes Spiel von der alten Adresse kommen nicht mit, denn der Browser speichert sie pro Adresse.
+- **Server unter eigener Adresse:** Die App spielt online über `backend.hexa-countdown.app`. Dahinter steckt weiter Deno Deploy, der Server lässt sich so aber später umziehen, ohne dass Apps ihn verlieren. Die alte Adresse `hexa.unpacked-dev.deno.net` bleibt erreichbar, ältere Versionen und ZIPs spielen also weiter online.
 - **Vorschaubild, README und Release-Notizen:** zeigen und verlinken die neue Adresse.
 
 ## [1.12.1] – 2026-09-30

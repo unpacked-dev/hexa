@@ -2,7 +2,7 @@
 
 Der Server würfelt, prüft jeden Zug und achtet auf die Zugzeit. Er läuft mit [Deno](https://deno.com), ganz ohne weitere Pakete: `Deno.serve` für HTTP und WebSocket, [Deno KV](https://docs.deno.com/deploy/kv/) als Datenbank. Die Regeln kommen aus `../js/rules.js`, genau wie in der App.
 
-> **Stand:** Läuft seit Version 1.8.0 unter [hexa.unpacked-dev.deno.net](https://hexa.unpacked-dev.deno.net/): die App unter der Adresse selbst, der WebSocket unter `/ws`. Das Konzept steht in [`docs/online-konzept.md`](../docs/online-konzept.md).
+> **Stand:** Läuft seit Version 1.8.0 auf Deno Deploy, seit Oktober 2026 unter der eigenen Adresse [backend.hexa-countdown.app](https://backend.hexa-countdown.app/): die App unter der Adresse selbst, der WebSocket unter `/ws`. Die alte Adresse [hexa.unpacked-dev.deno.net](https://hexa.unpacked-dev.deno.net/) bleibt für ältere Versionen erreichbar. Das Konzept steht in [`docs/online-konzept.md`](../docs/online-konzept.md).
 
 ## Dateien
 
@@ -47,13 +47,15 @@ deno task test   # alle Server-Tests
 
 Einstiegspunkt und Laufzeit stehen in der `deno.json` unter `deploy.runtime`: `mode: "dynamic"` mit `entrypoint: "server/main.js"`. Diese Angabe geht den Einstellungen im Dashboard vor. Ohne sie findet Deno Deploy die `index.html` im Hauptordner und liefert einfach die Website aus. Die `deno.json` schaltet außerdem mit `"unstable": ["kv"]` Deno KV frei, sonst bricht der Start mit „Deno.openKv is not a function“ ab.
 
-Die Produktion baut aus `main` und läuft unter https://hexa.unpacked-dev.deno.net. Jeder andere Branch bekommt eine eigene Adresse mit eigener Datenbank, zu finden unter *Timelines*. Deno Deploy baut bei jedem Push neu, auch wenn sich nur die App ändert, denn der Server liefert sie mit aus. Laufende Spiele verbinden sich danach von selbst kurz neu.
+Die Produktion baut aus `main` und läuft unter https://backend.hexa-countdown.app und weiter unter https://hexa.unpacked-dev.deno.net. Jeder andere Branch bekommt eine eigene Adresse mit eigener Datenbank, zu finden unter *Timelines*. Deno Deploy baut bei jedem Push neu, auch wenn sich nur die App ändert, denn der Server liefert sie mit aus. Laufende Spiele verbinden sich danach von selbst kurz neu.
+
+**Eigene Domain:** In der Deno-Konsole unter *Domains* der Organisation `backend.hexa-countdown.app` anlegen und der App zuweisen (*Assign*). Beim DNS-Anbieter (Spaceship) stehen dafür zwei CNAME-Einträge: `backend` → `alias.deno.net` und `_acme-challenge.backend` → der Wert aus der Deno-Konsole. Das Zertifikat holt und verlängert Deno selbst. Die Adresse auf deno.net bleibt daneben bestehen.
 
 ### Die App gleich mit
 
 Der Server liefert auch die App aus: `index.html`, `favicon.svg`, `manifest.webmanifest` und die Ordner `css/`, `js/`, `lang/`, `fonts/` und `icons/`. Alles andere (etwa `server/`, `docs/` oder `.github/`) gibt es nicht, nur diese Liste. So ist jede Adresse auf Deno Deploy gleich eine fertige Seite zum Spielen, auch jede Testadresse eines Branches.
 
-Die App fragt beim Start `health` auf ihrer eigenen Adresse. Antwortet dort ein HEXA-Server, spielt sie über ihn. Sonst nimmt sie den festen Server `wss://hexa.unpacked-dev.deno.net/ws`, zum Beispiel unter hexa-countdown.app (GitHub Pages) oder aus der ZIP.
+Die App fragt beim Start `health` auf ihrer eigenen Adresse. Antwortet dort ein HEXA-Server, spielt sie über ihn. Sonst nimmt sie den festen Server `wss://backend.hexa-countdown.app/ws`, zum Beispiel unter hexa-countdown.app (GitHub Pages) oder aus der ZIP. Ältere Versionen nutzen noch `wss://hexa.unpacked-dev.deno.net/ws`.
 
 ### Einstellungen über Umgebungsvariablen
 
