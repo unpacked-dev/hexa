@@ -2,7 +2,7 @@
 
 Der Server würfelt, prüft jeden Zug und achtet auf die Zugzeit. Er läuft mit [Deno](https://deno.com), ganz ohne weitere Pakete: `Deno.serve` für HTTP und WebSocket, [Deno KV](https://docs.deno.com/deploy/kv/) als Datenbank. Die Regeln kommen aus `../js/rules.js`, genau wie in der App.
 
-> **Stand:** Läuft seit Version 1.8.0 auf Deno Deploy, seit Oktober 2026 unter der eigenen Adresse [backend.hexa-countdown.app](https://backend.hexa-countdown.app/): die App unter der Adresse selbst, der WebSocket unter `/ws`. Die alte Adresse [hexa.unpacked-dev.deno.net](https://hexa.unpacked-dev.deno.net/) bleibt für ältere Versionen erreichbar. Das Konzept steht in [`docs/online-konzept.md`](../docs/online-konzept.md).
+> **Stand:** Läuft seit Version 1.8.0 auf Deno Deploy, seit Version 1.13.0 unter der eigenen Adresse [backend.hexa-countdown.app](https://backend.hexa-countdown.app/): die App unter der Adresse selbst, der WebSocket unter `/ws`. Die alte Adresse [hexa.unpacked-dev.deno.net](https://hexa.unpacked-dev.deno.net/) bleibt für ältere Versionen erreichbar. Das Konzept steht in [`docs/online-konzept.md`](../docs/online-konzept.md).
 
 ## Dateien
 
