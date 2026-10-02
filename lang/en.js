@@ -35,6 +35,9 @@
       scores: 'High Scores',
       settings: 'Settings',
       learn: 'Learn to Play',
+      installHint: 'Install HEXA as an app',
+      installHintSub: 'Then you can play without internet too.',
+      installHide: 'Hide this hint',
     },
 
     learn: {
@@ -361,6 +364,11 @@
       startSub: 'Everyone on their own device',
       startResume: 'Resume · Lobby {code}',
       paused: 'Online play is paused right now.',
+      noNet: 'Needs internet',
+      noNetToast: 'Without internet, only local play works.',
+      updateTitle: 'New version available',
+      updateText: 'This version of HEXA is too old for online play. Reload to carry on.',
+      reload: 'Reload',
       title: 'Play online',
       lead: 'Everyone plays on their own device. One person creates the lobby, the others join with the code. You can also play alone.',
       nameLabel: 'Your nickname',
@@ -476,6 +484,21 @@
       language: 'Language',
       soundOn: 'Sound on',
       soundOff: 'Sound off',
+      app: 'App',
+      install: 'Install as an app',
+      installSub: 'Then it starts without internet too.',
+      installed: 'Running as an app',
+      installedSub: 'Local play works without internet too.',
+    },
+
+    install: {
+      title: 'Install as an app',
+      intro: 'This is how HEXA gets onto your home screen:',
+      step1: 'Tap “Share” in your browser, the square with the arrow pointing up. Depending on the layout, it is in the “…” menu.',
+      step2: 'Choose “Add to Home Screen”.',
+      step3: 'Confirm with “Add”.',
+      after: 'After that, HEXA starts like an app, even without internet. The app has its own storage: high scores and a running game from the browser are not carried over.',
+      done: 'HEXA is now installed.',
     },
 
     rules: {

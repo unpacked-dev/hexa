@@ -965,6 +965,30 @@ html:not(.ready) .start-in > :not(noscript) { visibility: hidden; }
 .start-set:active { transform: translateY(1px); }
 @media (hover: hover) { .start-set:hover { box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, .5); } }
 .start-ns { margin: 0; text-align: center; color: rgba(255, 255, 255, .8); }
+/* Einmaliger Hinweis „Als App installieren“, mit ✕ weg für immer */
+.start-hint {
+  display: flex; width: 100%; margin-top: -12px; border-radius: 16px;
+  background: rgba(255, 255, 255, .07); box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, .18);
+}
+.hint-main {
+  display: flex; flex: 1; align-items: center; gap: 12px; min-width: 0; min-height: 60px; padding: 10px 4px 10px 12px;
+  border: 0; border-radius: 16px 0 0 16px; background: transparent; color: #F2F3FA; text-align: left; cursor: pointer;
+}
+.hint-ic {
+  display: grid; flex: none; place-items: center; width: 36px; height: 36px; border-radius: 10px;
+  background: rgba(255, 255, 255, .12); color: var(--marker);
+}
+.hint-ic svg { width: 19px; height: 19px; }
+.hint-tx { min-width: 0; }
+.hint-t { display: block; font-size: 15px; font-weight: 800; line-height: 1.25; }
+.hint-s { display: block; margin-top: 1px; font-size: 13px; font-weight: 600; line-height: 1.3; color: rgba(255, 255, 255, .72); }
+.hint-x {
+  display: grid; flex: none; place-items: center; width: 48px; padding: 0; border: 0; border-radius: 0 16px 16px 0;
+  background: transparent; color: rgba(255, 255, 255, .7); cursor: pointer;
+}
+.hint-x svg { width: 18px; height: 18px; }
+.hint-main:active, .hint-x:active { transform: translateY(1px); }
+@media (hover: hover) { .hint-main:hover .hint-t, .hint-x:hover { color: #FFFFFF; } }
 /* Einstellungen oben rechts, an derselben Stelle wie im Spiel */
 .start-top {
   position: absolute; top: 0; left: 0; right: 0; z-index: 2; display: flex; justify-content: flex-end;
@@ -1155,6 +1179,20 @@ html:not(.ready) .start-top { visibility: hidden; }
 }
 .set-ic svg { width: 19px; height: 19px; }
 .set-lab { flex: 1; min-width: 0; font-weight: 700; }
+.set-sub { display: block; margin-top: 2px; font-size: 13px; font-weight: 600; line-height: 1.3; color: var(--ink-2); }
+.set-btn { display: block; width: 100%; padding: 0; border: 0; color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+.set-btn .set-line > svg { flex: none; width: 20px; height: 20px; color: var(--ink-3); }
+.set-btn:active { transform: translateY(1px); }
+@media (hover: hover) { .set-btn:hover { box-shadow: inset 0 0 0 2px var(--pen); } }
+/* Anleitung „Als App installieren“ */
+.inst-steps { display: grid; gap: 10px; margin: 14px 0 0; padding: 0; list-style: none; counter-reset: inst; }
+.inst-steps li { display: flex; align-items: center; gap: 12px; line-height: 1.4; }
+.inst-steps .set-ic { position: relative; }
+.inst-steps .set-ic::after {
+  counter-increment: inst; content: counter(inst); position: absolute; top: -6px; left: -6px;
+  display: grid; place-items: center; width: 18px; height: 18px; border-radius: 50%;
+  background: var(--marker); color: #1C2030; font-size: 11px; font-weight: 800;
+}
 .set-vol { display: flex; align-items: center; gap: 12px; padding: 0 14px 12px 60px; }
 .vol-n { flex: none; width: 3.4em; font-size: 14px; font-weight: 700; color: var(--ink-2); text-align: right; font-variant-numeric: tabular-nums; }
 .chip {

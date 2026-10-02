@@ -287,7 +287,7 @@ Deno.test('HTTP: Die App, der Status unter /health, sonst nur WebSocket', async 
   assert.equal(page.status, 200);
   assert.match(page.headers.get('content-type'), /text\/html/);
   assert.match(await page.text(), /<title>HEXA: Countdown<\/title>/);
-  for (const [path, type] of [['/js/online.js', /javascript/], ['/css/hexa.css', /css/], ['/lang/de.js', /javascript/], ['/icons/icon-192.png', /png/], ['/manifest.webmanifest', /manifest/]]) {
+  for (const [path, type] of [['/js/online.js', /javascript/], ['/css/hexa.css', /css/], ['/lang/de.js', /javascript/], ['/icons/icon-192.png', /png/], ['/manifest.webmanifest', /manifest/], ['/sw.js', /javascript/]]) {
     const r = await fetch(env.http(0) + path);
     assert.equal(r.status, 200, path);
     assert.match(r.headers.get('content-type'), type, path);
@@ -300,6 +300,34 @@ Deno.test('HTTP: Die App, der Status unter /health, sonst nur WebSocket', async 
     assert.equal(r.status, 404, path);
     await r.body.cancel();
   }
+  const plain = await fetch(env.http(0) + '/ws');
+  assert.equal(plain.status, 426);
+  await plain.body.cancel();
+  await env.stop();
+});
+
+Deno.test('HTTP: Der Service Worker kommt immer frisch', async () => {
+  const env = await servers(1);
+  const r = await fetch(env.http(0) + '/sw.js');
+  assert.equal(r.status, 200);
+  assert.equal(r.headers.get('cache-control'), 'no-cache');
+  assert.match(await r.text(), /addEventListener\('fetch'/);
+  await env.stop();
+});
+
+Deno.test('HTTP: Produktion leitet die Startseite zur App weiter, Server und Dateien bleiben', async () => {
+  const env = await servers(1, G.TIMES, { redirectHosts: ['127.0.0.1'], appUrl: 'https://hexa-countdown.app/' });
+  for (const path of ['/', '/index.html']) {
+    const r = await fetch(env.http(0) + path, { redirect: 'manual' });
+    assert.equal(r.status, 302, path);
+    assert.equal(r.headers.get('location'), 'https://hexa-countdown.app/', path);
+    await r.body?.cancel();
+  }
+  const health = await fetch(env.http(0) + '/health');
+  assert.equal((await health.json()).app, 'hexa');
+  const js = await fetch(env.http(0) + '/js/app.js');
+  assert.equal(js.status, 200);
+  await js.body.cancel();
   const plain = await fetch(env.http(0) + '/ws');
   assert.equal(plain.status, 426);
   await plain.body.cancel();

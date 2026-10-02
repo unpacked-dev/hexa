@@ -53,7 +53,9 @@ Die Produktion baut aus `main` und läuft unter https://backend.hexa-countdown.a
 
 ### Die App gleich mit
 
-Der Server liefert auch die App aus: `index.html`, `favicon.svg`, `manifest.webmanifest` und die Ordner `css/`, `js/`, `lang/`, `fonts/` und `icons/`. Alles andere (etwa `server/`, `docs/` oder `.github/`) gibt es nicht, nur diese Liste. So ist jede Adresse auf Deno Deploy gleich eine fertige Seite zum Spielen, auch jede Testadresse eines Branches.
+Der Server liefert auch die App aus: `index.html`, `favicon.svg`, `manifest.webmanifest`, `sw.js` und die Ordner `css/`, `js/`, `lang/`, `fonts/` und `icons/`. Alles andere (etwa `server/`, `docs/` oder `.github/`) gibt es nicht, nur diese Liste. So ist jede Adresse auf Deno Deploy gleich eine fertige Seite zum Spielen, auch jede Testadresse eines Branches.
+
+Nur in der Produktion (`backend.hexa-countdown.app` und `hexa.unpacked-dev.deno.net`) leitet die Startseite auf https://hexa-countdown.app weiter. So gibt es nur eine Adresse, unter der man HEXA als App installiert, denn jede Adresse hat ihren eigenen Speicher. `/ws`, `/health` und die Dateien bleiben. Die Liste steht in `REDIRECT_HOSTS` in `server/main.js`.
 
 Die App fragt beim Start `health` auf ihrer eigenen Adresse. Antwortet dort ein HEXA-Server, spielt sie über ihn. Sonst nimmt sie den festen Server `wss://backend.hexa-countdown.app/ws`, zum Beispiel unter hexa-countdown.app (GitHub Pages) oder aus der ZIP. Ältere Versionen nutzen noch `wss://hexa.unpacked-dev.deno.net/ws`.
 

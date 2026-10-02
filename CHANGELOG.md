@@ -3,6 +3,19 @@
 Alle wichtigen Änderungen an HEXA: Countdown stehen hier.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), die Versionen folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [Unreleased]
+
+### Neu
+
+- **Offline spielen:** HEXA startet jetzt auch ohne Internet. Ein Service Worker legt beim ersten Öffnen alle Dateien auf dem Gerät ab. Mit Netz kommt der Code wie bisher frisch, Updates sind also sofort da. Ohne Netz, oder wenn es länger als 3 Sekunden dauert, nimmt die App ihre Kopie. Lokal spielen, auch gegen Bots, geht damit komplett offline.
+- **Als App installieren:** Ein Hinweis im Hauptmenü und ein Eintrag in den Einstellungen erklären, wie HEXA auf den Home-Bildschirm kommt. Auf iPhone und iPad mit einer Anleitung in drei Schritten, auf Android und in Chrome oder Edge öffnet er gleich das Installieren-Fenster des Browsers. Den Hinweis im Hauptmenü blendet ✕ für immer aus. Läuft HEXA schon als App, steht das in den Einstellungen.
+
+### Geändert
+
+- **Online ohne Netz:** Im Fenster „Spielen“ ist „Online“ ohne Internet ausgegraut, mit dem Hinweis „Braucht Internet“. Kommt das Netz zurück, geht es gleich wieder.
+- **Neue Version nötig:** Ist die App zu alt für den Server, kommt ein Fenster mit „Neu laden“. In der installierten App gibt es keine Leiste des Browsers zum Neuladen.
+- **Eine Adresse für die App:** Die Server-Adressen `backend.hexa-countdown.app` und `hexa.unpacked-dev.deno.net` leiten im Browser auf hexa-countdown.app weiter. So installiert niemand aus Versehen eine zweite App mit eigenem Speicher. Der Online-Modus läuft dort weiter wie bisher.
+
 ## [1.13.0] – 2026-10-02
 
 HEXA hat eine eigene Adresse: hexa-countdown.app.

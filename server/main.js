@@ -22,8 +22,13 @@ const KEY_RE = /^[A-Za-z0-9_-]{16,128}$/;
 // Die App selbst liefert der Server auch aus. Dann reicht zum Testen eine Adresse für App und WebSocket.
 // Nur diese Dateien und Ordner, alles andere im Repo (Server-Code, Doku, Werkzeuge) bleibt verborgen.
 const ROOT = new URL('../', import.meta.url);
-const PUBLIC_FILES = ['index.html', 'favicon.svg', 'manifest.webmanifest'];
+const PUBLIC_FILES = ['index.html', 'favicon.svg', 'manifest.webmanifest', 'sw.js'];
 const PUBLIC_DIRS = ['css/', 'js/', 'lang/', 'fonts/', 'icons/'];
+// Produktion: Wer den Server im Browser öffnet, landet bei der App unter der eigenen Domain. So gibt es nur eine
+// Adresse, unter der man HEXA installiert (eigener Speicher pro Adresse). /ws, /health und die Dateien bleiben.
+// Testadressen der Branches und localhost liefern die App weiter selbst aus.
+const APP_URL = 'https://hexa-countdown.app/';
+const REDIRECT_HOSTS = ['backend.hexa-countdown.app', 'hexa.unpacked-dev.deno.net'];
 const TYPES = {
   html: 'text/html; charset=utf-8', css: 'text/css; charset=utf-8', js: 'text/javascript; charset=utf-8',
   svg: 'image/svg+xml', png: 'image/png', webp: 'image/webp', woff2: 'font/woff2',
@@ -82,7 +87,8 @@ const replace = (target, source) => {
 // poll: Sicherheitsnetz. Zusätzlich zu kv.watch fragt die Instanz so oft nach dem Stand ihrer Lobbys (ms, 0 = aus).
 // Klappt kv.watch, merkt man davon nichts. Klappt es nicht, läuft das Spiel trotzdem, nur etwas verzögert.
 // online: false nimmt keine Verbindungen an (enableOnline in js/config.js).
-export function createHub({ kv, instance = G.randomId(8), times = G.TIMES, rng = G.fairRandom, poll = 5000, online = globalThis.HexaConfig.enableOnline, log = console } = {}) {
+// redirectHosts, appUrl: Unter diesen Adressen leitet die Startseite zur App weiter (Tests setzen eigene).
+export function createHub({ kv, instance = G.randomId(8), times = G.TIMES, rng = G.fairRandom, poll = 5000, online = globalThis.HexaConfig.enableOnline, log = console, redirectHosts = REDIRECT_HOSTS, appUrl = APP_URL } = {}) {
   const conns = new Set();
   const rooms = new Map();            // Code → { conns, stop, poll, timer, room }: Lobbys mit Verbindungen hier
   const ips = new Map();              // Internetverbindung → { open, create: [Zeiten], join: [Zeiten] }
@@ -409,6 +415,9 @@ export function createHub({ kv, instance = G.randomId(8), times = G.TIMES, rng =
     const url = new URL(req.url);
     if (url.pathname === '/health') {
       return Response.json({ app: 'hexa', protocol: G.PROTOCOL, online, ok: true }, { headers: { 'access-control-allow-origin': '*' } });
+    }
+    if ((url.pathname === '/' || url.pathname === '/index.html') && redirectHosts.includes(url.hostname)) {
+      return new Response(null, { status: 302, headers: { location: appUrl } });
     }
     if (url.pathname !== '/ws') {
       const file = req.method === 'GET' || req.method === 'HEAD' ? await appFile(url.pathname) : null;

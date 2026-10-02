@@ -42,6 +42,10 @@
     globe: svg('<circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/>'),
     bot: svg('<path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/>'),
     plus: svg('<path d="M5 12h14"/><path d="M12 5v14"/>'),
+    download: svg('<path d="M12 15V3"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/>'),
+    share: svg('<path d="M12 2v13"/><path d="m16 6-4-4-4 4"/><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>'),
+    plusSq: svg('<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M8 12h8"/><path d="M12 8v8"/>'),
+    check: svg('<path d="M20 6 9 17l-5-5"/>'),
     enter: svg('<path d="m10 17 5-5-5-5"/><path d="M15 12H3"/><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>'),
     copy: svg('<rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>'),
     rules: svg('<path d="M5 4.5A1.5 1.5 0 0 1 6.5 3H19v15H6.5A1.5 1.5 0 0 0 5 19.5z"/><path d="M5 19.5A1.5 1.5 0 0 0 6.5 21H19"/><path d="M9 7.5h6"/><path d="M9 11h4"/>'),
@@ -2040,6 +2044,7 @@
           ${I18n.langs.map(l => `<button type="button" class="seg-b" data-act="set-lang" data-v="${l}" lang="${l}" aria-pressed="${I18n.lang === l}">${esc(I18n.nameOf(l))}</button>`).join('')}
         </div>
       </section>
+      ${appSettings()}
       <div class="s-acts"><button type="button" class="btn btn-pen" data-act="sheet-close">${tr('common.done')}</button></div>`, null, tr('settings.title'));
   }
 
@@ -2118,6 +2123,7 @@
   function openPlay() {
     const s = startSubs();
     const off = !Config.enableOnline;
+    const noNet = !off && navigator.onLine === false;
     const choice = (act, icon, title, sub, soon) => `
           <button type="button" class="choice${soon ? ' choice-soon' : ''}" data-act="sheet-do" data-do="${act}"${soon ? ' aria-disabled="true"' : ''}>
             <span class="choice-ic">${ICON[icon]}</span>
@@ -2127,11 +2133,16 @@
       <h3 class="s-title">${tr('start.play')}</h3>
       <div class="choices">
         ${choice('local', 'users', tr('start.local'), s.local)}
-        ${choice('online', 'globe', tr('start.online'), off ? tr('online.paused') : s.online, off)}
+        ${choice('online', 'globe', tr('start.online'), off ? tr('online.paused') : noNet ? tr('online.noNet') : s.online, off || noNet)}
       </div>
       <div class="s-acts"><button type="button" class="btn btn-quiet" data-act="sheet-close">${tr('common.close')}</button></div>`, {
       local: () => { closeSheet(true); enterLocal(); },
-      online: () => { if (off) { toast(tr('online.paused')); return; } closeSheet(true); enterOnline(); },
+      online: () => {
+        if (off) { toast(tr('online.paused')); return; }
+        if (navigator.onLine === false) { toast(tr('online.noNetToast')); return; }
+        closeSheet(true);
+        enterOnline();
+      },
     }, tr('start.play'));
   }
 
@@ -2925,6 +2936,7 @@
     const code = m.code;
     // Online ist abgeschaltet (enableOnline in js/config.js): zurück ins Hauptmenü, lokal geht es weiter
     if (code === 'online-off') { exitOnline(); toast(errText(code)); return; }
+    if (code === 'update-needed') { openUpdateSheet(); return; }
     if (m.re === 'roll' && myRoll) myRoll.vals = state.dice.vals || [1, 2, 3, 4, 5, 6];
     if (m.re === 'cdRoll' && myCdRoll) myCdRoll.vals = (state.cdGame && state.cdGame.last) || [];
     if (m.re === 'hold') pendingHolds = {};
@@ -2941,6 +2953,23 @@
     }
     if (!rolling) render();
     toast(code === 'room-not-found' && m.re === 'hello' ? tr('online.err.gone') : errText(code));
+  }
+
+  // Die App ist zu alt für den Server. In der installierten App gibt es keine Leiste zum Neuladen, darum hier ein Knopf.
+  // Der Service Worker holt beim Neuladen zuerst den neuen Stand aus dem Netz.
+  function openUpdateSheet() {
+    // Verbindet sich die App neu, kommt die Meldung wieder. Ein offenes Fenster bleibt dann einfach stehen.
+    if (!$('#sheet').hidden && $('#sheet [data-do="reload"]')) return;
+    openSheet(`
+      <h3 class="s-title">${tr('online.updateTitle')}</h3>
+      <p class="s-note">${tr('online.updateText')}</p>
+      <div class="s-acts">
+        <button type="button" class="btn btn-pen" data-act="sheet-do" data-do="reload">${tr('online.reload')}</button>
+        <button type="button" class="btn btn-quiet" data-act="sheet-do" data-do="home">${tr('common.toMenu')}</button>
+      </div>`, {
+      reload: () => location.reload(),
+      home: () => { closeSheet(true); exitOnline(); },
+    }, tr('online.updateTitle'));
   }
 
   Online.on((type, msg) => {
@@ -2980,6 +3009,8 @@
       case 'hs-tab': setHsTab(t.dataset.v); break;
       case 'settings': openSettings(); break;
       case 'learn': openLearn(); break;
+      case 'install': installApp(); break;
+      case 'install-hide': hideInstallHint(); break;
       case 'rules-close': closeRulesPage(); break;
       case 'set-theme': setTheme(t.dataset.v); break;
       case 'set-sound': toggleChannel(t.dataset.ch); break;
@@ -3157,6 +3188,89 @@
     });
   }
 
+  /* ---------- Als App installieren, offline spielen ---------- */
+  // Auf iPhone und iPad geht das nur von Hand über „Teilen“, dafür gibt es eine kurze Anleitung.
+  // Chrome und Edge (Android, Desktop) haben ein eigenes Fenster, das HEXA über beforeinstallprompt öffnet.
+  // Der Hinweis im Hauptmenü bleibt, bis man ihn wegklickt oder HEXA installiert ist.
+  const HINT_KEY = 'hexa-install-hint';
+  let installEvt = null;
+  let hintOff = false;
+  try { hintOff = localStorage.getItem(HINT_KEY) === 'off'; } catch (e) { /* Speicher gesperrt */ }
+  const standalone = () => !!((window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true);
+  const isIOS = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const canInstall = () => !standalone() && (!!installEvt || (isIOS() && /^https?:$/.test(location.protocol)));
+
+  function appSettings() {
+    if (standalone()) {
+      return `
+      <section class="set-grp" aria-labelledby="set-h-app">
+        <h4 class="set-h" id="set-h-app">${tr('settings.app')}</h4>
+        <div class="set-card"><div class="set-line"><span class="set-ic">${ICON.check}</span><span class="set-lab">${tr('settings.installed')}<span class="set-sub">${tr('settings.installedSub')}</span></span></div></div>
+      </section>`;
+    }
+    if (!canInstall()) return '';
+    return `
+      <section class="set-grp" aria-labelledby="set-h-app">
+        <h4 class="set-h" id="set-h-app">${tr('settings.app')}</h4>
+        <button type="button" class="set-card set-btn" data-act="install"><span class="set-line"><span class="set-ic">${ICON.download}</span><span class="set-lab">${tr('settings.install')}<span class="set-sub">${tr('settings.installSub')}</span></span>${ICON.chev}</span></button>
+      </section>`;
+  }
+
+  function syncInstall() {
+    $('#installHint').hidden = hintOff || !canInstall();
+  }
+  function hideInstallHint() {
+    hintOff = true;
+    try { localStorage.setItem(HINT_KEY, 'off'); } catch (e) { /* Speicher gesperrt */ }
+    syncInstall();
+    const b = $('#start [data-act="play"]');
+    if (atStart && b) { try { b.focus({ preventScroll: true }); } catch (e) { /* egal */ } }
+  }
+
+  function installApp() {
+    const evt = installEvt;
+    if (!evt) { openInstallSheet(); return; }
+    // Das Fenster des Browsers lässt sich nur einmal öffnen. Kommt es wieder, meldet der Browser das neu.
+    installEvt = null;
+    closeSheet(true);
+    evt.prompt();
+    evt.userChoice.then(c => { if (c && c.outcome === 'accepted') toast(tr('install.done')); }).catch(() => { /* egal */ }).then(syncInstall);
+  }
+
+  function openInstallSheet() {
+    const step = (icon, text) => `<li><span class="set-ic">${ICON[icon]}</span><span>${text}</span></li>`;
+    openSheet(`
+      <h3 class="s-title">${tr('install.title')}</h3>
+      <p class="s-note">${tr('install.intro')}</p>
+      <ol class="inst-steps">
+        ${step('share', tr('install.step1'))}
+        ${step('plusSq', tr('install.step2'))}
+        ${step('check', tr('install.step3'))}
+      </ol>
+      <p class="s-note">${tr('install.after')}</p>
+      <div class="s-acts"><button type="button" class="btn btn-pen" data-act="sheet-close">${tr('common.done')}</button></div>`, null, tr('install.title'));
+  }
+
+  window.addEventListener('beforeinstallprompt', e => {
+    // Eigener Knopf statt der Leiste des Browsers
+    e.preventDefault();
+    installEvt = e;
+    syncInstall();
+  });
+  window.addEventListener('appinstalled', () => { installEvt = null; syncInstall(); });
+
+  // Netz weg oder wieder da: Ein offenes Spielen-Fenster zeigt gleich, ob online geht
+  const onNet = () => { if ($('#sheet [data-do="online"]') && $('#sheet [data-do="local"]')) openPlay(); };
+  window.addEventListener('online', onNet);
+  window.addEventListener('offline', onNet);
+
+  // Service Worker (sw.js): HEXA startet dann auch ohne Internet. Nur über https oder auf localhost, in der ZIP (file://) nicht.
+  function registerSW() {
+    if (!('serviceWorker' in navigator)) return;
+    if (location.protocol !== 'https:' && !/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) return;
+    navigator.serviceWorker.register('sw.js').catch(() => { /* dann eben ohne */ });
+  }
+
   /* ---------- Bildschirm wach halten ---------- */
   // Solange die Seite offen ist und in den letzten 10 Minuten jemand getippt hat,
   // geht der Bildschirm nicht aus. Erlaubt der Browser das nicht, passiert einfach nichts.
@@ -3217,8 +3331,11 @@
   renderRules();
   render();
   renderStart();
+  syncInstall();
   syncSky();
   rollStartDice();
+  if (document.readyState === 'complete') registerSW();
+  else window.addEventListener('load', registerSW);
   // Erst jetzt stehen alle Texte in der richtigen Sprache da.
   document.documentElement.classList.add('ready');
 })();
