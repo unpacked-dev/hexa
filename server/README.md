@@ -53,7 +53,7 @@ Die Produktion baut aus `main` und läuft unter https://hexa.unpacked-dev.deno.n
 
 Der Server liefert auch die App aus: `index.html`, `favicon.svg`, `manifest.webmanifest` und die Ordner `css/`, `js/`, `lang/`, `fonts/` und `icons/`. Alles andere (etwa `server/`, `docs/` oder `.github/`) gibt es nicht, nur diese Liste. So ist jede Adresse auf Deno Deploy gleich eine fertige Seite zum Spielen, auch jede Testadresse eines Branches.
 
-Die App fragt beim Start `health` auf ihrer eigenen Adresse. Antwortet dort ein HEXA-Server, spielt sie über ihn. Sonst nimmt sie den festen Server `wss://hexa.unpacked-dev.deno.net/ws`, zum Beispiel auf GitHub Pages oder aus der ZIP.
+Die App fragt beim Start `health` auf ihrer eigenen Adresse. Antwortet dort ein HEXA-Server, spielt sie über ihn. Sonst nimmt sie den festen Server `wss://hexa.unpacked-dev.deno.net/ws`, zum Beispiel unter hexa-countdown.app (GitHub Pages) oder aus der ZIP.
 
 ### Einstellungen über Umgebungsvariablen
 

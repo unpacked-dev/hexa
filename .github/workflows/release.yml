@@ -68,7 +68,7 @@ jobs:
             echo
             echo "---"
             echo
-            echo "**▶ [Jetzt spielen](https://unpacked-dev.github.io/hexa/)** · Offline: \`hexa-${TAG}.zip\` herunterladen, entpacken und \`index.html\` öffnen."
+            echo "**▶ [Jetzt spielen](https://hexa-countdown.app/)** · Offline: \`hexa-${TAG}.zip\` herunterladen, entpacken und \`index.html\` öffnen."
           } >> notes.md
 
       - name: Release erstellen

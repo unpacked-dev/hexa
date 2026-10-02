@@ -9,7 +9,7 @@
 Das Würfelspiel für eine oder mehr Personen, auch gegen Bots oder online – Würfel, Spielblock und Regeln in einer App.<br>
 Läuft direkt im Browser, auf dem Handy wie am Laptop. Ohne Installation, ohne Konto, ohne Abhängigkeiten.
 
-### [▶&nbsp;Jetzt spielen](https://unpacked-dev.github.io/hexa/)
+### [▶&nbsp;Jetzt spielen](https://hexa-countdown.app/)
 
 [![Release](https://img.shields.io/github/v/release/unpacked-dev/hexa?style=flat-square&color=2340C8&label=Release)](https://github.com/unpacked-dev/hexa/releases/latest)
 [![Tests](https://img.shields.io/github/actions/workflow/status/unpacked-dev/hexa/ci.yml?branch=main&style=flat-square&label=Tests)](https://github.com/unpacked-dev/hexa/actions/workflows/ci.yml)
@@ -136,7 +136,7 @@ Die vollständigen Regeln mit Beispielen stehen in der App: im Hauptmenü unter 
 
 ## Loslegen
 
-**Im Browser:** [unpacked-dev.github.io/hexa](https://unpacked-dev.github.io/hexa/) öffnen und losspielen. Die App läuft auch unter [hexa.unpacked-dev.deno.net](https://hexa.unpacked-dev.deno.net/), dort läuft auch der Server für den Online-Modus.
+**Im Browser:** [hexa-countdown.app](https://hexa-countdown.app/) öffnen und losspielen. Die App läuft auch unter [hexa.unpacked-dev.deno.net](https://hexa.unpacked-dev.deno.net/), dort läuft auch der Server für den Online-Modus.
 
 **Lokal:** Repository klonen und `index.html` im Browser öffnen – fertig. Es gibt keinen Build-Schritt.
 
@@ -215,6 +215,7 @@ hexa/
 ├── fonts/                 # Schriften Archivo und Kalam mit Lizenztexten
 ├── icons/                 # App-Icons für Home-Bildschirm
 ├── manifest.webmanifest   # macht HEXA installierbar
+├── CNAME                  # eigene Domain hexa-countdown.app für GitHub Pages, nicht löschen
 ├── tests/
 │   ├── rules.test.js      # Tests für die Wertung
 │   ├── lang.test.js       # prüft, dass beide Sprachen vollständig sind
