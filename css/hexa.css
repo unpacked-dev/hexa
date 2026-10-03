@@ -670,6 +670,19 @@ table.t tr.total td { border-top: 2px solid var(--rule-strong); border-bottom: 0
 }
 .ch b { font-size: 24px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
 .ch small { font-size: 12px; font-weight: 600; color: var(--ink-2); }
+/* Oberer Block: so viele Würfel, wie man hat, darunter die Punkte. Platz für zwei Reihen, damit die Zahlen auf einer Linie stehen. */
+.chs.dice .ch { gap: 7px; min-height: 88px; padding: 10px 6px; }
+.ch-art { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; height: 40px; color: var(--ink); }
+.ch-dr { display: flex; gap: 4px; }
+.ch-art .mdie { --m: 18px; }
+.ch.cur .ch-art { color: var(--pen); }
+/* Der Punkt „passt zu deinem Wurf“ unten rechts, oben stehen hier die Würfel */
+.chs.dice .ch.match::after { top: auto; bottom: 7px; }
+.ch-art .mdie.none { color: var(--ink-3); }
+.ch-art .mdie.none::after {
+  content: ""; position: absolute; left: 50%; top: 50%; width: 34px; height: 16px;
+  transform: translate(-50%, -45%); background: var(--strike) center / 100% 100% no-repeat;
+}
 .chs.two .ch { min-height: 92px; }
 .chs.two .ch b { font-size: 36px; }
 .chs.sums .ch { min-height: 48px; border-radius: 10px; }

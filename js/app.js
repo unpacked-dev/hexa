@@ -1225,16 +1225,18 @@
     const cur = scoreOf(pid, key);
     const d = state.dice;
     const match = d.vals && d.rolls && !turnDone() && d.owner === pid ? scoreFor(key, d.vals) : null;
-    const choice = (v, small) => {
+    const choice = (v, small, art, label) => {
       const c = 'ch' + (cur === v ? ' cur' : '') + (match === v ? ' match' : '');
-      return `<button type="button" class="${c}" data-act="sheet-do" data-do="pick" data-v="${v}"><b>${v}</b>${small ? `<small>${small}</small>` : ''}</button>`;
+      return `<button type="button" class="${c}" data-act="sheet-do" data-do="pick" data-v="${v}"${label ? ` aria-label="${esc(label)}"` : ''}>${art || ''}<b>${v}</b>${small ? `<small>${small}</small>` : ''}</button>`;
     };
     const name = fieldName(key);
     let grid = '';
     let cls = '';
     let note = '';
     if (f.type === 'upper') {
-      for (let k = 0; k <= 6; k++) grid += choice(k * f.n, tr('field.times', { k, n: f.n }));
+      // Oben die Würfel, darunter die Punkte: Man sieht sofort, welche Wahl zu den eigenen Würfeln passt
+      cls = ' dice';
+      for (let k = 0; k <= 6; k++) grid += choice(k * f.n, '', diceArt(k, f.n), tr('field.times', { k, n: f.n }) + ': ' + trPts(k * f.n));
       note = tr('field.howMany', { plural: tr('fields.' + key + '.plural') });
     } else if (f.type === 'fixed') {
       cls = ' two';
@@ -1278,6 +1280,13 @@
         toast(tr('quick.cleared', { field: name }), snap);
       },
     }, name);
+  }
+
+  // k Würfel mit n Augen, in höchstens zwei Reihen (4 = 2 + 2, 5 = 3 + 2). Kein Würfel: einer, durchgestrichen wie im Block.
+  function diceArt(k, n) {
+    if (!k) return `<span class="ch-art" aria-hidden="true"><span class="ch-dr"><span class="mdie none">${faceHTML(n)}</span></span></span>`;
+    const rows = k <= 3 ? [k] : k === 4 ? [2, 2] : [3, k - 3];
+    return `<span class="ch-art" aria-hidden="true">${rows.map(r => `<span class="ch-dr">${miniDie(n).repeat(r)}</span>`).join('')}</span>`;
   }
 
   function openCdSheet(pid) {

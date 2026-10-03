@@ -3,6 +3,12 @@
 Alle wichtigen Änderungen an HEXA: Countdown stehen hier.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), die Versionen folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [Unreleased]
+
+### Geändert
+
+- **Eintragen im oberen Block mit Würfeln:** Trägst du Einser bis Sechser selbst ein, zeigen die Knöpfe jetzt die Würfel statt „2 × 4“: zwei Vieren als zwei Würfel mit vier Augen, darunter die Punkte. Null ist ein durchgestrichener Würfel. Man muss nicht mehr rechnen. Würfelt die App, steht der gelbe Punkt für „passt zu deinem Wurf“ dort unten rechts.
+
 ## [1.14.0] – 2026-10-02
 
 HEXA startet jetzt auch ohne Internet und lässt sich als App installieren.
