@@ -42,7 +42,7 @@ deno task test   # alle Server-Tests
 ## Auf Deno Deploy einrichten
 
 1. Auf [console.deno.com](https://console.deno.com) eine neue App anlegen und das GitHub-Repo `unpacked-dev/hexa` verbinden. Das App-Verzeichnis bleibt leer (Hauptordner des Repos).
-2. **Datenbank:** unter *Databases* eine Deno-KV-Datenbank anlegen (*Provision Database*) und der App zuweisen (*Assign*). Mehr ist nicht nötig, `Deno.openKv()` findet sie von selbst. Jeder Branch bekommt automatisch eine eigene Datenbank.
+2. **Datenbank:** unter *Databases* eine Deno-KV-Datenbank anlegen (*Provision Database*) und der App zuweisen (*Assign*). Mehr ist nicht nötig, `Deno.openKv()` findet sie von selbst. Bei uns heißt sie `unpacked` und gehört der ganzen Organisation. Ihr Name steht nirgends im Code, Umbenennen ändert also nichts. Jeder Branch bekommt automatisch eine eigene Datenbank.
 3. **Prüfen:** An die Adresse eines Builds `/health` anhängen. Dort muss `{"app":"hexa","protocol":2,"online":true,"ok":true}` stehen. Der WebSocket ist dann `wss://<adresse>/ws`, unter der Adresse selbst läuft die App.
 
 Einstiegspunkt und Laufzeit stehen in der `deno.json` unter `deploy.runtime`: `mode: "dynamic"` mit `entrypoint: "server/main.js"`. Diese Angabe geht den Einstellungen im Dashboard vor. Ohne sie findet Deno Deploy die `index.html` im Hauptordner und liefert einfach die Website aus. Die `deno.json` schaltet außerdem mit `"unstable": ["kv"]` Deno KV frei, sonst bricht der Start mit „Deno.openKv is not a function“ ab.
