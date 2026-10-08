@@ -312,7 +312,7 @@ Doppelte Tipps fängt der Server ab: `roll` sagt, der wievielte Wurf es sein sol
 
 | Schlüssel | Inhalt | Wie lange |
 |---|---|---|
-| `["room", "KXMP"]` | Lobby oder Spiel: Status, Host, Personen in ihrer Reihenfolge, Block, Würfel, Countdown, Deadline, letztes Ergebnis | 1 Stunde ohne Start, sonst 24 Stunden nach der letzten Aktion |
+| `["hexa_room", "KXMP"]` | Lobby oder Spiel: Status, Host, Personen in ihrer Reihenfolge, Block, Würfel, Countdown, Deadline, letztes Ergebnis | 1 Stunde ohne Start, sonst 24 Stunden nach der letzten Aktion |
 
 So könnte eine Lobby mitten im Spiel aussehen (Runde 3, Tim ist dran):
 

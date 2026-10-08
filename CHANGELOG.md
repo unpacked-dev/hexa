@@ -8,6 +8,7 @@ Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), die V
 ### Geändert
 
 - **Eintragen im oberen Block mit Würfeln:** Trägst du Einser bis Sechser selbst ein, zeigen die Knöpfe jetzt die Würfel statt „2 × 4“: zwei Vieren als zwei Würfel mit vier Augen, darunter die Punkte. Null ist ein durchgestrichener Würfel. Man muss nicht mehr rechnen. Würfelt die App, steht der gelbe Punkt für „passt zu deinem Wurf“ dort unten rechts.
+- **Server: eigene Schlüssel in der Datenbank:** Alle Einträge in Deno KV beginnen jetzt mit `hexa_`. Die Datenbank gehört der ganzen Organisation und kann so auch anderen Apps dienen. Online-Spiele, die beim Update gerade laufen, gehen dabei verloren. Alte Einträge löscht Deno KV von selbst.
 
 ## [1.14.0] – 2026-10-02
 

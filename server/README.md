@@ -42,7 +42,7 @@ deno task test   # alle Server-Tests
 ## Auf Deno Deploy einrichten
 
 1. Auf [console.deno.com](https://console.deno.com) eine neue App anlegen und das GitHub-Repo `unpacked-dev/hexa` verbinden. Das App-Verzeichnis bleibt leer (Hauptordner des Repos).
-2. **Datenbank:** unter *Databases* eine Deno-KV-Datenbank anlegen (*Provision Database*) und der App zuweisen (*Assign*). Mehr ist nicht nötig, `Deno.openKv()` findet sie von selbst. Bei uns heißt sie `unpacked` und gehört der ganzen Organisation. Ihr Name steht nirgends im Code, Umbenennen ändert also nichts. Jeder Branch bekommt automatisch eine eigene Datenbank.
+2. **Datenbank:** unter *Databases* eine Deno-KV-Datenbank anlegen (*Provision Database*) und der App zuweisen (*Assign*). Mehr ist nicht nötig, `Deno.openKv()` findet sie von selbst. Bei uns heißt sie `unpacked` und gehört der ganzen Organisation. Ihr Name steht nirgends im Code, Umbenennen ändert also nichts. Damit sich HEXA dort nicht mit anderen Apps in die Quere kommt, beginnen alle Schlüssel mit `hexa_`. Jeder Branch bekommt automatisch eine eigene Datenbank.
 3. **Prüfen:** An die Adresse eines Builds `/health` anhängen. Dort muss `{"app":"hexa","protocol":2,"online":true,"ok":true}` stehen. Der WebSocket ist dann `wss://<adresse>/ws`, unter der Adresse selbst läuft die App.
 
 Einstiegspunkt und Laufzeit stehen in der `deno.json` unter `deploy.runtime`: `mode: "dynamic"` mit `entrypoint: "server/main.js"`. Diese Angabe geht den Einstellungen im Dashboard vor. Ohne sie findet Deno Deploy die `index.html` im Hauptordner und liefert einfach die Website aus. Die `deno.json` schaltet außerdem mit `"unstable": ["kv"]` Deno KV frei, sonst bricht der Start mit „Deno.openKv is not a function“ ab.
@@ -70,7 +70,7 @@ Die App fragt beim Start `health` auf ihrer eigenen Adresse. Antwortet dort ein 
 ## So arbeitet der Server
 
 - **Eine WebSocket-Verbindung pro Gerät.** Es gibt keine Konten und keine Cookies. Das Gerät erzeugt einmal einen zufälligen Schlüssel und meldet sich damit an. Auf dem Server liegt davon nur ein Hash.
-- **Ein Eintrag pro Lobby** unter `["room", Code]` mit dem ganzen Stand. Jede Änderung läuft so: lesen, prüfen, atomar schreiben. Kommen zwei Aktionen gleichzeitig, gewinnt eine, die andere wird mit dem neuen Stand wiederholt.
+- **Ein Eintrag pro Lobby** unter `["hexa_room", Code]` mit dem ganzen Stand. Jede Änderung läuft so: lesen, prüfen, atomar schreiben. Kommen zwei Aktionen gleichzeitig, gewinnt eine, die andere wird mit dem neuen Stand wiederholt.
 - **Mehrere Instanzen:** Jede Instanz beobachtet ihre Lobbys mit `kv.watch()` und schickt Änderungen sofort an ihre Verbindungen. Zusätzlich fragt sie alle 5 Sekunden nach (siehe `HEXA_POLL_MS`).
 - **Zugzeit:** Gespeichert wird nur das Ende des Zugs. Kurz danach (1 Sekunde Puffer) streicht die Instanz ein zufälliges freies Feld. Ein Countdown bekommt eigene 30 Sekunden. Wer zweimal hintereinander die Zeit verpasst und nicht verbunden ist, wird sofort übersprungen.
 - **Bots:** Der Server spielt sie selbst, mit derselben Logik wie die App (`js/bot.js`). Wann der nächste Schritt fällig ist, steht in `turn.botAt`, genau wie das Ende der Zugzeit. Die Instanz, deren Timer zuerst abläuft, macht ihn. Weil jeder Schritt durch die Spielregeln geprüft und atomar gespeichert wird, passiert nichts doppelt. Pro Aufruf gibt es höchstens einen Schritt, die Pausen dazwischen kommen aus `botDelays`. Bots verpassen nie die Zeit. Ohne Verbindungen gibt es keinen Timer: Dann steht das Spiel, auch für die Bots, bis jemand zurückkommt.

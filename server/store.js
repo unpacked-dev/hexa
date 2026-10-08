@@ -1,5 +1,5 @@
 /* HEXA – Lobbys in Deno KV.
-   Jede Lobby ist ein einziger Eintrag unter ["room", Code] mit dem ganzen Stand.
+   Jede Lobby ist ein einziger Eintrag unter ["hexa_room", Code] mit dem ganzen Stand.
    Geändert wird immer gleich: lesen, rechnen, atomar schreiben. Hat dazwischen jemand anderes
    geschrieben, geht es mit dem neuen Stand von vorn los. So kann niemand doppelt würfeln.
    Lobbys ohne Start verschwinden nach 1 Stunde, Spiele 24 Stunden nach der letzten Aktion. */
@@ -9,7 +9,11 @@ export const LOBBY_TTL = 60 * 60_000;
 export const GAME_TTL = 24 * 60 * 60_000;
 const INSTANCE_TTL = 35_000;
 
-export const roomKey = code => ['room', code];
+// Alle Schlüssel beginnen mit hexa_. Die Datenbank (bei Deno Deploy „unpacked“) gehört der ganzen Organisation,
+// so kommt sich HEXA nicht mit anderen Apps in die Quere.
+const ROOM = 'hexa_room';
+const INSTANCE = 'hexa_instance';
+export const roomKey = code => [ROOM, code];
 const ttl = room => (room.status === 'playing' ? GAME_TTL : LOBBY_TTL);
 // Abgelaufene Einträge löscht Deno KV erst irgendwann danach. Darum zählt die eigene Ablaufzeit.
 export const isLive = (room, now) => !!room && !(room.expires < now);
@@ -114,15 +118,15 @@ export function watchRoom(kv, code, onChange, onError = () => {}) {
 // Jede Server-Instanz meldet sich regelmäßig. Verbindungen von Instanzen, die sich nicht mehr melden
 // (etwa nach einem Update), gelten nach einer Schonfrist als getrennt, siehe prune in game.js.
 export async function heartbeat(kv, instance, now) {
-  await kv.set(['instance', instance], now, { expireIn: INSTANCE_TTL });
+  await kv.set([INSTANCE, instance], now, { expireIn: INSTANCE_TTL });
 }
 export async function liveInstances(kv, now) {
   const out = new Set();
-  for await (const e of kv.list({ prefix: ['instance'] })) {
+  for await (const e of kv.list({ prefix: [INSTANCE] })) {
     if (now - e.value < INSTANCE_TTL) out.add(e.key[1]);
   }
   return out;
 }
 export async function forgetInstance(kv, instance) {
-  await kv.delete(['instance', instance]);
+  await kv.delete([INSTANCE, instance]);
 }

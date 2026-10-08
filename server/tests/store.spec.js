@@ -92,3 +92,13 @@ Deno.test('Lebenszeichen: laufende Server-Instanzen', async () => {
   assert.deepEqual([...await S.liveInstances(kv, 2000)], ['b']);
   kv.close();
 });
+
+Deno.test('Schlüssel: Alles liegt unter hexa_, die Datenbank teilen sich mehrere Apps', async () => {
+  const kv = await Deno.openKv(':memory:');
+  await S.createRoom(kv, host(), 0, codes('KXMP'));
+  await S.heartbeat(kv, 'inst0', 0);
+  const keys = [];
+  for await (const e of kv.list({ prefix: [] })) keys.push(e.key[0]);
+  assert.deepEqual(keys.sort(), ['hexa_instance', 'hexa_room']);
+  kv.close();
+});
