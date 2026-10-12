@@ -418,7 +418,14 @@ Deno.test('Bots: Der Host holt sie dazu, sie spielen auf zwei Instanzen genau ei
     lena.send({ t: 'roll', n: 1 });
     await lena.until(r => r.dice.owner === lenaId && r.dice.rolls === 1);
     lena.send({ t: 'enter', field: free(lena.state, lenaId)[0] });
-    await tim.until(r => r.turn.player === timId);
+    // Hatte Lena im ersten Wurf 4 gleiche (etwa jedes 20. Mal), kommt erst ihr Countdown. Den würfelt sie zu Ende.
+    let r = await lena.until(x => x.turn.player !== lenaId || x.turn.phase === 'cd');
+    while (r.turn.player === lenaId && r.turn.phase === 'cd') {
+      lena.send({ t: 'cdRoll', stage: r.cdGame.stage });
+      const seq = r.seq;
+      r = await lena.until(x => x.seq > seq);
+    }
+    await tim.until(x => x.turn.player === timId);
     await env.stop(lena, tim);
   } catch (e) {
     await env.stop();
