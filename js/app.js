@@ -308,15 +308,30 @@
       state.history[state.gameId] = {
         t: isObj(prev) && prev.t ? prev.t : Date.now(),
         r: humans().map(p => ({ n: p.name, s: totals(p.id).total })),   // Bots kommen nicht in die Highscores
+        b: blockOf(state.players, state.scores, state.cds),
       };
+      pruneBlocks(state.history);
     } else if (state.history[state.gameId]) {
       delete state.history[state.gameId];
     }
   }
-  function records() {
+  // Der ganze Block eines Spiels für die Highscores: Personen in ihrer Reihenfolge, ihre Felder und Countdowns.
+  // Nur ein paar hundert Byte. Behalten wird er nur für Spiele, die in den Top 10 stehen (pruneBlocks).
+  function blockOf(players, scores, cds) {
+    return {
+      p: players.map(p => Object.assign({ n: p.name }, p.bot ? { bot: 1, l: Bot.levelOf(p.level) } : {})),
+      s: players.map(p => (isObj(scores[p.id]) ? Object.assign({}, scores[p.id]) : {})),
+      c: players.map(p => (Array.isArray(cds[p.id]) ? cds[p.id].filter(x => typeof x === 'number') : [])),
+    };
+  }
+  function pruneBlocks(history) {
+    const keep = new Set(records(history).map(r => r.g));
+    Object.keys(history).forEach(k => { if (!keep.has(k) && isObj(history[k])) delete history[k].b; });
+  }
+  function records(history = state.history) {
     const out = [];
-    Object.keys(state.history).forEach(k => {
-      const g = state.history[k];
+    Object.keys(history).forEach(k => {
+      const g = history[k];
       if (isObj(g) && Array.isArray(g.r)) {
         g.r.forEach(r => { if (isObj(r) && typeof r.s === 'number') out.push({ n: String(r.n || ''), s: r.s, t: g.t || 0, g: k }); });
       }
@@ -647,26 +662,38 @@
         </div>`;
       return;
     }
-    const cur = currentPlayer();
+    const endHTML = gameDone() ? endCard(tr('end.noteBlock')) : '';
+    root.innerHTML = `${endHTML}${padHTML()}
+      <p class="pad-hint">${tr(online() ? 'online.blockHint' : 'block.hint')}</p>`;
+    padSync(root, true);
+  }
+
+  // Der Block aus state als HTML. Mit ro nur zum Lesen (Highscores): keine Knöpfe, keine Zug-Markierung,
+  // dafür ist die Spalte von hi hervorgehoben.
+  function padHTML(ro, hi) {
+    const P = state.players;
+    const cur = ro ? null : currentPlayer();
     const T = {};
     P.forEach(p => { T[p.id] = totals(p.id); });
     const best = Math.max.apply(null, P.map(p => T[p.id].total));
     const started = anyScores();
-    const turn = p => (cur && cur.id === p.id ? ' is-turn' : '');
+    const turn = p => ((ro ? hi === p.id : cur && cur.id === p.id) ? ' is-turn' : '');
 
     const lab = (name, sub, icon) => `<div class="p-lab">${icon || ''}<span class="p-lt"><span class="p-nm">${name}</span>${sub ? `<span class="p-rq">${sub}</span>` : ''}</span></div>`;
     const cell = (p, f) => {
       const v = scoreOf(p.id, f.key);
-      const sending = online() && !!pendingEnter && !!room && p.id === room.you && f.key === pendingEnter.key;
+      const sending = !ro && online() && !!pendingEnter && !!room && p.id === room.you && f.key === pendingEnter.key;
       const cls = 'p-cell' + turn(p) + (v === null ? ' empty' : v === 0 ? ' zero' : '') + (p.bot ? ' is-bot' : '') + (sending ? ' sending' : '');
       const inner = v === null ? '<span class="p-dot"></span>' : `<span class="p-w">${v}</span>`;
       const field = fieldName(f.key);
       const label = v === null ? tr('block.cellEmpty', { name: p.name, field }) : tr('block.cellValue', { name: p.name, field, pts: trPts(v) });
+      if (ro) return `<div class="${cls}" role="img" aria-label="${esc(label)}">${inner}</div>`;
       return `<button type="button" class="${cls}" data-act="cell" data-pid="${p.id}" data-key="${f.key}" aria-label="${esc(label)}">${inner}</button>`;
     };
     const val = (p, html, extra) => `<div class="p-val${turn(p)}${extra ? ' ' + extra : ''}">${html}</div>`;
     // Online: Punkt für verbunden oder nicht, und „du“ an der eigenen Spalte
     const padName = p => {
+      if (ro) return `<div class="pad-name${turn(p)}" title="${esc(p.name)}">${p.bot ? botMark : ''}${esc(p.name)}</div>`;
       const o = online() ? onlinePlayer(p.id) : null;
       if (!o) return `<button type="button" class="pad-name${turn(p)}" data-act="player" data-pid="${p.id}" title="${esc(p.name)}" aria-label="${esc(tr(p.bot ? 'block.botName' : 'block.editName', { name: p.name }))}">${p.bot ? botMark : ''}${esc(p.name)}</button>`;
       const me = p.id === room.you;
@@ -691,31 +718,35 @@
       const t = T[p.id];
       const has = t.list.length > 0;
       const label = tr('block.cellValue', { name: p.name, field: tr('block.countdown'), pts: trPts(t.cd) });
-      return `<button type="button" class="p-cell${turn(p)}${has ? '' : ' empty'}${p.bot ? ' is-bot' : ''}" data-act="cd-cell" data-pid="${p.id}" aria-label="${esc(label)}">${has ? `<span class="p-w">${t.cd}</span>` : '<span class="p-dot"></span>'}</button>`;
+      const cls = `p-cell${turn(p)}${has ? '' : ' empty'}${p.bot ? ' is-bot' : ''}`;
+      const inner = has ? `<span class="p-w">${t.cd}</span>` : '<span class="p-dot"></span>';
+      if (ro) return `<div class="${cls}" role="img" aria-label="${esc(label)}">${inner}</div>`;
+      return `<button type="button" class="${cls}" data-act="cd-cell" data-pid="${p.id}" aria-label="${esc(label)}">${inner}</button>`;
     }).join('')}</div>`;
     rows += `<div class="p-row total">${lab(tr('block.total'))}${P.map(p => val(p, T[p.id].total, started && best > 0 && T[p.id].total === best ? 'is-lead' : '')).join('')}</div>`;
 
-    const endHTML = gameDone() ? endCard(tr('end.noteBlock')) : '';
-
-    root.innerHTML = `${endHTML}
-      <div class="pad" style="--n:${P.length};--pcols:repeat(${P.length}, minmax(var(--cw), 1fr))">
+    return `
+      <div class="pad${ro ? ' pad-ro' : ''}" style="--n:${P.length};--pcols:repeat(${P.length}, minmax(var(--cw), 1fr))">
         <div class="pad-top" aria-hidden="true"></div>
         <div class="pad-head">
           <div class="pad-corner"></div>
           <div class="pad-vp"><div class="pad-names">${P.map(padName).join('')}</div></div>
         </div>
         <div class="p-body"><div class="p-grid">${rows}</div></div>
-      </div>
-      <p class="pad-hint">${tr(online() ? 'online.blockHint' : 'block.hint')}</p>`;
+      </div>`;
+  }
 
+  // Namen oben laufen beim seitlichen Scrollen mit. keep: Position merken (Block im Spiel).
+  function padSync(root, keep) {
     const body = $('.p-body', root);
     const track = $('.pad-names', root);
+    if (!body || !track) return;
     const sync = () => {
-      padScroll = body.scrollLeft;
+      if (keep) padScroll = body.scrollLeft;
       track.style.transform = 'translateX(' + (-body.scrollLeft) + 'px)';
     };
     body.addEventListener('scroll', sync, { passive: true });
-    body.scrollLeft = padScroll;
+    if (keep) body.scrollLeft = padScroll;
     sync();
   }
 
@@ -1945,7 +1976,7 @@
   function openHighscores() {
     const recs = records();
     const local = recs.length
-      ? `<ol class="rec">${recs.map((r, i) => `<li><span class="rn">${i + 1}.</span><span class="rname">${esc(r.n)}<small>${fmtDate(r.t)}</small></span><span class="rs">${r.s}</span></li>`).join('')}</ol>
+      ? `<ol class="rec">${recs.map((r, i) => `<li><button type="button" class="rec-b" data-act="rec-block" data-i="${i}" aria-label="${esc(tr('scores.rowLabel', { place: i + 1, name: r.n, pts: trPts(r.s), date: fmtDate(r.t) }))}"><span class="rn">${i + 1}.</span><span class="rname">${esc(r.n)}<small>${fmtDate(r.t)}</small></span><span class="rs">${r.s}</span><span class="rchev" aria-hidden="true">${ICON.chev}</span></button></li>`).join('')}</ol>
          <p class="saved">${ICON.phone}<span>${tr('scores.note')}</span></p>
          <button type="button" class="btn btn-quiet hs-clear" data-act="sheet-do" data-do="clear">${tr('scores.clear')}</button>`
       : `<div class="hs-empty"><span class="hs-ic">${ICON.trophy}</span><p><b>${tr('scores.emptyTitle')}</b></p><p>${tr('scores.emptyText')}</p></div>`;
@@ -1955,6 +1986,52 @@
       <div class="s-acts"><button type="button" class="btn btn-pen" data-act="sheet-close">${tr('common.done')}</button></div>`, {
       clear: confirmClearRecords,
     }, tr('scores.title'));
+  }
+
+  // Block eines Spiels aus den Highscores, nur zum Lesen. Die Spalte der Person aus der Zeile ist hervorgehoben.
+  function openRecordBlock(i) {
+    const rec = records()[i];
+    if (!rec) return;
+    const entry = state.history[rec.g];
+    const b = isObj(entry) ? entry.b : null;
+    if (!(isObj(b) && Array.isArray(b.p) && b.p.length && Array.isArray(b.s) && Array.isArray(b.c))) {
+      toast(tr('scores.noBlock'));
+      return;
+    }
+    const view = freshState();
+    view.players = b.p.slice(0, Config.maxPlayers).map((x, k) => Object.assign({ id: 'p' + k, name: String(isObj(x) && x.n || tr('setup.fallback')).slice(0, 20) }, isObj(x) && x.bot ? { bot: true, level: Bot.levelOf(x.l) } : {}));
+    view.players.forEach((p, k) => {
+      const sc = isObj(b.s[k]) ? b.s[k] : {};
+      view.scores[p.id] = {};
+      FIELDS.forEach(f => { if (typeof sc[f.key] === 'number') view.scores[p.id][f.key] = sc[f.key]; });
+      view.cds[p.id] = Array.isArray(b.c[k]) ? b.c[k].filter(x => typeof x === 'number') : [];
+    });
+    const prev = state;
+    state = view;
+    let pad = '';
+    let note = '';
+    try {
+      const T = view.players.map(p => totals(p.id).total);
+      const k = view.players.findIndex((p, j) => !p.bot && p.name === rec.n && T[j] === rec.s);
+      const hi = k >= 0 ? view.players[k].id : null;
+      pad = padHTML(true, hi);
+      const place = 1 + T.filter(t => t > rec.s).length;
+      note = view.players.length > 1
+        ? tr('scores.gamePlace', { name: rec.n, pts: trPts(rec.s), place, n: view.players.length })
+        : tr('scores.gameSolo', { name: rec.n, pts: trPts(rec.s) });
+    } finally {
+      state = prev;
+    }
+    openSheet(`
+      <h3 class="s-title">${tr('scores.gameTitle', { date: fmtDate(rec.t) })}</h3>
+      <p class="s-note">${esc(note)}</p>
+      <div class="rec-pad">${pad}</div>
+      <div class="s-acts">
+        <button type="button" class="btn btn-pen" data-act="sheet-do" data-do="back">${tr('scores.back')}</button>
+      </div>`, {
+      back: () => openHighscores(),
+    }, tr('scores.gameTitle', { date: fmtDate(rec.t) }));
+    padSync($('#sheet'), false);
   }
 
   function confirmClearRecords() {
@@ -3047,7 +3124,10 @@
   function saveOnlineResult(r) {
     const me = r.last.ranking.find(x => x.id === r.you);
     if (!me) return;
-    local.history['online-' + r.code + '-' + r.last.game + '-' + r.last.at] = { t: r.last.at, r: [{ n: me.name, s: me.total }] };
+    // Den ganzen Block gibt es am Spielende noch im Stand, bis zur Revanche
+    const players = r.players.map(p => ({ id: p.id, name: p.name, bot: p.bot, level: p.level }));
+    local.history['online-' + r.code + '-' + r.last.game + '-' + r.last.at] = { t: r.last.at, r: [{ n: me.name, s: me.total }], b: blockOf(players, r.scores || {}, r.cds || {}) };
+    pruneBlocks(local.history);
     saveLocal();
   }
 
@@ -3282,6 +3362,7 @@
       case 'home': showStart(); break;
       case 'menu': openMenu(); break;
       case 'scores': openHighscores(); break;
+      case 'rec-block': openRecordBlock(Number(t.dataset.i)); break;
       case 'settings': openSettings(); break;
       case 'learn': openLearn(); break;
       case 'install': installApp(); break;

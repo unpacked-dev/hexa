@@ -5,6 +5,10 @@ Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), die V
 
 ## [Unreleased]
 
+### Neu
+
+- **Block in den Highscores** ([#15](https://github.com/unpacked-dev/hexa/issues/15)): Ein Tipp auf ein Ergebnis zeigt den Block dieses Spiels, nur zum Lesen, mit allen Personen. Die Spalte aus der Zeile ist gelb hinterlegt, darüber steht die Platzierung. Gespeichert wird der Block ab jetzt beim Spielende, lokal und online, aber nur für die Spiele in den Top 10. Ältere Einträge haben keinen Block, dort kommt ein kurzer Hinweis.
+
 ### Geändert
 
 - **Countdown nur für die eigene Person** ([#13](https://github.com/unpacked-dev/hexa/issues/13)): Nach einem Countdown mit App-Würfeln gehen die Punkte an die Person, die ihn gewürfelt hat. Die Auswahl „Eintragen für“ und „Nicht eintragen“ gibt es nicht mehr. Mit eigenen Würfeln trägt man den Countdown wie bisher im Block ein.

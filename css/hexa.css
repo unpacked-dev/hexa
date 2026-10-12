@@ -570,7 +570,20 @@ button.lvl:focus-visible { outline: 2px solid var(--pen); outline-offset: 2px; }
 .empty-box li { margin: 6px 0; }
 .empty-box .btn { margin-top: 10px; }
 .rec { margin: 0 0 6px; padding: 0; list-style: none; }
-.rec li { display: flex; align-items: baseline; gap: 10px; padding: 11px 0; border-bottom: 1px solid var(--rule); }
+.rec li { border-bottom: 1px solid var(--rule); }
+/* Jede Zeile öffnet den Block des Spiels */
+.rec-b {
+  display: flex; align-items: baseline; gap: 10px; width: 100%; padding: 11px 0; border: 0;
+  background: none; color: inherit; font: inherit; text-align: left; cursor: pointer;
+}
+.rec-b:active { background-color: var(--sheet-2); }
+.rec-b:focus-visible { outline: 2px solid var(--pen); outline-offset: 2px; border-radius: 6px; }
+.rchev { align-self: center; display: grid; color: var(--ink-3); }
+.rchev svg { width: 18px; height: 18px; }
+.rec-pad { margin: 12px -4px 0; }
+.rec-pad .pad { box-shadow: none; border: 1px solid var(--rule); }
+.pad-ro .p-cell, .pad-ro .pad-name { cursor: default; }
+.pad-ro .p-cell:active, .pad-ro .pad-name:active { background-color: transparent; }
 .rn { flex: none; width: 24px; font-weight: 800; color: var(--ink-3); }
 .rname { flex: 1; min-width: 0; font-weight: 700; }
 .rname small { display: block; font-size: 12px; font-weight: 500; color: var(--ink-3); }
