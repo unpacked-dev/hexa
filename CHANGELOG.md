@@ -3,6 +3,12 @@
 Alle wichtigen Änderungen an HEXA: Countdown stehen hier.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), die Versionen folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [Unreleased]
+
+### Entfernt
+
+- **Highscores ohne Tab „Online“:** Der Platzhalter mit „Bald verfügbar“ ist weg, weil es keine Online-Bestenliste geben wird. Die Highscores sind jetzt eine Liste. Deine Ergebnisse aus Online-Spielen stehen wie bisher mit drin.
+
 ## [1.16.0] – 2026-10-12
 
 Bots in drei Stufen, ein Tagesspiel mit denselben Würfen für alle und schnelleres Eintragen online.

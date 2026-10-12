@@ -378,14 +378,10 @@
 
     scores: {
       title: 'Highscores',
-      local: 'Lokal',
-      online: 'Online',
-      note: 'Die zehn besten Ergebnisse, nur auf diesem Gerät gespeichert.',
+      note: 'Die zehn besten Ergebnisse, auch deine aus Online-Spielen. Nur auf diesem Gerät gespeichert.',
       clear: 'Liste leeren',
       emptyTitle: 'Noch keine Highscores',
       emptyText: 'Nach dem ersten kompletten Spiel stehen hier die zehn besten Ergebnisse.',
-      onlineTitle: 'Noch keine Online-Bestenliste',
-      onlineText: 'Deine Ergebnisse aus Online-Spielen stehen unter „Lokal“. Eine Bestenliste für alle kommt vielleicht später.',
       clearTitle: 'Highscores leeren?',
       clearText: 'Alle gespeicherten Ergebnisse auf diesem Gerät werden gelöscht.',
       clearOk: 'Highscores leeren',

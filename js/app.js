@@ -1946,34 +1946,20 @@
   }
 
   /* ---------- Highscores ---------- */
-  function openHighscores(tab) {
-    const on = tab === 'online' ? 'online' : 'local';
+  // Eine Liste: lokale Spiele und die eigenen Ergebnisse aus Online-Spielen. Eine Bestenliste für alle gibt es nicht.
+  function openHighscores() {
     const recs = records();
     const local = recs.length
       ? `<ol class="rec">${recs.map((r, i) => `<li><span class="rn">${i + 1}.</span><span class="rname">${esc(r.n)}<small>${fmtDate(r.t)}</small></span><span class="rs">${r.s}</span></li>`).join('')}</ol>
          <p class="saved">${ICON.phone}<span>${tr('scores.note')}</span></p>
          <button type="button" class="btn btn-quiet hs-clear" data-act="sheet-do" data-do="clear">${tr('scores.clear')}</button>`
       : `<div class="hs-empty"><span class="hs-ic">${ICON.trophy}</span><p><b>${tr('scores.emptyTitle')}</b></p><p>${tr('scores.emptyText')}</p></div>`;
-    const online = `<div class="hs-empty"><span class="hs-ic">${ICON.globe}</span><p><b>${tr('scores.onlineTitle')}</b></p><p>${tr('scores.onlineText')}</p><span class="chip">${tr('common.soon')}</span></div>`;
-    const tabBtn = (id, label) => `<button type="button" class="seg-b" role="tab" id="hs-t-${id}" aria-controls="hs-p-${id}" aria-selected="${on === id}" tabindex="${on === id ? 0 : -1}" data-act="hs-tab" data-v="${id}">${label}</button>`;
     openSheet(`
       <h3 class="s-title">${tr('scores.title')}</h3>
-      <div class="seg seg-two seg-tabs" role="tablist" aria-label="${esc(tr('scores.title'))}">${tabBtn('local', tr('scores.local'))}${tabBtn('online', tr('scores.online'))}</div>
-      <div class="hs-panel" role="tabpanel" id="hs-p-local" aria-labelledby="hs-t-local"${on === 'local' ? '' : ' hidden'}>${local}</div>
-      <div class="hs-panel" role="tabpanel" id="hs-p-online" aria-labelledby="hs-t-online"${on === 'online' ? '' : ' hidden'}>${online}</div>
+      <div class="hs-panel">${local}</div>
       <div class="s-acts"><button type="button" class="btn btn-pen" data-act="sheet-close">${tr('common.done')}</button></div>`, {
       clear: confirmClearRecords,
     }, tr('scores.title'));
-  }
-
-  function setHsTab(tab, focus) {
-    $$('#sheet [role="tab"]').forEach(b => {
-      const on = b.dataset.v === tab;
-      b.setAttribute('aria-selected', on ? 'true' : 'false');
-      b.tabIndex = on ? 0 : -1;
-      if (on && focus) b.focus();
-    });
-    $$('#sheet .hs-panel').forEach(p => { p.hidden = p.id !== 'hs-p-' + tab; });
   }
 
   function confirmClearRecords() {
@@ -1989,10 +1975,10 @@
         state.history = {};
         state.skipHist = state.gameId;
         save();
-        openHighscores('local');
+        openHighscores();
         toast(tr('scores.cleared'), snap);
       },
-      back: () => openHighscores('local'),
+      back: () => openHighscores(),
     }, tr('scores.clearOk'));
   }
 
@@ -3301,7 +3287,6 @@
       case 'home': showStart(); break;
       case 'menu': openMenu(); break;
       case 'scores': openHighscores(); break;
-      case 'hs-tab': setHsTab(t.dataset.v); break;
       case 'settings': openSettings(); break;
       case 'learn': openLearn(); break;
       case 'install': installApp(); break;
@@ -3397,12 +3382,6 @@
       return;
     }
     if (shortcut(e)) return;
-    // Pfeiltasten wechseln zwischen den Tabs der Highscores
-    if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && t && t.getAttribute && t.getAttribute('role') === 'tab') {
-      e.preventDefault();
-      setHsTab(t.dataset.v === 'local' ? 'online' : 'local', true);
-      return;
-    }
     if (e.key !== 'Enter' || !t) return;
     if (t.id === 'newName') { e.preventDefault(); addPlayer(); }
     else if (t.id === 'olCode') { e.preventDefault(); joinWithCode(); }

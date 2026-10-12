@@ -376,14 +376,10 @@
 
     scores: {
       title: 'High Scores',
-      local: 'Local',
-      online: 'Online',
-      note: 'The top ten results, saved only on this device.',
+      note: 'The top ten results, including yours from online games. Saved only on this device.',
       clear: 'Clear list',
       emptyTitle: 'No high scores yet',
       emptyText: 'After your first complete game, the top ten results will show up here.',
-      onlineTitle: 'No online leaderboard yet',
-      onlineText: 'Your results from online games are listed under “Local”. A leaderboard for everyone may come later.',
       clearTitle: 'Clear the high scores?',
       clearText: 'All results saved on this device will be deleted.',
       clearOk: 'Clear high scores',
