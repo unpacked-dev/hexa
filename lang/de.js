@@ -96,7 +96,7 @@
       down: '{name} nach unten',
       remove: '{name} entfernen',
       howTitle: 'So spielst du mit der App',
-      how1: 'Trag oben alle Namen ein. Computergegner holst du dir mit „Bot hinzufügen“ dazu.',
+      how1: 'Trag oben alle Namen ein. Computergegner holst du dir mit „Bot hinzufügen“ dazu, ein Tipp auf ihre Stufe wechselt sie.',
       how2: 'Wähle, ob ihr mit der App oder mit euren eigenen Würfeln spielt.',
       how3: 'Die App führt den Spielblock und rechnet alles aus.',
       viaTitle: 'Womit würfelt ihr?',
@@ -111,6 +111,7 @@
       botsFull: 'Mehr Bots gehen nicht',
       full: 'Mehr geht nicht: höchstens {n} Personen pro Spiel.',
       botTag: ', Bot',
+      botLevel: 'Stufe von {name}: {level}. Antippen zum Wechseln.',
       viaBots: 'Mit Bots würfelt ihr mit der App.',
     },
 
@@ -296,6 +297,7 @@
       aCountdown: 'ein Countdown',
       askOk: 'Entfernen und Punkte löschen',
       botText: '{name} ist ein Bot und spielt von allein. Den Namen kann man nicht ändern.',
+      botLevel: 'Stufe: {level}.',
     },
 
     bot: {
@@ -314,6 +316,7 @@
       cdPlays: '{name} spielt den Countdown …',
       cdNeed: 'Stufe {stage}: {name} braucht eine {n}.',
       cdRollWith: 'Gewürfelt wird mit {dice}, Trefferchance {p} %.',
+      level: { easy: 'leicht', medium: 'mittel', hard: 'schwer' },
     },
 
     pause: {

@@ -329,13 +329,29 @@ Deno.test('Bots: nur der Host holt sie dazu, Namen aus js/config.js, keiner dopp
   assert.equal(b.key, null);
   assert.deepEqual(lastEvent(room), { no: room.eventNo, type: 'join', player: b.id, name: b.name, bot: true });
   const v = G.view(room, 'p1');
-  assert.deepEqual(v.players[2], { id: b.id, name: b.name, online: false, missed: 0, bot: true });
+  assert.deepEqual(v.players[2], { id: b.id, name: b.name, online: false, missed: 0, bot: true, level: 'hard' });
   assert.equal(v.players[0].bot, undefined);
   // Bots lassen sich verschieben und entfernen wie Menschen
   G.order(room, 'p1', [b.id, 'p1', 'p2']);
   assert.equal(room.players[0].id, b.id);
   G.kick(room, 'p1', b.id, ctx(0));
   assert.equal(G.playerById(room, b.id), null);
+});
+
+Deno.test('Bots: Stufe beim Hinzufügen und in der Lobby wechseln, nur der Host, ohne Angabe schwer', () => {
+  const room = lobby(['Lena', 'Tim']);
+  assert.deepEqual(G.BOT_LEVELS, ['easy', 'medium', 'hard']);
+  const easy = G.addBot(room, 'p1', ctx(0), 'easy');
+  const old = G.addBot(room, 'p1', ctx(0));               // ältere Apps schicken keine Stufe
+  const odd = G.addBot(room, 'p1', ctx(0), 'unbesiegbar');
+  assert.deepEqual([easy.level, old.level, odd.level], ['easy', 'hard', 'hard']);
+  G.setBotLevel(room, 'p1', old.id, 'medium');
+  assert.deepEqual(G.view(room, 'p2').players.filter(p => p.bot).map(p => p.level), ['easy', 'medium', 'hard']);
+  assert.throws(() => G.setBotLevel(room, 'p2', old.id, 'easy'), code('not-host'));
+  assert.throws(() => G.setBotLevel(room, 'p1', 'p2', 'easy'), code('bad-message'));         // kein Bot
+  assert.throws(() => G.setBotLevel(room, 'p1', old.id, 'unbesiegbar'), code('bad-message'));
+  G.start(room, 'p1', ctx(0));
+  assert.throws(() => G.setBotLevel(room, 'p1', old.id, 'easy'), code('game-running'));
 });
 
 Deno.test('Bots: höchstens maxBots, zählen zu maxPlayers, nur in der Lobby', () => {
@@ -411,10 +427,11 @@ Deno.test('Bot im Countdown: spielt ihn selbst, danach ist die nächste Person d
   assert.ok(room.events.some(e => e.type === 'countdown' && e.player === b.id && e.pts === 10));
 });
 
-Deno.test('Ganze Partie: Lena gegen zwei Bots, Ergebnis mit Bot-Zeichen, kein Feld gestrichen', () => {
+Deno.test('Ganze Partie: Lena gegen einen leichten und einen mittleren Bot, Ergebnis mit Bot-Zeichen und Stufe, kein Feld gestrichen', () => {
+  // Leichtere Bots würfeln mit Fehlern. Weil jeder Schritt neu plant, müssen sie bei jedem Schritt gleich entscheiden.
   const room = lobby(['Lena']);
-  G.addBot(room, 'p1', ctx(0));
-  G.addBot(room, 'p1', ctx(0));
+  G.addBot(room, 'p1', ctx(0), 'easy');
+  G.addBot(room, 'p1', ctx(0), 'medium');
   let now = 0;
   G.start(room, 'p1', ctx(now));
   let seen = 0;
@@ -434,6 +451,7 @@ Deno.test('Ganze Partie: Lena gegen zwei Bots, Ergebnis mit Bot-Zeichen, kein Fe
   const rk = room.last.ranking;
   assert.equal(rk.length, 3);
   assert.equal(rk.filter(x => x.bot).length, 2);
+  assert.deepEqual(rk.filter(x => x.bot).map(x => x.level).sort(), ['easy', 'medium']);
   assert.equal(rk.find(x => x.id === 'p1').bot, undefined);
   room.players.forEach(p => assert.equal(Object.keys(room.scores[p.id]).length, G.FIELD_KEYS.length));
 });

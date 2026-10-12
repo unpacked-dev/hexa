@@ -1,6 +1,7 @@
 /* HEXA – Bots simulieren: Strategien spielen viele Partien allein, danach gibt es die Zahlen.
    Aufruf: node tools/bot-sim.js [Spiele] [Strategien]
-   Strategien: bot (js/bot.js), perfekt (braucht tools/out/optimal.bin aus tools/bot-optimal.js),
+   Strategien: bot (js/bot.js), leicht, mittel, schwer (Stufen aus js/bot.js, schwer ist bot),
+               perfekt (braucht tools/out/optimal.bin aus tools/bot-optimal.js),
                kandidat (Werte aus tools/out/fit.json von tools/bot-fit.js),
                einfach (hält immer die häufigste Zahl und nimmt das Feld mit den meisten Punkten)
    Beispiel:   node tools/bot-sim.js 100000 bot,perfekt,einfach
@@ -46,6 +47,18 @@ function strategy(name) {
       begin: (free, up) => Bot.solve(free, Math.min(CAP, up), value || Bot.estimate),
       hold: (vals, left) => Bot.keep(vals, left),
       pick: (free, up, vals) => Bot.pickFor(free, up, vals, value),
+    };
+  }
+  if (name === 'leicht' || name === 'mittel' || name === 'schwer') {
+    const level = { leicht: 'easy', mittel: 'medium', schwer: 'hard' }[name];
+    const value = Bot.valueFor(level);
+    let salt = 0;
+    let where = null;
+    return {
+      game: seed => { salt = seed >>> 0; },
+      begin: (free, up) => { where = [salt, free, up]; Bot.solve(free, Math.min(CAP, up), value); },
+      hold: (vals, left) => Bot.keep(vals, left, level, where),
+      pick: (free, up, vals) => Bot.pickFor(free, up, vals, value, level, salt),
     };
   }
   if (name === 'einfach') {
@@ -94,6 +107,7 @@ function emptyStats() {
 function play(st, seed, S) {
   const r = random(seed);
   const d6 = () => 1 + Math.floor(r() * 6);
+  if (st.game) st.game(seed);
   let free = ALL;
   let up = 0;
   let total = 0;

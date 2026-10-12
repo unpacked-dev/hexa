@@ -373,8 +373,15 @@ export function createHub({ kv, instance = G.randomId(8), times = G.TIMES, rng =
       if (typeof m.id !== 'string') G.fail('bad-message');
       return act(c, (room, pid, ctx) => G.kick(room, pid, m.id, ctx));
     },
-    // Nur der Host, nur in der Lobby. Entfernt werden Bots wie Menschen mit kick.
-    addBot: c => act(c, (room, pid, ctx) => G.addBot(room, pid, ctx)),
+    // Nur der Host, nur in der Lobby. Entfernt werden Bots wie Menschen mit kick. level ist freiwillig, ohne spielt der Bot schwer.
+    addBot(c, m) {
+      if (m.level !== undefined && !G.BOT_LEVELS.includes(m.level)) G.fail('bad-message');
+      return act(c, (room, pid, ctx) => G.addBot(room, pid, ctx, m.level));
+    },
+    botLevel(c, m) {
+      if (typeof m.id !== 'string' || !G.BOT_LEVELS.includes(m.level)) G.fail('bad-message');
+      return act(c, (room, pid) => G.setBotLevel(room, pid, m.id, m.level));
+    },
     roll: (c, m) => act(c, (room, pid, ctx) => G.roll(room, pid, m.n, ctx)),
     hold(c, m) {
       if (typeof m.on !== 'boolean') G.fail('bad-message');

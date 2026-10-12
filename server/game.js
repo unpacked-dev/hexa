@@ -31,6 +31,8 @@ const BOT_MS = Config.botDelays;
 export const CODE_LETTERS = 'BCDFGHJKLMNPQRSTVWXZ';
 export const CODE_RE = /^[BCDFGHJKLMNPQRSTVWXZ]{4}$/;
 export const FIELD_KEYS = FIELDS.map(f => f.key);
+// Stufen der Bots aus js/bot.js: 'easy', 'medium', 'hard'. Ohne Angabe (etwa von älteren Apps) spielen sie schwer.
+export const BOT_LEVELS = Bot.LEVELS;
 export { onlineName };
 
 const MAX_EVENTS = 12;
@@ -140,7 +142,7 @@ export function join(room, { id, name, key }) {
 }
 
 // Bots holt nur der Host dazu, und nur in der Lobby. Die Namen kommen aus js/config.js, keiner doppelt.
-export function addBot(room, by, ctx) {
+export function addBot(room, by, ctx, level) {
   if (room.status !== 'lobby') fail('game-running');
   if (room.host !== by) fail('not-host');
   if (room.players.length >= MAX_PLAYERS) fail('room-full');
@@ -148,10 +150,19 @@ export function addBot(room, by, ctx) {
   const taken = new Set(room.players.map(p => p.name.toLowerCase()));
   const free = Config.botNames.filter(n => !taken.has(n.toLowerCase()));
   if (!free.length) fail('bots-full');
-  const p = { id: randomId(), name: free[ctx.rng.int(free.length)], key: null, conns: [], missed: 0, bot: true };
+  const p = { id: randomId(), name: free[ctx.rng.int(free.length)], key: null, conns: [], missed: 0, bot: true, level: Bot.levelOf(level) };
   room.players.push(p);
   event(room, { type: 'join', player: p.id, name: p.name, bot: true });
   return p;
+}
+
+// Stufe eines Bots ändern: nur der Host, nur in der Lobby
+export function setBotLevel(room, by, id, level) {
+  if (room.status !== 'lobby') fail('game-running');
+  if (room.host !== by) fail('not-host');
+  const p = playerById(room, id);
+  if (!p || !p.bot || !BOT_LEVELS.includes(level)) fail('bad-message');
+  p.level = level;
 }
 
 // Verlassen (why 'leave') oder vom Host entfernt ('kick'). Die Punkte der Person sind dann weg.
@@ -380,10 +391,12 @@ function botStep(room, p, ctx) {
       const d = room.dice;
       const free = freeFields(room, p.id);
       const up = totals(room, p.id).upper;
+      // Die Fehler leichterer Bots hängen an Lobby, Spiel und Bot. So entscheidet der Bot bei jedem Schritt gleich.
+      const salt = Bot.saltOf(room.code + ':' + room.game + ':' + p.id);
       // Soll der Bot nach diesem Wurf Würfel halten? Dann Liste, sonst null (eintragen).
       const plan = () => {
         if (room.dice.rolls >= 3) return null;
-        const want = Bot.hold(free, up, room.dice.vals, 3 - room.dice.rolls);
+        const want = Bot.hold(free, up, room.dice.vals, 3 - room.dice.rolls, p.level, salt);
         return want.every(Boolean) ? null : want;
       };
       if (d.turn !== t.no || !d.rolls) {
@@ -400,7 +413,7 @@ function botStep(room, p, ctx) {
           roll(room, p.id, d.rolls + 1, ctx);
           wait = BOT_MS.land + BOT_MS.think + (plan() ? 0 : BOT_MS.enter);
         } else {
-          enter(room, p.id, Bot.pick(free, up, d.vals), ctx);
+          enter(room, p.id, Bot.pick(free, up, d.vals, p.level, salt), ctx);
           wait = BOT_MS.after + BOT_MS.cd;   // Countdown freigeschaltet: kurz Luft holen, bevor er startet
         }
       }
@@ -444,7 +457,7 @@ export function totals(room, id) {
 // Alle Felder voll: Das Ergebnis kommt nach last, die Lobby wartet wieder. Block und Würfel bleiben
 // bis zur Revanche sichtbar. In der Pause können auch neue Leute dazukommen.
 function finish(room, ctx) {
-  const ranking = room.players.map(p => Object.assign({ id: p.id, name: p.name }, p.bot ? { bot: true } : {}, totals(room, p.id)))
+  const ranking = room.players.map(p => Object.assign({ id: p.id, name: p.name }, p.bot ? { bot: true, level: Bot.levelOf(p.level) } : {}, totals(room, p.id)))
     .sort((a, b) => b.total - a.total);
   room.last = { game: room.game, at: ctx.now, ranking };
   room.status = 'lobby';
@@ -488,7 +501,7 @@ export function view(room, you) {
     game: room.game,
     host: room.host,
     you,
-    players: room.players.map(p => Object.assign({ id: p.id, name: p.name, online: isOnline(p), missed: p.missed }, p.bot ? { bot: true } : {})),
+    players: room.players.map(p => Object.assign({ id: p.id, name: p.name, online: isOnline(p), missed: p.missed }, p.bot ? { bot: true, level: Bot.levelOf(p.level) } : {})),
     scores: room.scores,
     cds: room.cds,
     dice: room.dice,

@@ -538,6 +538,22 @@ button { touch-action: manipulation; }
 .add-bot svg { width: 20px; height: 20px; }
 .pname-bot { display: flex; align-items: center; gap: 8px; padding: 8px; }
 .pname-bot .bot-ic { width: 20px; height: 20px; margin: 0; }
+.bot-tx { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; min-width: 0; }
+.bot-nm { min-width: 0; }
+/* Stufe eines Bots: als Knopf zum Wechseln (Spielerliste, Lobby des Hosts) oder nur als Text */
+.lvl {
+  flex: none; display: inline-flex; align-items: center; min-height: 28px; padding: 3px 11px;
+  border: 1.5px solid var(--rule); border-radius: 999px; background: transparent;
+  color: var(--ink-2); font: inherit; font-size: 13px; font-weight: 700; line-height: 1.2; cursor: pointer;
+}
+button.lvl::before { content: ''; width: 8px; height: 8px; margin-right: 6px; border-radius: 50%; background: var(--lvl-c, var(--ink-3)); }
+.lvl[data-level="easy"] { --lvl-c: var(--live); }
+.lvl[data-level="medium"] { --lvl-c: #E0A800; }
+.lvl[data-level="hard"] { --lvl-c: var(--danger); }
+button.lvl:active { background: var(--sheet-2); }
+button.lvl:focus-visible { outline: 2px solid var(--pen); outline-offset: 2px; }
+.lvl.lvl-t { min-height: 0; margin-left: 8px; padding: 1px 8px; border-width: 1px; font-size: 12px; cursor: default; vertical-align: 1px; }
+.ol-pname .lvl.lvl-t { margin-left: 0; font-size: 12px; color: var(--ink-3); }
 .p-cell.is-bot { cursor: default; }
 .p-cell.is-bot:active { background-color: transparent; }
 .cd-bot { margin: 0; font-weight: 700; text-align: center; }

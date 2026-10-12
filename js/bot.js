@@ -220,6 +220,57 @@
   };
   const estimate = makeEstimate(PARAMS);
 
+  /* ---------- Stufen ---------- */
+  // Schwer spielt wie oben beschrieben. Leichtere Bots machen Fehler wie Menschen: Sie denken weniger an
+  // später (future: so viel zählt die Schätzung für den Rest des Spiels) und greifen öfter daneben
+  // (hold, pick: Wie viele Punkte schlechter ein Zug sein darf, damit sie ihn noch oft wählen).
+  // Der Zufall dafür hängt nur an der Lage (Würfel, freie Felder, Punkte oben, Wurf) und an salt.
+  // Dieselbe Lage gibt also dieselbe Entscheidung. So kann der Server einen Zug in mehreren Schritten
+  // spielen, ohne dass der Bot es sich mittendrin anders überlegt. salt kommt aus Spiel und Bot (saltOf).
+  // Im Schnitt holen sie (tools/bot-sim.js, 100.000 Spiele): leicht 229,9, mittel 282,8, schwer 322,5 Punkte.
+  const LEVELS = {
+    easy: { future: 0.5, hold: 2.5, pick: 2 },
+    medium: { future: 0.8, hold: 1.3, pick: 1 },
+    hard: { future: 1, hold: 0, pick: 0 },
+  };
+  const LEVEL_IDS = Object.keys(LEVELS);
+  const levelOf = x => (Object.prototype.hasOwnProperty.call(LEVELS, x) ? x : 'hard');
+  const VALUE = {};
+  LEVEL_IDS.forEach(id => {
+    const w = LEVELS[id].future;
+    VALUE[id] = w === 1 ? estimate : (free, up) => w * estimate(free, up);
+  });
+  // Zahl zwischen 0 und 1 aus ganzen Zahlen, immer dieselbe für dieselben Zahlen
+  function unit(...xs) {
+    let h = 0x811c9dc5;
+    for (const x of xs) {
+      h = Math.imul(h ^ (x >>> 0), 0x01000193);
+      h ^= h >>> 15;
+      h = Math.imul(h, 0x2c1b3c6d);
+      h ^= h >>> 12;
+    }
+    h = Math.imul(h ^ (h >>> 16), 0x297a2d39);
+    h ^= h >>> 15;
+    return (h >>> 0) / 4294967296;
+  }
+  // Ein salt aus einem Text, etwa Spiel-ID und Bot-ID
+  function saltOf(str) {
+    let h = 0x811c9dc5;
+    for (let i = 0; i < str.length; i++) h = Math.imul(h ^ str.charCodeAt(i), 0x01000193);
+    return h >>> 0;
+  }
+  // Aus Kandidaten mit Wert: der beste, oder bei spread > 0 zufällig, Bessere wahrscheinlicher
+  function choose(list, spread, u) {
+    let top = list[0];
+    for (const c of list) if (c.v > top.v) top = c;
+    if (!(spread > 0)) return top;
+    let sum = 0;
+    for (const c of list) { c.w = Math.exp((c.v - top.v) / spread); sum += c.w; }
+    let left = u * sum;
+    for (const c of list) { left -= c.w; if (left < 0) return c; }
+    return top;
+  }
+
   /* ---------- Entscheidungen für die App ---------- */
   const KEYS = FIELDS.map(f => f.key);
   function maskOf(freeKeys) {
@@ -231,12 +282,14 @@
 
   // Welche Würfel bleiben liegen? rollsLeft: 1 oder 2. Gibt je Würfel true (liegen lassen) zurück.
   // Bleiben alle liegen, hört der Bot auf und trägt ein.
-  function holdFor(free, up, vals, rollsLeft, value) {
-    solve(free, Math.min(CAP, up), value || estimate);
-    return keep(vals, rollsLeft);
+  // level und salt: siehe Stufen. Ohne level spielt der Bot schwer.
+  function holdFor(free, up, vals, rollsLeft, value, level, salt) {
+    const id = levelOf(level);
+    solve(free, Math.min(CAP, up), value || VALUE[id]);
+    return keep(vals, rollsLeft, id, [salt, free, up]);
   }
-  // Wie holdFor, nutzt aber den zuletzt mit solve() gerechneten Zug.
-  function keep(vals, rollsLeft) {
+  // Wie holdFor, nutzt aber den zuletzt mit solve() gerechneten Zug. where: Zahlen für den Zufall.
+  function keep(vals, rollsLeft, level, where) {
     const K = rollsLeft >= 2 ? K1 : K0;
     const d = IDX[codeOf(countsOf(vals))];
     let pick = d;
@@ -246,17 +299,29 @@
       // Bei gleichem Wert lieber mehr Würfel liegen lassen, das sieht ruhiger aus.
       if (K[k] > m + 1e-9 || (Math.abs(K[k] - m) <= 1e-9 && SIZE[k] > SIZE[pick])) { m = K[k]; pick = k; }
     }
+    const spread = LEVELS[levelOf(level)].hold;
+    if (spread > 0) {
+      const list = [];
+      for (let j = SUB_OFF[d], e = SUB_OFF[d + 1]; j < e; j++) list.push({ k: SUBS[j], v: SUBS[j] === pick ? m : K[SUBS[j]] });
+      pick = choose(list, spread, unit(...(where || []), d, rollsLeft, 1)).k;
+    }
     const want = COUNTS[pick].slice();
     return vals.map(v => (want[v - 1] > 0 ? (want[v - 1]--, true) : false));
   }
 
   // Welches freie Feld trägt der Bot ein?
-  function pickFor(free, up, vals, value) {
-    const opts = options(free, Math.min(CAP, up), value || estimate);
+  function pickFor(free, up, vals, value, level, salt) {
+    const id = levelOf(level);
+    const opts = options(free, Math.min(CAP, up), value || VALUE[id]);
     const d = IDX[codeOf(countsOf(vals))];
     let bestF = -1;
     let m = -Infinity;
     for (const o of opts) { const v = optValue(o, d); if (v > m + 1e-9) { m = v; bestF = o.f; } }
+    const spread = LEVELS[id].pick;
+    if (spread > 0) {
+      const list = opts.map(o => ({ f: o.f, v: o.f === bestF ? m : optValue(o, d) }));
+      bestF = choose(list, spread, unit(salt, free, up, d, 2)).f;
+    }
     return bestF;
   }
 
@@ -265,9 +330,13 @@
 
   const api = {
     NAMES,
-    // Für die App: Feldnamen und Punkte oben wie im Spielstand
-    hold: (freeKeys, upperSum, vals, rollsLeft) => holdFor(maskOf(freeKeys), upperSum, vals, rollsLeft),
-    pick: (freeKeys, upperSum, vals) => KEYS[pickFor(maskOf(freeKeys), upperSum, vals)],
+    // Für die App: Feldnamen und Punkte oben wie im Spielstand. level: 'easy', 'medium' oder 'hard' (Standard).
+    hold: (freeKeys, upperSum, vals, rollsLeft, level, salt) => holdFor(maskOf(freeKeys), upperSum, vals, rollsLeft, null, level, salt),
+    pick: (freeKeys, upperSum, vals, level, salt) => KEYS[pickFor(maskOf(freeKeys), upperSum, vals, null, level, salt)],
+    LEVELS: LEVEL_IDS,
+    levelOf,
+    saltOf,
+    valueFor: level => VALUE[levelOf(level)],
     // Für Simulation und Tests
     NF, ALL, UP, CAP, NK, FULL, COUNTS, PROB,
     solve, keep, holdFor, pickFor, estimate, makeEstimate, maskOf, PAIRS,

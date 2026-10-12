@@ -74,7 +74,7 @@ Die App fragt beim Start `health` auf ihrer eigenen Adresse. Antwortet dort ein 
 - **Ein Eintrag pro Lobby** unter `["hexa_room", Code]` mit dem ganzen Stand. Jede Änderung läuft so: lesen, prüfen, atomar schreiben. Kommen zwei Aktionen gleichzeitig, gewinnt eine, die andere wird mit dem neuen Stand wiederholt.
 - **Mehrere Instanzen:** Jede Instanz beobachtet ihre Lobbys mit `kv.watch()` und schickt Änderungen sofort an ihre Verbindungen. Zusätzlich fragt sie alle 5 Sekunden nach (siehe `HEXA_POLL_MS`).
 - **Zugzeit:** Gespeichert wird nur das Ende des Zugs. Kurz danach (1 Sekunde Puffer) streicht die Instanz ein zufälliges freies Feld. Ein Countdown bekommt eigene 30 Sekunden. Wer zweimal hintereinander die Zeit verpasst und nicht verbunden ist, wird sofort übersprungen.
-- **Bots:** Der Server spielt sie selbst, mit derselben Logik wie die App (`js/bot.js`). Wann der nächste Schritt fällig ist, steht in `turn.botAt`, genau wie das Ende der Zugzeit. Die Instanz, deren Timer zuerst abläuft, macht ihn. Weil jeder Schritt durch die Spielregeln geprüft und atomar gespeichert wird, passiert nichts doppelt. Pro Aufruf gibt es höchstens einen Schritt, die Pausen dazwischen kommen aus `botDelays`. Bots verpassen nie die Zeit. Ohne Verbindungen gibt es keinen Timer: Dann steht das Spiel, auch für die Bots, bis jemand zurückkommt.
+- **Bots:** Der Server spielt sie selbst, mit derselben Logik wie die App (`js/bot.js`), in der Stufe, die der Host gewählt hat. Die Fehler leichterer Bots hängen an Lobby, Spiel und Bot, nicht am Zufall des Servers. So entscheidet ein Bot bei jedem Schritt seines Zugs gleich, auch auf verschiedenen Instanzen. Wann der nächste Schritt fällig ist, steht in `turn.botAt`, genau wie das Ende der Zugzeit. Die Instanz, deren Timer zuerst abläuft, macht ihn. Weil jeder Schritt durch die Spielregeln geprüft und atomar gespeichert wird, passiert nichts doppelt. Pro Aufruf gibt es höchstens einen Schritt, die Pausen dazwischen kommen aus `botDelays`. Bots verpassen nie die Zeit. Ohne Verbindungen gibt es keinen Timer: Dann steht das Spiel, auch für die Bots, bis jemand zurückkommt.
 - **Anwesenheit:** Jede Instanz meldet sich alle 10 Sekunden in der Datenbank. Stürzt eine ab, gelten ihre Verbindungen nach etwa 40 Sekunden als getrennt.
 - **Aufräumen:** Lobbys ohne Start verschwinden nach 1 Stunde, Spiele 24 Stunden nach der letzten Aktion. Dauerhaft bleiben nur die Zähler der Statistik, ohne Bezug zu Personen. IP-Adressen kommen nie in die Datenbank, die Bremsen merken sie sich nur kurz im Arbeitsspeicher. Bei IPv6 zählt der ganze Anschluss (/64-Netz), sonst ließe sich die Bremse mit immer neuen Adressen umgehen.
 
@@ -108,7 +108,8 @@ Alle Nachrichten sind JSON mit dem Feld `t` für die Art. Höchstens 4 KB pro Na
 | `join` | `code`, `name` | Lobby beitreten. Ist das Gerät schon drin, geht es einfach zurück. |
 | `order` | `ids` (alle Personen in neuer Reihenfolge) | Nur Host, nur in der Lobby |
 | `kick` | `id` | Nur Host, nur in der Lobby. Entfernt auch Bots. |
-| `addBot` | | Nur Host, nur in der Lobby. Name kommt aus `botNames`. |
+| `addBot` | optional `level`: `easy`, `medium` oder `hard` | Nur Host, nur in der Lobby. Name kommt aus `botNames`. Ohne `level` spielt der Bot schwer, so schicken es ältere Apps. |
+| `botLevel` | `id`, `level` | Nur Host, nur in der Lobby: Stufe eines Bots wechseln |
 | `start` | | Nur Host. Auch allein. |
 | `roll` | `n`: der wievielte Wurf (1–3) | Würfeln |
 | `hold` | `i` (0–5), `on` (`true`/`false`) | Würfel halten oder loslassen |
@@ -137,14 +138,14 @@ Alle Nachrichten sind JSON mit dem Feld `t` für die Art. Höchstens 4 KB pro Na
 {
   code: 'KXMP', status: 'playing',        // lobby | playing
   seq: 42, game: 1, host: 'a1b2c3d4e5', you: 'f6g7h8i9j0',
-  players: [{ id, name, online, missed }], // in der Reihenfolge des Hosts, Bots mit bot: true
+  players: [{ id, name, online, missed }], // in der Reihenfolge des Hosts, Bots mit bot: true und level
   scores: { [id]: { u1: 3, gstrasse: 40 } },
   cds: { [id]: [20] },
   dice: { vals: [2, 3, 3, 5, 5, 6], held: [false, true, true, false, false, false], rolls: 2, owner, turn: 7, cd: null },
   cdGame: null,                           // wie lokal: { owner, stage, pts, got, last, hit, status }
   turn: { no: 7, player, phase: 'roll', deadline: 1790000000000 },   // phase: roll | cd, bei Bots dazu botAt
   events: [{ no, type: 'timeout', player, field: 'gstrasse' }],     // die letzten 12 Ereignisse
-  last: null,                             // nach dem Spiel: { game, at, ranking: [{ id, name, bot?, upper, bonus, lower, cd, total }] }
+  last: null,                             // nach dem Spiel: { game, at, ranking: [{ id, name, bot?, level?, upper, bonus, lower, cd, total }] }
 }
 ```
 

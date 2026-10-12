@@ -3,6 +3,12 @@
 Alle wichtigen Änderungen an HEXA: Countdown stehen hier.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), die Versionen folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [Unreleased]
+
+### Neu
+
+- **Bots in drei Stufen** ([#10](https://github.com/unpacked-dev/hexa/issues/10)): leicht, mittel und schwer. Ein Tipp auf das Schild neben dem Namen wechselt die Stufe, in der Spielerliste wie in der Online-Lobby (dort nur der Host). Neue Bots bekommen die zuletzt gewählte Stufe, am Anfang „mittel“. Im Schnitt holen sie 230, 283 und 322 Punkte (100.000 Testspiele). Leichtere Bots machen Fehler wie Menschen: Sie denken weniger an später und lassen öfter nicht die besten Würfel liegen. Die Stufe steht auch im Ergebnis. Bots aus älteren Spielständen und von älteren Apps spielen weiter schwer.
+
 ## [1.15.0] – 2026-10-12
 
 Eine kleine Statistik zeigt, wie viele Spiele gestartet wurden.

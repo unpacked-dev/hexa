@@ -94,7 +94,7 @@
       down: 'Move {name} down',
       remove: 'Remove {name}',
       howTitle: 'How to play with the app',
-      how1: 'Enter everyone’s name above. Tap “Add a bot” for computer opponents.',
+      how1: 'Enter everyone’s name above. Tap “Add a bot” for computer opponents, tap their level to change it.',
       how2: 'Choose whether you roll with the app or with your own dice.',
       how3: 'The app keeps the scorecard and does all the maths.',
       viaTitle: 'What are you rolling with?',
@@ -109,6 +109,7 @@
       botsFull: 'No more bots',
       full: 'That’s the limit: up to {n} people per game.',
       botTag: ', bot',
+      botLevel: '{name}’s level: {level}. Tap to change.',
       viaBots: 'With bots, you roll with the app.',
     },
 
@@ -294,6 +295,7 @@
       aCountdown: 'a Countdown',
       askOk: 'Remove and delete points',
       botText: '{name} is a bot and plays on its own. Its name can’t be changed.',
+      botLevel: 'Level: {level}.',
     },
 
     bot: {
@@ -312,6 +314,7 @@
       cdPlays: '{name} is playing the countdown …',
       cdNeed: 'Stage {stage}: {name} needs a {n}.',
       cdRollWith: 'Rolling {dice}, {p}% chance to hit.',
+      level: { easy: 'easy', medium: 'medium', hard: 'hard' },
     },
 
     pause: {

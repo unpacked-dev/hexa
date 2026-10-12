@@ -36,7 +36,7 @@ Die App ersetzt Würfel, Becher, Block und Stift. Ihr gebt einfach das Handy rei
 
 ## So läuft ein Spiel
 
-1. Im Hauptmenü auf **Spielen** tippen, **Lokal** wählen und eintragen, wer mitspielt. Mit **Bot hinzufügen** kommen Computergegner dazu.
+1. Im Hauptmenü auf **Spielen** tippen, **Lokal** wählen und eintragen, wer mitspielt. Mit **Bot hinzufügen** kommen Computergegner dazu. Ein Tipp auf das Schild neben ihrem Namen wechselt die Stufe: leicht, mittel oder schwer.
 2. Entscheiden, **womit ihr würfelt**: mit der App oder mit euren eigenen Würfeln. Den Spielblock führt die App in beiden Fällen. Mit Bots würfelt immer die App.
 3. Reihum spielen. Über **Menü** könnt ihr jederzeit pausieren und später weitermachen.
 4. Nach 15 Runden auf **Spiel beenden** tippen. Das Ergebnis zeigt die Platzierung, die Punkte landen in den **Highscores**.
@@ -54,7 +54,7 @@ Jede Person spielt am eigenen Handy, egal wo. Es gibt keine Konten, nur Spitznam
 
 1. Im Hauptmenü auf **Spielen** tippen, **Online** wählen und einen Spitznamen eingeben.
 2. Eine Person tippt auf **Lobby erstellen** und bekommt einen Code aus 4 Buchstaben. Die anderen tippen auf **Lobby beitreten** und geben den Code ein.
-3. Der Host holt auf Wunsch mit **Bot hinzufügen** Computergegner dazu, legt die Reihenfolge fest und startet das Spiel. Allein geht auch, auch allein gegen Bots.
+3. Der Host holt auf Wunsch mit **Bot hinzufügen** Computergegner dazu, wählt ihre Stufe, legt die Reihenfolge fest und startet das Spiel. Allein geht auch, auch allein gegen Bots.
 4. Jeder Zug hat 60 Sekunden. Die Zugleiste oben zeigt, wer dran ist und wie viel Zeit bleibt. Ab 10 Sekunden wird sie rot. Die anderen sehen die Würfel live mitrollen.
 5. Nach dem Spiel geht es mit **Nochmal** zurück in dieselbe Lobby. Dein Ergebnis landet in deinen Highscores.
 
@@ -76,7 +76,7 @@ Der Server würfelt und prüft jeden Zug. Ist die Zeit um, streicht er ein zufä
 - **Spielblock, der mitrechnet** – Summen, Bonus und Endstand werden automatisch berechnet. Nach jedem Wurf zeigt die App, wie viele Punkte jedes freie Feld bringen würde.
 - **Countdown als Bonusspiel** – wird automatisch freigeschaltet und direkt nach dem Zug gestartet.
 - **Mehrere Personen oder solo** – Reihenfolge vor dem Spiel festlegen. Im Spiel lassen sich Namen ändern und Personen entfernen.
-- **Bots als Gegner** – Computergegner mit Namen wie Pasch-Paula oder Dr. Wurf, lokal und online. Sie spielen sichtbar Zug für Zug und fast perfekt: im Schnitt 322 Punkte, perfektes Spiel bringt 324. Online spielt sie der Server. In die Highscores kommen nur Menschen.
+- **Bots als Gegner** – Computergegner mit Namen wie Pasch-Paula oder Dr. Wurf, lokal und online, in drei Stufen: **leicht** (im Schnitt 230 Punkte), **mittel** (283) und **schwer** (322, fast perfekt, perfektes Spiel bringt 324). Sie spielen sichtbar Zug für Zug. Online spielt sie der Server. In die Highscores kommen nur Menschen.
 - **Online spielen** – jede Person am eigenen Gerät. Eine Person erstellt eine Lobby und bekommt einen Code aus 4 Buchstaben, die anderen treten damit bei. Allein geht auch, Bots können mitspielen. Der Server würfelt, jeder Zug hat 60 Sekunden, und alle sehen die Würfel live mitrollen. Kein Konto, nur ein Spitzname.
 - **Spielende und Highscores** – das Ergebnis zeigt alle Platzierungen und neue Rekorde. Die zehn besten Ergebnisse bleiben auf dem Gerät gespeichert, bei Online-Spielen dein eigenes.
 - **Nichts geht verloren** – Spiele lassen sich pausieren und bleiben auch nach dem Schließen erhalten. Einträge, entfernte Personen oder ein abgebrochenes Spiel lassen sich mit einem Tipp rückgängig machen.
@@ -190,7 +190,7 @@ HEXA ist bewusst einfach gebaut: **reines HTML, CSS und JavaScript** – kein Fr
 - **Ton aus dem Browser:** Alle Effekte und die Lo-Fi-Musik entstehen live mit der Web Audio API. Es wird keine einzige Audiodatei geladen.
 - **Faire Würfel:** Zufallszahlen kommen aus `crypto.getRandomValues`, ohne Modulo-Verzerrung. Online würfelt der Server genauso.
 - **Online-Server ohne Pakete:** [Deno](https://deno.com) mit `Deno.serve` für HTTP und WebSocket und Deno KV als Datenbank, auf Deno Deploy. Der Server würfelt, prüft jeden Zug und schickt nach jeder Änderung allen den ganzen Stand. Die App zeigt ihn nur an. Mehr in [server/README.md](server/README.md).
-- **Bots mit Mathe statt KI:** Ein Bot rechnet jeden Zug exakt durch. Für jede Möglichkeit, Würfel liegen zu lassen, kennt er die Wahrscheinlichkeit jedes Ergebnisses. Was ein Feld für den Rest des Spiels wert ist, schätzt er mit rund 170 Zahlen. Die stammen aus dem perfekten Spiel, das die Werkzeuge in `tools/` für alle 1,65 Millionen Spielstände ausrechnen.
+- **Bots mit Mathe statt KI:** Ein Bot rechnet jeden Zug exakt durch. Für jede Möglichkeit, Würfel liegen zu lassen, kennt er die Wahrscheinlichkeit jedes Ergebnisses. Was ein Feld für den Rest des Spiels wert ist, schätzt er mit rund 170 Zahlen. Die stammen aus dem perfekten Spiel, das die Werkzeuge in `tools/` für alle 1,65 Millionen Spielstände ausrechnen. Leichtere Stufen machen Fehler wie Menschen: Sie denken weniger an später und lassen öfter nicht die besten Würfel liegen.
 - **Lokal bleibt alles auf dem Gerät:** Spielstand, Highscores, Design und Ton werden im `localStorage` deines Browsers gespeichert und nie übertragen. Startet ein lokales Spiel, schickt die App nur eine leere Meldung, damit der Server Spiele zählen kann ([Statistik](https://backend.hexa-countdown.app/stats)). Sonst spricht sie nur im Online-Modus mit dem Server, auch dann ohne Konto.
 - **Offline dank Service Worker:** `sw.js` legt beim ersten Öffnen alle Dateien auf dem Gerät ab (rund 0,7 MB). Code kommt zuerst aus dem Netz, damit Updates sofort ankommen. Ohne Netz oder nach 3 Sekunden Warten nimmt die App ihre Kopie. Schriften und Icons kommen gleich aus der Kopie. Eine Versionsnummer braucht es dafür nicht.
 - **Keine fremden Server:** Schriften und Icons liegen im Repository. Beim Spielen wird nichts von Google oder anderen Anbietern geladen. Es gibt keine Cookies und kein Tracking.

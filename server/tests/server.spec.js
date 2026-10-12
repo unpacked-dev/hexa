@@ -399,11 +399,19 @@ Deno.test('Bots: Der Host holt sie dazu, sie spielen auf zwei Instanzen genau ei
     const { apps: [lena, tim], ids: [lenaId, timId] } = await lobbyOf(env, ['Lena', 'Tim']);
     tim.send({ t: 'addBot' });
     assert.equal(await tim.error('addBot'), 'not-host');
-    lena.send({ t: 'addBot' });
+    lena.send({ t: 'addBot', level: 'gottgleich' });
+    assert.equal(await lena.error('addBot'), 'bad-message');
+    lena.send({ t: 'addBot', level: 'easy' });
     const withBot = await tim.until(r => r.players.length === 3);   // über die andere Instanz
     const bot = withBot.players.find(p => p.bot);
     assert.ok(bot && G.onlineName(bot.name) === bot.name);
     assert.equal(bot.online, false);
+    assert.equal(bot.level, 'easy');
+    // Die Stufe wechselt nur der Host
+    tim.send({ t: 'botLevel', id: bot.id, level: 'hard' });
+    assert.equal(await tim.error('botLevel'), 'not-host');
+    lena.send({ t: 'botLevel', id: bot.id, level: 'medium' });
+    await tim.until(r => r.players.find(p => p.id === bot.id).level === 'medium');
     lena.send({ t: 'order', ids: [bot.id, lenaId, timId] });
     await tim.until(r => r.players[0].id === bot.id);
     lena.send({ t: 'start' });

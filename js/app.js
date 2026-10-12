@@ -102,7 +102,7 @@
     if (Array.isArray(raw.players)) {
       s.players = raw.players
         .filter(p => isObj(p) && typeof p.id === 'string')
-        .map(p => Object.assign({ id: p.id, name: String(p.name || tr('setup.fallback')).slice(0, 20) }, p.bot ? { bot: true } : {}));
+        .map(p => Object.assign({ id: p.id, name: String(p.name || tr('setup.fallback')).slice(0, 20) }, p.bot ? { bot: true, level: Bot.levelOf(p.level) } : {}));
     }
     // Ältere Spielstände kennen „started“ noch nicht: Wer Spieler hat, war mitten im Spiel.
     s.started = s.players.length > 0 && (typeof raw.started === 'boolean' ? raw.started : true);
@@ -362,7 +362,7 @@
     const P = state.players;
     // Bots haben einen festen Namen, Menschen tippen ihren direkt in die Liste.
     const nameCell = (p, i) => (p.bot
-      ? `<span class="pname pname-bot">${botMark}<span>${esc(p.name)}</span><span class="sr">${tr('setup.botTag')}</span></span>`
+      ? `<span class="pname pname-bot">${botMark}<span class="bot-tx"><span class="bot-nm">${esc(p.name)}</span><span class="sr">${tr('setup.botTag')}</span>${levelChip(p, 'bot-level')}</span></span>`
       : `<input class="pname" type="text" value="${esc(p.name)}" data-pid="${p.id}" maxlength="20" autocomplete="off" spellcheck="false" enterkeyhint="done" aria-label="${esc(tr('setup.nameOf', { n: i + 1 }))}">`);
     const rows = P.map((p, i) => `
       <li class="prow${p.bot ? ' is-bot' : ''}">
@@ -1525,13 +1525,13 @@
     const free = FIELDS.filter(f => scoreOf(p.id, f.key) === null).map(f => f.key);
     const up = totals(p.id).upper;
     if (d.rolls < 3) {
-      const want = Bot.hold(free, up, d.vals, 3 - d.rolls);
+      const want = Bot.hold(free, up, d.vals, 3 - d.rolls, p.level, botSalt(p));
       if (!want.every(Boolean)) {
         botHold([0, 1, 2, 3, 4, 5].filter(i => want[i] !== d.held[i]));
         return;
       }
     }
-    const key = Bot.pick(free, up, d.vals);
+    const key = Bot.pick(free, up, d.vals, p.level, botSalt(p));
     setBotStatus('enter');
     botLater(BOT_MS.enter, () => botEnter(key));
   }
@@ -1611,10 +1611,42 @@
     return free.length ? free[Math.floor(Math.random() * free.length)] : null;
   }
 
+  // Stufen der Bots: Neue Bots bekommen die zuletzt gewählte, am Anfang „mittel“.
+  // Der Zufall ihrer Fehler hängt an Spiel und Bot, siehe js/bot.js.
+  const BOT_LEVEL_KEY = 'hexa-bot-level';
+  function botLevelPref() {
+    try { return Bot.levelOf(localStorage.getItem(BOT_LEVEL_KEY) || 'medium'); } catch (e) { return 'medium'; }
+  }
+  function setBotLevelPref(level) {
+    try { localStorage.setItem(BOT_LEVEL_KEY, level); } catch (e) { /* Speicher gesperrt */ }
+  }
+  const LEVEL_TEXT = { easy: 'bot.level.easy', medium: 'bot.level.medium', hard: 'bot.level.hard' };
+  const levelName = level => tr(LEVEL_TEXT[Bot.levelOf(level)]);
+  const nextLevel = level => Bot.LEVELS[(Bot.LEVELS.indexOf(Bot.levelOf(level)) + 1) % Bot.LEVELS.length];
+  const botSalt = p => Bot.saltOf(state.gameId + ':' + p.id);
+  // Stufe als Knopf (act: zum Wechseln antippen) oder nur als Text
+  function levelChip(p, act) {
+    const level = Bot.levelOf(p.level);
+    const name = levelName(level);
+    return act
+      ? `<button type="button" class="lvl" data-level="${level}" data-act="${act}" data-pid="${p.id}" aria-label="${esc(tr('setup.botLevel', { name: p.name, level: name }))}">${name}</button>`
+      : `<small class="lvl lvl-t" data-level="${level}">${name}</small>`;
+  }
+  function cycleBotLevel(pid) {
+    const p = playerById(pid);
+    if (!p || !p.bot) return;
+    p.level = nextLevel(p.level);
+    setBotLevelPref(p.level);
+    save();
+    renderPlayers();
+    const b = $('#view-players [data-act="bot-level"][data-pid="' + pid + '"]');
+    if (b) b.focus();
+  }
+
   function addBot() {
     const name = nextBotName();
     if (!name) return;
-    state.players.push({ id: uid(), name, bot: true });
+    state.players.push({ id: uid(), name, bot: true, level: botLevelPref() });
     dropStrayRoll();
     save();
     renderPlayers();
@@ -1661,7 +1693,7 @@
     if (p.bot) {
       openSheet(`
         <h3 class="s-title">${botMark}${esc(p.name)}</h3>
-        <p class="s-note">${esc(tr('player.botText', { name: p.name }))}</p>
+        <p class="s-note">${esc(tr('player.botText', { name: p.name }))} ${esc(tr('player.botLevel', { level: levelName(p.level) }))}</p>
         <div class="s-acts">
           <button type="button" class="btn btn-line btn-warn" data-act="sheet-do" data-do="remove">${tr('player.remove')}</button>
           <button type="button" class="btn btn-quiet" data-act="sheet-close">${tr('common.cancel')}</button>
@@ -1804,7 +1836,7 @@
     let last = null;
     const items = ranking.map((r, i) => {
       if (r.s !== last) { place = i + 1; last = r.s; }
-      return `<li${place === 1 ? ' class="win"' : ''}><span class="pl">${place}.</span><span class="pn">${r.p.bot ? botMark : ''}${esc(r.p.name)}${r.s === record && !r.p.bot ? recChip : ''}</span><span class="ps">${r.s}</span></li>`;
+      return `<li${place === 1 ? ' class="win"' : ''}><span class="pl">${place}.</span><span class="pn">${r.p.bot ? botMark : ''}${esc(r.p.name)}${r.p.bot ? levelChip(r.p) : ''}${r.s === record && !r.p.bot ? recChip : ''}</span><span class="ps">${r.s}</span></li>`;
     }).join('');
     let title;
     let note;
@@ -2311,7 +2343,7 @@
     });
     return {
       v: 1, tab: state.tab || 'dice', duo: local.duo, started: !!r && r.status === 'playing', via: 'app',
-      players: r ? r.players.map(p => Object.assign({ id: p.id, name: p.name }, p.bot ? { bot: true } : {})) : [],
+      players: r ? r.players.map(p => Object.assign({ id: p.id, name: p.name }, p.bot ? { bot: true, level: Bot.levelOf(p.level) } : {})) : [],
       scores: r ? r.scores : {},
       cds: r ? r.cds : {},
       dice: d ? { vals: d.vals, held, rolls: d.rolls, owner: d.owner, ownerFilled: 0, turn: d.turn, cd: d.cd } : freshDice(),
@@ -2475,7 +2507,7 @@
     return ranking.map((x, i) => {
       if (x.total !== last) { place = i + 1; last = x.total; }
       const me = x.id === you ? ` <small>${tr('online.you')}</small>` : '';
-      return `<li${place === 1 ? ' class="win"' : ''}><span class="pl">${place}.</span><span class="pn">${x.bot ? botMark : ''}${esc(x.name)}${me}</span><span class="ps">${x.total}</span></li>`;
+      return `<li${place === 1 ? ' class="win"' : ''}><span class="pl">${place}.</span><span class="pn">${x.bot ? botMark : ''}${esc(x.name)}${x.bot ? levelChip(x) : ''}${me}</span><span class="ps">${x.total}</span></li>`;
     }).join('');
   }
 
@@ -2498,7 +2530,7 @@
       return `
         <li class="prow">
           <span class="pnum">${i + 1}</span>
-          <span class="pname ol-pname">${mark}<span class="ol-nm">${esc(p.name)}</span> ${tags ? `<small>${esc(tags)}</small> ` : ''}<span class="sr">${esc(said)}</span></span>${acts}
+          <span class="pname ol-pname">${mark}<span class="ol-nm">${esc(p.name)}</span> ${tags ? `<small>${esc(tags)}</small> ` : ''}<span class="sr">${esc(said)}</span>${p.bot ? levelChip(p, host ? 'ol-bot-level' : null) : ''}</span>${acts}
         </li>`;
     }).join('');
     // Bots holt nur der Host dazu. Grenzen und Namen wie lokal aus js/config.js.
@@ -2762,6 +2794,19 @@
     }, tr('online.kick'));
   }
   // Reihenfolge ändern: gleich zeigen, der Server bestätigt mit dem neuen Stand.
+  // Stufe eines Bots in der Lobby wechseln. Wie bei der Reihenfolge sofort anzeigen, der Server bestätigt.
+  function olBotLevel(pid) {
+    const p = onlinePlayer(pid);
+    if (!room || room.host !== room.you || room.status !== 'lobby' || !p || !p.bot) return;
+    const level = nextLevel(p.level);
+    if (!Online.send({ t: 'botLevel', id: pid, level })) { toast(tr('online.offline')); return; }
+    setBotLevelPref(level);
+    p.level = level;
+    renderOnline();
+    const b = $('#view-online [data-act="ol-bot-level"][data-pid="' + pid + '"]');
+    if (b) b.focus();
+  }
+
   function olMove(pid, dir) {
     if (!room || room.host !== room.you) return;
     const ids = room.players.map(p => p.id);
@@ -3011,7 +3056,8 @@
       case 'ol-start': if (!Online.send({ t: 'start' })) toast(tr('online.offline')); break;
       case 'ol-move': olMove(t.dataset.pid, Number(t.dataset.dir)); break;
       case 'ol-kick': confirmKick(t.dataset.pid); break;
-      case 'ol-add-bot': if (!Online.send({ t: 'addBot' })) toast(tr('online.offline')); break;
+      case 'ol-add-bot': if (!Online.send({ t: 'addBot', level: botLevelPref() })) toast(tr('online.offline')); break;
+      case 'ol-bot-level': olBotLevel(t.dataset.pid); break;
       case 'ol-copy': copyCode(); break;
       case 'home': showStart(); break;
       case 'menu': openMenu(); break;
@@ -3034,6 +3080,7 @@
       case 'cd-cell': if (online()) toast(tr('online.blockHint')); else openCdSheet(t.dataset.pid); break;
       case 'add': addPlayer(); break;
       case 'add-bot': addBot(); break;
+      case 'bot-level': cycleBotLevel(t.dataset.pid); break;
       case 'start-game': startGame(t.dataset.via); break;
       case 'player': if (!online()) openPlayerSheet(t.dataset.pid); break;
       case 'end-game': openResult(); break;

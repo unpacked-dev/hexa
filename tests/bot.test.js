@@ -48,6 +48,60 @@ test('Es wird nur ein freies Feld gewählt', () => {
   assert.equal(Bot.pick(['u2', 'tief'], 40, dice('666666')), 'u2');
 });
 
+// Partien ohne Countdown. level und salt wie in der App, gleiche Würfel für alle Stufen.
+function average(games, level) {
+  let seed = 12345;
+  const rnd = () => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed / 2147483648; };
+  const d6 = () => 1 + Math.floor(rnd() * 6);
+  let total = 0;
+  for (let g = 0; g < games; g++) {
+    const salt = Bot.saltOf('spiel-' + g);
+    let free = ALL_KEYS.slice();
+    let upper = 0;
+    while (free.length) {
+      let vals = [d6(), d6(), d6(), d6(), d6(), d6()];
+      for (let left = 2; left >= 1; left--) {
+        const held = Bot.hold(free, upper, vals, left, level, salt);
+        if (held.every(Boolean)) break;
+        vals = vals.map((v, i) => (held[i] ? v : d6()));
+      }
+      const key = Bot.pick(free, upper, vals, level, salt);
+      assert.ok(free.includes(key), level + ': nur freie Felder');
+      const s = scoreFor(key, vals);
+      if (key[0] === 'u') upper += s;
+      total += s;
+      free = free.filter(k => k !== key);
+    }
+    if (upper >= 70) total += 40;
+  }
+  return total / games;
+}
+
+test('Stufen: leicht < mittel < schwer, mit deutlichem Abstand', () => {
+  const [easy, medium, hard] = ['easy', 'medium', 'hard'].map(l => average(150, l));
+  assert.ok(easy + 25 < medium, `leicht ${easy.toFixed(1)}, mittel ${medium.toFixed(1)}`);
+  assert.ok(medium + 20 < hard, `mittel ${medium.toFixed(1)}, schwer ${hard.toFixed(1)}`);
+  assert.ok(easy > 180, 'leicht spielt nicht völlig planlos: ' + easy.toFixed(1));
+});
+
+test('Stufen: Dieselbe Lage gibt dieselbe Entscheidung, ohne Stufe spielt der Bot schwer', () => {
+  assert.deepEqual(Bot.LEVELS, ['easy', 'medium', 'hard']);
+  for (const x of [undefined, null, 'quatsch', 'constructor', '__proto__']) assert.equal(Bot.levelOf(x), 'hard');
+  const vals = dice('112345');
+  for (const level of Bot.LEVELS) {
+    for (let salt = 0; salt < 30; salt++) {
+      assert.deepEqual(Bot.hold(ALL_KEYS, 10, vals, 2, level, salt), Bot.hold(ALL_KEYS, 10, vals, 2, level, salt));
+      assert.equal(Bot.pick(ALL_KEYS, 10, vals, level, salt), Bot.pick(ALL_KEYS, 10, vals, level, salt));
+    }
+  }
+  assert.deepEqual(Bot.hold(ALL_KEYS, 0, vals, 2, 'hard', 7), Bot.hold(ALL_KEYS, 0, vals, 2));
+  assert.equal(Bot.pick(ALL_KEYS, 0, vals, 'hard', 7), Bot.pick(ALL_KEYS, 0, vals));
+  // Leichte Bots entscheiden je nach Spiel verschieden
+  const holds = new Set();
+  for (let salt = 0; salt < 60; salt++) holds.add(kept(vals, Bot.hold(ALL_KEYS, 0, vals, 2, 'easy', salt)));
+  assert.ok(holds.size > 2, 'nur ' + [...holds].join(', '));
+});
+
 test('Bots spielen gut: 300 Partien kommen im Schnitt über 300 Punkte', () => {
   let seed = 12345;
   const rnd = () => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed / 2147483648; };
