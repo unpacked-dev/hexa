@@ -1,6 +1,6 @@
 # Online-Modus – Konzept
 
-> **Seit Version 1.8.0 ist der Online-Modus live:** Die App läuft unter [hexa-countdown.app](https://hexa-countdown.app/) (GitHub Pages), der Server unter [backend.hexa-countdown.app](https://backend.hexa-countdown.app/) (Deno Deploy, auch noch unter hexa.unpacked-dev.deno.net). Vorher auf echten Handys getestet. Offen aus Schritt 4 sind noch Impressum, Datenschutz, AVV und ein Blick auf die Grenzen des kostenlosen Tarifs. Seit Version 1.12.0 spielen online auch Bots mit, der Server spielt sie selbst. Wie der Server arbeitet und welche Nachrichten es gibt, steht in [`server/README.md`](../server/README.md). Stand: 2. Oktober 2026.
+> **Seit Version 1.8.0 ist der Online-Modus live:** Die App läuft unter [hexa-countdown.app](https://hexa-countdown.app/) (GitHub Pages), der Server unter [backend.hexa-countdown.app](https://backend.hexa-countdown.app/) (Deno Deploy, auch noch unter hexa.unpacked-dev.deno.net). Vorher auf echten Handys getestet. Offen aus Schritt 4 sind noch Impressum und Datenschutz ([#6](https://github.com/unpacked-dev/hexa/issues/6)), AVV ([#7](https://github.com/unpacked-dev/hexa/issues/7)) und ein Blick auf die Grenzen des kostenlosen Tarifs ([#9](https://github.com/unpacked-dev/hexa/issues/9)). Seit Version 1.12.0 spielen online auch Bots mit, der Server spielt sie selbst. Wie der Server arbeitet und welche Nachrichten es gibt, steht in [`server/README.md`](../server/README.md). Stand: 12. Oktober 2026.
 
 ## Kurz gesagt
 
@@ -12,7 +12,7 @@ Der Server würfelt, prüft jeden Zug und achtet auf die Zugzeit von 60 Sekunden
 
 - Der Server kommt ins selbe Repo, in den Ordner `server/`. Er ist open source wie der Rest.
 - Keine Konten, nur Spitznamen. Die bestehen nur aus Buchstaben, Zahlen und ein paar Sonderzeichen, ohne Emojis.
-- Beitritt nur per Code, ohne Einladungslink. Später soll es auch eine Handy-App geben.
+- Beitritt nur per Code, ohne Einladungslink. Eine eigene App für App Store und Google Play ist verworfen. Auf dem Handy lässt sich HEXA seit Version 1.14.0 als App installieren.
 - Der Code hat 4 Buchstaben. Beim Erstellen prüft der Server, ob er noch frei ist.
 - „Online“ im Hauptmenü führt zu: Lobby erstellen oder Lobby beitreten.
 - Online wird nur mit App-Würfeln gespielt.
@@ -24,7 +24,7 @@ Der Server würfelt, prüft jeden Zug und achtet auf die Zugzeit von 60 Sekunden
 - Ist die Zeit um, streicht der Server ein zufälliges freies Feld.
 - Ein freigeschalteter Countdown hat eigene 30 Sekunden, auch nach einem gestrichenen Zug. Wer darin nicht würfelt, bekommt 0 Punkte. Läuft die Zeit mittendrin ab, zählen die Punkte bis dahin.
 - Nach dem Spiel gibt es eine Revanche in derselben Lobby.
-- Eine Online-Bestenliste gibt es vorerst nicht. Ob sie kommt, entscheiden wir später.
+- Eine Online-Bestenliste gibt es nicht. Verworfen, siehe unten.
 - Server mit Deno, Datenbank Deno KV.
 
 ## Grundsätze (Vorschlag)
@@ -258,7 +258,7 @@ flowchart LR
   S2 <--> KV
 ```
 
-- **Eine WebSocket-Verbindung pro Gerät.** Alles läuft darüber: Lobby erstellen, beitreten, würfeln, eintragen. Es gibt keine Cookies und kein Login. Darum klappt es gleich von GitHub Pages, aus der ZIP-Version und später aus der Handy-App.
+- **Eine WebSocket-Verbindung pro Gerät.** Alles läuft darüber: Lobby erstellen, beitreten, würfeln, eintragen. Es gibt keine Cookies und kein Login. Darum klappt es gleich von GitHub Pages, aus der ZIP-Version und aus der installierten App.
 - **Ein Eintrag pro Lobby in KV** mit dem ganzen Stand. Jede Änderung läuft so: lesen, prüfen, dann atomar schreiben (`atomic().check()`). Kommen zwei Aktionen gleichzeitig, gewinnt eine. Die andere wird neu geprüft. So kann niemand doppelt würfeln.
 - **Live über mehrere Instanzen:** Deno Deploy kann die Verbindungen auf mehrere Server-Instanzen verteilen. Lena und Tim hängen dann an verschiedenen. Jede Instanz beobachtet mit `kv.watch()` die Lobbys ihrer Verbindungen und schickt jede Änderung sofort weiter.
 - **Würfeln** mit derselben fairen Methode wie in der App (`crypto.getRandomValues`, ohne Verzerrung).
@@ -383,24 +383,19 @@ hexa/
 1. **Spielablauf auf dem Server** (`game.js`) mit Tests, noch ohne Netz. ✓ Erledigt.
 2. **Server fertig:** WebSocket, KV, Codes, Zugzeit, Wiederverbinden, Revanche, Sicherheit. ✓ Erledigt, mit 29 Deno-Tests. Lokal geprüft: eine ganze Partie zu dritt mit Wiederverbinden, die echte Zugzeit von 60 Sekunden, zwei Server-Prozesse an einer Datenbank und der Absturz einer Instanz. Weil `kv.watch()` lokal nur Änderungen aus dem eigenen Prozess meldet, fragt jede Instanz zusätzlich alle 5 Sekunden nach (Plan B als Sicherheitsnetz).
 3. **App:** Online-Start, Lobby mit Reihenfolge, Zugleiste mit Blinken und Ticken, Spiel, Ergebnis und Revanche. Alle Texte auf Deutsch und Englisch. ✓ Erledigt. Die App merkt eine tote Verbindung nach wenigen Sekunden (Herzschlag alle 25 Sekunden) und verbindet sich von selbst neu.
-4. **Vor dem Start:** Impressum, Datenschutz, AVV, Limits des kostenlosen Tarifs prüfen, README, Changelog, Release. README, Changelog und Release sind mit 1.8.0 erledigt, der Rest ist noch offen.
+4. **Vor dem Start:** Impressum, Datenschutz, AVV, Limits des kostenlosen Tarifs prüfen, README, Changelog, Release. README, Changelog und Release sind mit 1.8.0 erledigt. Der Rest ist offen und hat jetzt eigene Issues: [#6](https://github.com/unpacked-dev/hexa/issues/6), [#7](https://github.com/unpacked-dev/hexa/issues/7) und [#9](https://github.com/unpacked-dev/hexa/issues/9).
 
 ## Später, vielleicht
 
-### Online-Bestenliste
+Push-Nachricht „Du bist dran“, Emoji-Reaktionen, Zuschauen. Ideen mit eigenem Issue: Bots mit Schwierigkeitsstufen ([#10](https://github.com/unpacked-dev/hexa/issues/10)), Tagesspiel ([#11](https://github.com/unpacked-dev/hexa/issues/11)) und schnelleres Eintragen online ([#12](https://github.com/unpacked-dev/hexa/issues/12)).
 
-Den Tab „Online“ bei den Highscores gibt es schon als Platzhalter. Er bleibt vorerst so. Ob wir eine Bestenliste bauen, entscheiden wir später.
+## Verworfen
 
-Die Punkte wären echt, weil der Server würfelt. Das Problem sind die Namen: Anders als in der Lobby sähe sie jeder, und sie blieben dauerhaft gespeichert. Die feste Zeichenliste hilft auch dort, gegen beleidigende Namen reicht sie aber nicht. Ideen, falls wir es machen:
+Im Oktober 2026 entschieden:
 
-- nur Punkte und Datum, ganz ohne Namen
-- Namen erst nach deiner Freigabe
-- Wortfilter, dazu kannst du Einträge löschen
-- „Meine Einträge löschen“ in den Einstellungen, über den Geräteschlüssel
-
-### Weitere Ideen
-
-Handy-App, Push-Nachricht „Du bist dran“, Emoji-Reaktionen, Zuschauen.
+- **Online-Bestenliste:** Die Punkte wären echt, weil der Server würfelt. Das Problem sind die Namen: Anders als in der Lobby sähe sie jeder, und sie blieben dauerhaft gespeichert. Die feste Zeichenliste hilft auch dort, gegen beleidigende Namen reicht sie aber nicht. Ein anonymer Vergleich ohne Namen ist als zweiter Schritt beim Tagesspiel ([#11](https://github.com/unpacked-dev/hexa/issues/11)) angedacht.
+- **Einladen per Link oder QR-Code.** Beitreten geht weiter mit dem Code aus 4 Buchstaben.
+- **Eigene App für App Store und Google Play.** Auf dem Handy lässt sich HEXA als App installieren und läuft auch ohne Internet.
 
 ## Bewusst nicht dabei
 
