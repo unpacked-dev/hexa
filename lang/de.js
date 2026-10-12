@@ -415,6 +415,8 @@
       yourTurn: 'Du bist dran!',
       yourCd: 'Dein Countdown läuft.',
       rollNow: 'Würfle los, die Zeit läuft.',
+      entering: 'Wird eingetragen …',
+      enterLost: 'Der Server hat nicht geantwortet. Bitte noch einmal eintragen.',
       waitRoll: '{name} würfelt gleich …',
       watchSub: 'Du siehst live mit',
       nextYou: 'Du bist als Nächstes dran',

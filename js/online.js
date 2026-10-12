@@ -113,12 +113,43 @@ window.HexaOnline = (() => {
     timer = setTimeout(open, wait);
   }
 
+  // Wie lange braucht der Server für eine Antwort? In der Konsole: HexaOnline.timing(). Mit
+  // localStorage.setItem('hexa-timing', '1') kommt jede Messung auch als Zeile in die Konsole.
+  // Gemessen wird vom Senden bis zum nächsten Stand (oder pong, oder Fehler dazu). Spielt gerade jemand
+  // anderes, kann ein Stand auch von dessen Aktion kommen. Die Zahlen sind dann etwas zu klein.
+  const timings = {};      // Art → { n, sum, max, last } in ms
+  const sentAt = {};       // Art → Zeitpunkt des Sendens
+  function measure(t) {
+    if (sentAt[t] == null) return;
+    const ms = Math.round(performance.now() - sentAt[t]);
+    delete sentAt[t];
+    const x = timings[t] || (timings[t] = { n: 0, sum: 0, max: 0, last: 0 });
+    x.n++;
+    x.sum += ms;
+    x.max = Math.max(x.max, ms);
+    x.last = ms;
+    let log = false;
+    try { log = localStorage.getItem('hexa-timing') === '1'; } catch (e) { /* egal */ }
+    if (log) console.log(`HEXA ${t}: ${ms} ms`);
+  }
+  function timing() {
+    const out = {};
+    Object.keys(timings).forEach(t => {
+      const x = timings[t];
+      out[t] = { n: x.n, avg: Math.round(x.sum / x.n), max: x.max, last: x.last };
+    });
+    return out;
+  }
+
   function handle(raw) {
     let m;
     try { m = JSON.parse(raw); } catch (e) { return; }
     if (!m || typeof m !== 'object') return;
     clearTimeout(probe);
     if (typeof m.now === 'number') offset = m.now - Date.now();
+    if (m.t === 'state') Object.keys(sentAt).forEach(t => { if (t !== 'ping') measure(t); });
+    else if (m.t === 'pong') measure('ping');
+    else if (m.t === 'error' && m.re) measure(m.re);
     switch (m.t) {
       case 'welcome':
         tries = 0;
@@ -152,6 +183,7 @@ window.HexaOnline = (() => {
     if (!ws) { tries = 0; open(); return; }
     if (ws.readyState !== 1) return;
     try { ws.send(JSON.stringify({ t: 'ping' })); } catch (e) { return; }
+    sentAt.ping = performance.now();
     clearTimeout(probe);
     probe = setTimeout(drop, 4000);
   }
@@ -195,8 +227,10 @@ window.HexaOnline = (() => {
     send(msg) {
       if (!ws || ws.readyState !== 1 || status !== 'online') return false;
       ws.send(JSON.stringify(msg));
+      sentAt[msg.t] = performance.now();
       return true;
     },
+    timing,
     on(fn) { subs.push(fn); },
     forget,
     count,

@@ -465,6 +465,8 @@ button { touch-action: manipulation; }
 .p-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--rule); }
 .p-cell.is-turn .p-dot { width: 20px; height: 20px; border: 1.5px dashed var(--ink-3); background: transparent; }
 .p-cell.zero .p-w { color: var(--ink-3); }
+/* Online: eingetragen, der Server hat es noch nicht bestätigt */
+.p-cell.sending .p-w { opacity: .45; }
 .p-cell.zero::after {
   content: ""; position: absolute; left: 50%; top: 50%; width: 34px; height: 16px;
   transform: translate(-50%, -45%); background: var(--strike) center / 100% 100% no-repeat;

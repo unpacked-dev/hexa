@@ -413,6 +413,8 @@
       yourTurn: 'Your turn!',
       yourCd: 'Your countdown is on.',
       rollNow: 'Roll, the clock is ticking.',
+      entering: 'Saving …',
+      enterLost: 'The server didn’t answer. Please enter it again.',
       waitRoll: '{name} is about to roll …',
       watchSub: 'You are watching live',
       nextYou: "You're next",

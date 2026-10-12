@@ -65,6 +65,52 @@ Deno.test('Ablauf: Eine Lobby ohne Start gilt nach 1 Stunde als weg, ihr Code is
   kv.close();
 });
 
+// Zählt, wie oft gelesen wird. Alles andere geht unverändert an die Datenbank.
+function counting(kv) {
+  const n = { get: 0 };
+  const proxy = new Proxy(kv, {
+    get(target, prop) {
+      if (prop === 'get') return (...args) => { n.get++; return target.get(...args); };
+      const v = target[prop];
+      return typeof v === 'function' ? v.bind(target) : v;
+    },
+  });
+  return [proxy, n];
+}
+
+Deno.test('Gemerkter Stand: aktuell spart das Lesen, veraltet gibt trotzdem das richtige Ergebnis', async () => {
+  const base = await Deno.openKv(':memory:');
+  const [kv, n] = counting(base);
+  await S.createRoom(kv, host(), 0, codes('KXMP'));
+  let known = await kv.get(S.roomKey('KXMP'));
+  n.get = 0;
+  // Aktuell: kein Lesen, der neue Eintrag kommt zurück
+  const a = await S.mutate(kv, 'KXMP', room => G.join(room, { id: 'p2', name: 'Tim', key: 'k2' }), 0, known);
+  assert.equal(n.get, 0);
+  assert.equal(a.changed, true);
+  assert.equal(a.entry.value.seq, 1);
+  assert.equal(a.entry.versionstamp, (await base.get(S.roomKey('KXMP'))).versionstamp);
+  known = a.entry;
+  // Eine andere Instanz ändert inzwischen etwas: Der gemerkte Stand ist veraltet, nichts geht verloren
+  await S.mutate(base, 'KXMP', room => G.join(room, { id: 'p3', name: 'Mia', key: 'k3' }), 0);
+  const b = await S.mutate(kv, 'KXMP', room => G.join(room, { id: 'p4', name: 'Ben', key: 'k4' }), 0, known);
+  assert.deepEqual(b.room.players.map(p => p.name), ['Lena', 'Tim', 'Mia', 'Ben']);
+  assert.equal(b.room.seq, 3);
+  // Veraltet und laut altem Stand ein Fehler: Es zählt der frische Stand
+  const stale = b.entry;
+  await S.mutate(base, 'KXMP', room => G.order(room, 'p1', ['p4', 'p1', 'p2', 'p3']), 0);
+  const c = await S.mutate(kv, 'KXMP', room => { if (room.players[0].id !== 'p4') G.fail('stale'); return 'ok'; }, 0, stale);
+  assert.equal(c.result, 'ok');
+  // Veraltet und laut altem Stand unverändert: frisch nachsehen
+  const d = await S.mutate(kv, 'KXMP', room => { if (room.players[0].id === 'p4') room.host = 'p4'; }, 0, stale);
+  assert.equal(d.changed, true);
+  assert.equal(d.room.host, 'p4');
+  // Inzwischen gelöscht: missing, auch mit gemerktem Stand
+  await S.mutate(base, 'KXMP', room => { room.gone = true; }, 0);
+  assert.equal((await S.mutate(kv, 'KXMP', () => {}, 0, d.entry)).missing, true);
+  base.close();
+});
+
 Deno.test('Beobachten: Änderungen und Löschen kommen an', async () => {
   const kv = await Deno.openKv(':memory:');
   await S.createRoom(kv, host(), 0, codes('KXMP'));

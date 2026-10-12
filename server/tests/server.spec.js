@@ -378,6 +378,32 @@ Deno.test('Statistik: Online-Start zählt der Server, lokale Spiele kommen per P
   await env.stop(lena, tim);
 });
 
+Deno.test('Gemerkter Stand: Aktionen lesen die Lobby nicht jedes Mal neu aus der Datenbank', async () => {
+  const base = await Deno.openKv(':memory:');
+  const n = { get: 0 };
+  const kv = new Proxy(base, {
+    get(target, prop) {
+      if (prop === 'get') return (...args) => { n.get++; return target.get(...args); };
+      const v = target[prop];
+      return typeof v === 'function' ? v.bind(target) : v;
+    },
+  });
+  const env = await servers(1, G.TIMES, { kv, poll: 0 });
+  const { apps: [lena] } = await lobbyOf(env, ['Lena'], [0]);
+  lena.send({ t: 'start' });
+  await lena.until(r => r.status === 'playing');
+  lena.send({ t: 'roll', n: 1 });
+  await lena.until(r => r.dice.rolls === 1);
+  const before = n.get;
+  for (let i = 0; i < 6; i++) {
+    lena.send({ t: 'hold', i, on: true });
+    await lena.until(r => r.dice.held[i]);
+  }
+  assert.ok(n.get - before <= 1, `${n.get - before} Lesezugriffe für 6 Aktionen`);
+  await env.stop(lena);
+  base.close();
+});
+
 Deno.test('Bremsen zählen pro Anschluss: IPv4 einzeln, IPv6 pro /64-Netz', () => {
   assert.equal(ipKey('160.79.106.134'), '160.79.106.134');
   assert.equal(ipKey('::ffff:160.79.106.134'), '160.79.106.134');

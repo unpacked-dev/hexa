@@ -234,7 +234,7 @@
     const d = state.dice;
     if (!d.rolls || !d.owner) return false;
     // Online: Die Würfel gehören zu einem früheren Zug, oder der Countdown läuft schon.
-    if (online()) return !!(room && room.turn) && (d.turn !== room.turn.no || room.turn.phase === 'cd');
+    if (online()) return !!pendingEnter || (!!(room && room.turn) && (d.turn !== room.turn.no || room.turn.phase === 'cd'));
     const p = playerById(d.owner);
     return !!p && filled(p.id) > d.ownerFilled;
   }
@@ -426,6 +426,7 @@
       if (!cur) return { label: tr('dice.roll'), sub: '', off: true };
       if (cur.id !== room.you) return { label: tr('dice.roll'), sub: waitText(), off: true };
       if (room.turn.phase === 'cd') return { label: tr('cdStrip.running'), sub: tr('online.cdSub'), off: true };
+      if (pendingEnter) return { label: tr('dice.roll'), sub: tr('online.entering'), off: true };
       if (d.turn !== room.turn.no || !d.rolls) return { label: tr('dice.roll'), sub: tr('dice.allSix'), off: false };
       if (d.rolls >= 3) return { label: tr('dice.noMore'), sub: tr('dice.enterResult'), off: true };
       const free = d.held.filter(h => !h).length;
@@ -469,7 +470,7 @@
       if (!cur || !ot) who = tr('dice.over');
       else if (!watching) {
         who = tr('online.yourTurn');
-        sub = ot.phase === 'cd' ? tr('online.yourCd') : idle || done ? tr('online.rollNow') : '';
+        sub = ot.phase === 'cd' ? tr('online.yourCd') : pendingEnter ? tr('online.entering') : idle || done ? tr('online.rollNow') : '';
       } else {
         who = tr('dice.turn', { name: cur.name });
         sub = tr(ot.phase === 'cd' ? 'bot.cdPlays' : idle || done ? 'online.waitRoll' : 'bot.roll', { name: cur.name });
@@ -611,7 +612,8 @@
     const lab = (name, sub, icon) => `<div class="p-lab">${icon || ''}<span class="p-lt"><span class="p-nm">${name}</span>${sub ? `<span class="p-rq">${sub}</span>` : ''}</span></div>`;
     const cell = (p, f) => {
       const v = scoreOf(p.id, f.key);
-      const cls = 'p-cell' + turn(p) + (v === null ? ' empty' : v === 0 ? ' zero' : '') + (p.bot ? ' is-bot' : '');
+      const sending = online() && !!pendingEnter && !!room && p.id === room.you && f.key === pendingEnter.key;
+      const cls = 'p-cell' + turn(p) + (v === null ? ' empty' : v === 0 ? ' zero' : '') + (p.bot ? ' is-bot' : '') + (sending ? ' sending' : '');
       const inner = v === null ? '<span class="p-dot"></span>' : `<span class="p-w">${v}</span>`;
       const field = fieldName(f.key);
       const label = v === null ? tr('block.cellEmpty', { name: p.name, field }) : tr('block.cellValue', { name: p.name, field, pts: trPts(v) });
@@ -1200,7 +1202,8 @@
         // Online trägt der Server ein. Die Meldung kommt mit dem neuen Stand.
         if (online()) {
           closeSheet();
-          if (!Online.send({ t: 'enter', field: key })) toast(tr('online.offline'));
+          if (!Online.send({ t: 'enter', field: key })) { toast(tr('online.offline')); return; }
+          markEntered(key, pts);
           return;
         }
         const snap = snapshot();
@@ -2311,6 +2314,9 @@
   let olBusy = false;       // Lobby wird gerade erstellt oder betreten
   let olPending = null;     // Nachricht, die rausgeht, sobald die Verbindung steht
   let pendingHolds = {};    // eigene Tipps auf Würfel, die der Server noch nicht bestätigt hat
+  let pendingEnter = null;  // eigenes Feld, das der Server noch nicht bestätigt hat: { key, pts, turn, at }
+  let shownEnter = null;    // Feld, dessen Ton und Meldung schon beim Tippen kamen
+  const PENDING_MS = 6000;  // so lange wartet die App höchstens auf die Bestätigung, dann zeigt sie wieder den Stand des Servers
   let myRoll = null;        // eigener Wurf, auf dessen Zahlen die rollenden Würfel noch warten
   let myCdRoll = null;      // dasselbe im Countdown
   let leaveHome = false;    // nach dem Verlassen zum Startbildschirm statt zum Online-Start
@@ -2341,10 +2347,19 @@
       if (!d || held[i] === pendingHolds[i]) delete pendingHolds[i];
       else held[i] = pendingHolds[i];
     });
+    // Eigenes Eintragen gleich zeigen. Erledigt ist es, sobald das Feld vom Server kommt oder der Zug vorbei ist.
+    let scores = r ? r.scores : {};
+    const pe = pendingEnter;
+    if (pe) {
+      const mine = r && r.scores[r.you];
+      const over = !r || r.status !== 'playing' || !r.turn || r.turn.no !== pe.turn || r.turn.player !== r.you || r.turn.phase !== 'roll';
+      if (over || (mine && pe.key in mine) || Date.now() - pe.at > PENDING_MS) pendingEnter = null;
+      else scores = Object.assign({}, scores, { [r.you]: Object.assign({}, mine, { [pe.key]: pe.pts }) });
+    }
     return {
       v: 1, tab: state.tab || 'dice', duo: local.duo, started: !!r && r.status === 'playing', via: 'app',
       players: r ? r.players.map(p => Object.assign({ id: p.id, name: p.name }, p.bot ? { bot: true, level: Bot.levelOf(p.level) } : {})) : [],
-      scores: r ? r.scores : {},
+      scores,
       cds: r ? r.cds : {},
       dice: d ? { vals: d.vals, held, rolls: d.rolls, owner: d.owner, ownerFilled: 0, turn: d.turn, cd: d.cd } : freshDice(),
       cdGame: r ? r.cdGame : null,
@@ -2362,6 +2377,8 @@
     seenEvent = 0;
     resultFor = null;
     pendingHolds = {};
+    pendingEnter = null;
+    shownEnter = null;
     myRoll = null;
     myCdRoll = null;
     olBusy = false;
@@ -2629,7 +2646,7 @@
   // Würfeln: Die Würfel rollen sofort los, die Zahlen kommen vom Server.
   function onlineRoll() {
     const d = state.dice;
-    if (rolling || !myTurn() || room.turn.phase !== 'roll') return;
+    if (rolling || pendingEnter || !myTurn() || room.turn.phase !== 'roll') return;
     const first = d.turn !== room.turn.no || !d.rolls;
     const n = first ? 1 : d.rolls + 1;
     if (n > 3 || (!first && d.held.every(Boolean))) return;
@@ -2675,7 +2692,7 @@
   // Halten: sofort zeigen und dem Server sagen. „halten“ oder „loslassen“, nie „umschalten“.
   function onlineHold(i) {
     const d = state.dice;
-    if (rolling || !myTurn() || room.turn.phase !== 'roll' || d.turn !== room.turn.no || !d.rolls || d.rolls >= 3) return;
+    if (rolling || pendingEnter || !myTurn() || room.turn.phase !== 'roll' || d.turn !== room.turn.no || !d.rolls || d.rolls >= 3) return;
     const on = !d.held[i];
     if (!Online.send({ t: 'hold', i, on })) { toast(tr('online.offline')); return; }
     pendingHolds[i] = on;
@@ -2691,10 +2708,29 @@
     Sound.hold(on);
   }
 
+  // Eintragen sofort zeigen, mit Ton und Meldung. Bis der Server bestätigt, steht die Zahl etwas blasser im
+  // Block, und würfeln oder halten geht nicht mehr. Lehnt er ab oder kommt nichts, verschwindet sie wieder.
+  function markEntered(key, pts) {
+    const at = Date.now();
+    pendingEnter = { key, pts, turn: room.turn.no, at };
+    shownEnter = key;
+    Sound.score(pts);
+    const field = fieldName(key);
+    toast(pts ? tr('quick.entered', { field, n: pts }) : tr('quick.struck', { field }));
+    state = onlineView(room);
+    render();
+    setTimeout(() => {
+      if (!pendingEnter || pendingEnter.at !== at) return;
+      pendingEnter = null;
+      shownEnter = null;
+      if (online() && room) { state = onlineView(room); if (!rolling) render(); toast(tr('online.enterLost')); }
+    }, PENDING_MS + 50);
+  }
+
   // Tipp auf ein Feld im Block: Online trägt man nur im eigenen Zug über die Würfel ein.
   function onlineCell(pid, key) {
     const d = state.dice;
-    if (myTurn() && pid === room.you && room.turn.phase === 'roll' && d.turn === room.turn.no && d.rolls && scoreOf(pid, key) === null) openQuick(key);
+    if (myTurn() && !pendingEnter && pid === room.you && room.turn.phase === 'roll' && d.turn === room.turn.no && d.rolls && scoreOf(pid, key) === null) openQuick(key);
     else toast(tr('online.blockHint'));
   }
 
@@ -2890,6 +2926,7 @@
       case 'kick': if (!me) toast(tr('online.evKick', { name })); break;
       case 'host': toast(me ? tr('online.evHostYou') : tr('online.evHost', { name })); break;
       case 'enter': {
+        if (me && shownEnter === e.field) { shownEnter = null; break; }
         const field = fieldName(e.field);
         Sound.score(e.pts);
         if (me) toast(e.pts ? tr('quick.entered', { field, n: e.pts }) : tr('quick.struck', { field }));
@@ -2995,6 +3032,7 @@
     if (m.re === 'roll' && myRoll) myRoll.vals = state.dice.vals || [1, 2, 3, 4, 5, 6];
     if (m.re === 'cdRoll' && myCdRoll) myCdRoll.vals = (state.cdGame && state.cdGame.last) || [];
     if (m.re === 'hold') pendingHolds = {};
+    if (m.re === 'enter' && pendingEnter) { pendingEnter = null; shownEnter = null; state = onlineView(room); }
     olBusy = false;
     olPending = null;
     // Doppelter Tipp oder veraltete Ansicht: einfach den aktuellen Stand zeigen
@@ -3036,6 +3074,11 @@
       if (olPending) { const m = olPending; olPending = null; Online.send(m); }
     } else if (type === 'status') {
       if (msg.status !== 'online' && myRoll) myRoll.vals = state.dice.vals || [1, 2, 3, 4, 5, 6];
+      if (msg.status !== 'online' && pendingEnter) {
+        pendingEnter = null;
+        shownEnter = null;
+        if (room) { state = onlineView(room); if (!rolling) render(); }
+      }
       if (!state.started && !$('#view-online').hidden) renderOnline();
       renderBar();
     }

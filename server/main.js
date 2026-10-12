@@ -93,7 +93,7 @@ const replace = (target, source) => {
 // redirectHosts, appUrl: Unter diesen Adressen leitet die Startseite zur App weiter (Tests setzen eigene).
 export function createHub({ kv, instance = G.randomId(8), times = G.TIMES, rng = G.fairRandom, poll = 5000, online = globalThis.HexaConfig.enableOnline, log = console, redirectHosts = REDIRECT_HOSTS, appUrl = APP_URL } = {}) {
   const conns = new Set();
-  const rooms = new Map();            // Code → { conns, stop, poll, timer, room }: Lobbys mit Verbindungen hier
+  const rooms = new Map();            // Code → { conns, stop, poll, timer, room, entry }: Lobbys mit Verbindungen hier
   const ips = new Map();              // Internetverbindung → { open, create: [Zeiten], join: [Zeiten] }
   let counter = 0;
   let alive = null;                   // laufende Instanzen, null = noch nicht bekannt
@@ -119,6 +119,7 @@ export function createHub({ kv, instance = G.randomId(8), times = G.TIMES, rng =
   async function change(code, action) {
     let error = null;
     const now = Date.now();
+    const L = rooms.get(code);
     const out = await S.mutate(kv, code, room => {
       const ctx = { now, rng, times };
       error = null;
@@ -135,17 +136,21 @@ export function createHub({ kv, instance = G.randomId(8), times = G.TIMES, rng =
         replace(room, before);
         return undefined;
       }
-    }, now);
+    }, now, L ? L.entry : null);
     if (out.missing) throw new G.GameError('room-not-found');
-    if (out.changed) deliver(code, out.room);
+    if (out.changed) deliver(code, out.room, out.entry && out.entry.versionstamp);
     if (error) throw error;
     return out;
   }
 
   // Neuen Stand an alle Verbindungen dieser Instanz schicken, die in der Lobby sind.
-  function deliver(code, room) {
+  // versionstamp: Version in der Datenbank, falls bekannt. Den neuesten Stand merkt sich die Instanz (L.entry),
+  // damit die nächste Änderung ihn nicht erst lesen muss.
+  function deliver(code, room, versionstamp) {
     const L = rooms.get(code);
     if (!L) return;
+    if (!room) L.entry = null;
+    else if (versionstamp && (!L.entry || versionstamp > L.entry.versionstamp)) L.entry = { value: room, versionstamp };
     if (!S.isLive(room, Date.now())) {
       for (const c of [...L.conns]) { send(c, { t: 'error', code: 'room-closed' }); unbindLocal(c); }
       return;
@@ -185,7 +190,7 @@ export function createHub({ kv, instance = G.randomId(8), times = G.TIMES, rng =
       try {
         const out = await change(code, () => {});
         // Nichts zu tun: Dann war eine andere Instanz schneller. Ihren Stand übernehmen.
-        if (!out.changed) deliver(code, out.room);
+        if (!out.changed) deliver(code, out.room, out.entry && out.entry.versionstamp);
       } catch (e) {
         if (!(e instanceof G.GameError)) { log.error('Zugzeit prüfen:', e); retry = 2000; }
         else if (e.code === 'room-not-found') deliver(code, null);   // Lobby ist weg
@@ -203,10 +208,10 @@ export function createHub({ kv, instance = G.randomId(8), times = G.TIMES, rng =
     c.sent = -1;
     let L = rooms.get(code);
     if (!L) {
-      L = { conns: new Set(), stop: null, poll: 0, timer: 0, room: null };
+      L = { conns: new Set(), stop: null, poll: 0, timer: 0, room: null, entry: null };
       rooms.set(code, L);
-      L.stop = S.watchRoom(kv, code, value => deliver(code, value), err => log.warn('Beobachten von', code, 'unterbrochen:', String(err)));
-      if (poll) L.poll = setInterval(() => { kv.get(S.roomKey(code)).then(e => deliver(code, e.value), () => {}); }, poll);
+      L.stop = S.watchRoom(kv, code, (value, vs) => deliver(code, value, vs), err => log.warn('Beobachten von', code, 'unterbrochen:', String(err)));
+      if (poll) L.poll = setInterval(() => { kv.get(S.roomKey(code)).then(e => deliver(code, e.value, e.versionstamp), () => {}); }, poll);
     }
     L.conns.add(c);
   }

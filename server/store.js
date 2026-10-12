@@ -44,14 +44,33 @@ export async function createRoom(kv, setup, now, nextCode = randomCode) {
 
 // Lobby ändern. fn bekommt eine Kopie des Stands, ändert sie und gibt ein Ergebnis zurück.
 // Wirft fn einen Fehler, wird nichts gespeichert. Setzt fn room.gone, wird die Lobby gelöscht.
-// Gibt { room, result, changed, gone, missing } zurück. missing: Die Lobby gibt es nicht (mehr).
-export async function mutate(kv, code, fn, now) {
+// Gibt { room, result, changed, gone, missing, entry } zurück. missing: Die Lobby gibt es nicht (mehr).
+// entry: der neue Eintrag { value, versionstamp } für known beim nächsten Mal.
+// known: der zuletzt bekannte Eintrag. Ist er noch aktuell, spart das einen Weg zur Datenbank.
+// Ob er aktuell war, zeigt erst das atomare Schreiben. Klappt das nicht, ändert fn nichts oder wirft fn
+// einen Fehler, geht es mit frisch gelesenem Stand noch einmal los. Ein veralteter Stand führt so nie zu
+// einer falschen Antwort.
+export async function mutate(kv, code, fn, now, known = null) {
   for (let attempt = 0; attempt < 12; attempt++) {
-    const e = await kv.get(roomKey(code));
-    if (!isLive(e.value, now)) return { room: null, result: undefined, changed: false, gone: false, missing: true };
+    const cached = attempt === 0 && known && known.value && known.versionstamp
+      ? { key: roomKey(code), value: known.value, versionstamp: known.versionstamp } : null;
+    const e = cached || await kv.get(roomKey(code));
+    if (!isLive(e.value, now)) {
+      if (cached) continue;
+      return { room: null, result: undefined, changed: false, gone: false, missing: true, entry: null };
+    }
     const room = structuredClone(e.value);
-    const result = fn(room);
-    if (!room.gone && same(room, e.value)) return { room: e.value, result, changed: false, gone: false, missing: false };
+    let result;
+    try {
+      result = fn(room);
+    } catch (err) {
+      if (cached) continue;
+      throw err;
+    }
+    if (!room.gone && same(room, e.value)) {
+      if (cached) continue;
+      return { room: e.value, result, changed: false, gone: false, missing: false, entry: e };
+    }
     const op = kv.atomic().check(e);
     if (room.gone) {
       op.delete(roomKey(code));
@@ -61,15 +80,18 @@ export async function mutate(kv, code, fn, now) {
       op.set(roomKey(code), room, { expireIn: ttl(room) });
     }
     const res = await op.commit();
-    if (res.ok) return { room: room.gone ? null : room, result, changed: true, gone: !!room.gone, missing: false };
-    // Jemand war schneller: kurz warten, dann mit dem neuen Stand noch einmal
-    await sleep(Math.random() * 15 * (attempt + 1));
+    if (res.ok) {
+      const entry = room.gone ? null : { value: room, versionstamp: res.versionstamp };
+      return { room: room.gone ? null : room, result, changed: true, gone: !!room.gone, missing: false, entry };
+    }
+    // Jemand war schneller: kurz warten, dann mit dem neuen Stand noch einmal. War nur der gemerkte Stand alt, sofort.
+    if (!cached) await sleep(Math.random() * 15 * (attempt + 1));
   }
   throw new Error('Lobby ist gerade zu beschäftigt');
 }
 
-// Meldet jede Änderung einer Lobby, auch die von anderen Server-Instanzen. Am Anfang kommt einmal
-// der aktuelle Stand. null heißt: gelöscht. Reißt die Verbindung zur Datenbank ab, wird neu beobachtet.
+// Meldet jede Änderung einer Lobby, auch die von anderen Server-Instanzen: onChange(Stand, versionstamp).
+// Am Anfang kommt einmal der aktuelle Stand. null heißt: gelöscht. Reißt die Verbindung zur Datenbank ab, wird neu beobachtet.
 // Klappt kv.watch gar nicht, fragt die Instanz stattdessen jede Sekunde nach.
 // Gibt eine Funktion zum Beenden zurück.
 export function watchRoom(kv, code, onChange, onError = () => {}) {
@@ -81,7 +103,7 @@ export function watchRoom(kv, code, onChange, onError = () => {}) {
     const once = async () => {
       try {
         const e = await kv.get(roomKey(code));
-        if (!stopped) onChange(e.value);
+        if (!stopped) onChange(e.value, e.versionstamp);
       } catch (err) { /* nächster Versuch */ }
       if (!stopped) timer = setTimeout(once, 1000);
     };
@@ -97,7 +119,7 @@ export function watchRoom(kv, code, onChange, onError = () => {}) {
         if (done) break;
         got = true;
         fails = 0;
-        onChange(value[0].value);
+        onChange(value[0].value, value[0].versionstamp);
       }
     } catch (err) {
       if (stopped) return;

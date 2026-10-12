@@ -9,6 +9,12 @@ Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), die V
 
 - **Bots in drei Stufen** ([#10](https://github.com/unpacked-dev/hexa/issues/10)): leicht, mittel und schwer. Ein Tipp auf das Schild neben dem Namen wechselt die Stufe, in der Spielerliste wie in der Online-Lobby (dort nur der Host). Neue Bots bekommen die zuletzt gewählte Stufe, am Anfang „mittel“. Im Schnitt holen sie 230, 283 und 322 Punkte (100.000 Testspiele). Leichtere Bots machen Fehler wie Menschen: Sie denken weniger an später und lassen öfter nicht die besten Würfel liegen. Die Stufe steht auch im Ergebnis. Bots aus älteren Spielständen und von älteren Apps spielen weiter schwer.
 
+### Geändert
+
+- **Online schneller eintragen** ([#12](https://github.com/unpacked-dev/hexa/issues/12)): Ein eingetragenes Feld steht sofort im Block, mit Ton und Meldung, und ist etwas blasser, bis der Server es bestätigt. Bis dahin sind Würfeln und Halten gesperrt. Lehnt der Server ab oder antwortet er 6 Sekunden nicht, verschwindet die Zahl wieder, und ein Hinweis bittet, noch einmal einzutragen.
+- **Server: ein Datenbankzugriff weniger pro Aktion.** Jede Instanz merkt sich den neuesten Stand ihrer Lobbys und schreibt direkt damit. Nur wenn inzwischen jemand anderes schneller war, liest sie neu.
+- **Antwortzeiten messen:** `HexaOnline.timing()` zeigt in der Konsole, wie lange Aktionen bis zur Antwort brauchen.
+
 ## [1.15.0] – 2026-10-12
 
 Eine kleine Statistik zeigt, wie viele Spiele gestartet wurden.

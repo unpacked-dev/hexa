@@ -72,11 +72,18 @@ Die App fragt beim Start `health` auf ihrer eigenen Adresse. Antwortet dort ein 
 
 - **Eine WebSocket-Verbindung pro Gerät.** Es gibt keine Konten und keine Cookies. Das Gerät erzeugt einmal einen zufälligen Schlüssel und meldet sich damit an. Auf dem Server liegt davon nur ein Hash.
 - **Ein Eintrag pro Lobby** unter `["hexa_room", Code]` mit dem ganzen Stand. Jede Änderung läuft so: lesen, prüfen, atomar schreiben. Kommen zwei Aktionen gleichzeitig, gewinnt eine, die andere wird mit dem neuen Stand wiederholt.
+- **Gemerkter Stand:** Jede Instanz merkt sich den neuesten Stand ihrer Lobbys samt Version (aus dem eigenen Schreiben, `kv.watch()` und dem Nachfragen). Die nächste Aktion rechnet gleich damit und schreibt nur, wenn die Version in der Datenbank noch dieselbe ist. War eine andere Instanz schneller, schlägt das fehl, und es geht mit frisch gelesenem Stand weiter. Fehler und Aktionen, die nichts ändern, prüft der Server immer mit frischem Stand. Das spart pro Aktion einen Weg zur Datenbank.
 - **Mehrere Instanzen:** Jede Instanz beobachtet ihre Lobbys mit `kv.watch()` und schickt Änderungen sofort an ihre Verbindungen. Zusätzlich fragt sie alle 5 Sekunden nach (siehe `HEXA_POLL_MS`).
 - **Zugzeit:** Gespeichert wird nur das Ende des Zugs. Kurz danach (1 Sekunde Puffer) streicht die Instanz ein zufälliges freies Feld. Ein Countdown bekommt eigene 30 Sekunden. Wer zweimal hintereinander die Zeit verpasst und nicht verbunden ist, wird sofort übersprungen.
 - **Bots:** Der Server spielt sie selbst, mit derselben Logik wie die App (`js/bot.js`), in der Stufe, die der Host gewählt hat. Die Fehler leichterer Bots hängen an Lobby, Spiel und Bot, nicht am Zufall des Servers. So entscheidet ein Bot bei jedem Schritt seines Zugs gleich, auch auf verschiedenen Instanzen. Wann der nächste Schritt fällig ist, steht in `turn.botAt`, genau wie das Ende der Zugzeit. Die Instanz, deren Timer zuerst abläuft, macht ihn. Weil jeder Schritt durch die Spielregeln geprüft und atomar gespeichert wird, passiert nichts doppelt. Pro Aufruf gibt es höchstens einen Schritt, die Pausen dazwischen kommen aus `botDelays`. Bots verpassen nie die Zeit. Ohne Verbindungen gibt es keinen Timer: Dann steht das Spiel, auch für die Bots, bis jemand zurückkommt.
 - **Anwesenheit:** Jede Instanz meldet sich alle 10 Sekunden in der Datenbank. Stürzt eine ab, gelten ihre Verbindungen nach etwa 40 Sekunden als getrennt.
 - **Aufräumen:** Lobbys ohne Start verschwinden nach 1 Stunde, Spiele 24 Stunden nach der letzten Aktion. Dauerhaft bleiben nur die Zähler der Statistik, ohne Bezug zu Personen. IP-Adressen kommen nie in die Datenbank, die Bremsen merken sie sich nur kurz im Arbeitsspeicher. Bei IPv6 zählt der ganze Anschluss (/64-Netz), sonst ließe sich die Bremse mit immer neuen Adressen umgehen.
+
+## Antwortzeiten messen
+
+In der App zeigt `HexaOnline.timing()` in der Konsole, wie lange Aktionen bis zur Antwort brauchen (Durchschnitt, Maximum, zuletzt, in ms). Mit `localStorage.setItem('hexa-timing', '1')` kommt jede Messung auch als eigene Zeile. Zum Vergleich ein Messlauf gegen die Produktion vom Testrechner aus (Oktober 2026): `ping` 42 ms, Aktionen wie würfeln, halten und eintragen 53 bis 87 ms. Der größte Teil ist also das Netz, Deno KV kommt mit rund 15 bis 45 ms dazu.
+
+Damit es sich trotzdem schnell anfühlt, zeigt die App eigene Aktionen sofort: Gehaltene Würfel und eingetragene Felder stehen gleich da, die Würfel rollen los, bevor die Zahlen kommen. Ein eingetragenes Feld ist blasser, bis der Server es bestätigt. Lehnt er ab oder kommt nach 6 Sekunden nichts, verschwindet die Zahl wieder, und ein Hinweis bittet, noch einmal einzutragen.
 
 ## Statistik
 
