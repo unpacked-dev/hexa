@@ -8,11 +8,14 @@
    Läuft der Server auf mehreren Instanzen, erfährt jede über kv.watch von den Änderungen der anderen. */
 import * as G from './game.js';
 import * as S from './store.js';
+import * as St from './stats.js';
 
 const MAX_MSG = 4096;                 // Zeichen pro Nachricht
 const MAX_CONNS_PER_IP = 20;
-// Lobbys erstellen und beitreten: so oft pro Minute und Internetverbindung. Gemerkt nur im Arbeitsspeicher.
-const LIMITS = { create: [6, 60_000], join: [12, 60_000] };
+// Lobbys erstellen und beitreten: so oft pro Minute und Internetverbindung, lokale Spiele melden: so oft in 10 Minuten.
+// Gemerkt nur im Arbeitsspeicher.
+const LIMITS = { create: [6, 60_000], join: [12, 60_000], count: [10, 600_000] };
+const STATS_FRESH = 30_000;           // so lange zeigt /stats denselben Stand, damit Neuladen die Datenbank schont
 const MSG_WINDOW = 10_000;
 const MSG_SOFT = 100;                 // mehr Nachrichten in 10 Sekunden werden abgelehnt
 const MSG_HARD = 300;                 // noch mehr: Verbindung zu
@@ -96,6 +99,8 @@ export function createHub({ kv, instance = G.randomId(8), times = G.TIMES, rng =
   let alive = null;                   // laufende Instanzen, null = noch nicht bekannt
   let beat = 0;
   let closing = false;
+  let shown = null;                   // zuletzt berechnete Statistik { at, data }
+  let pruned = 0;
 
   const isAlive = inst => inst === instance || !alive || alive.has(inst);
 
@@ -259,8 +264,18 @@ export function createHub({ kv, instance = G.randomId(8), times = G.TIMES, rng =
   /* ---------- Bremsen ---------- */
   function ipInfo(ip) {
     let s = ips.get(ip);
-    if (!s) { s = { open: 0, create: [], join: [] }; ips.set(ip, s); }
+    if (!s) {
+      s = { open: 0 };
+      for (const kind in LIMITS) s[kind] = [];
+      ips.set(ip, s);
+    }
     return s;
+  }
+  // Vergessen, wer keine Verbindung mehr hat und gerade nicht gebremst wird
+  function sweep(now) {
+    for (const [ip, s] of ips) {
+      if (!s.open && Object.entries(LIMITS).every(([kind, [, win]]) => !s[kind].some(t => now - t < win))) ips.delete(ip);
+    }
   }
   function limit(ip, kind) {
     const [max, win] = LIMITS[kind];
@@ -346,7 +361,10 @@ export function createHub({ kv, instance = G.randomId(8), times = G.TIMES, rng =
       await goAway(c);
       send(c, { t: 'away', code });
     },
-    start: c => act(c, (room, pid, ctx) => G.start(room, pid, ctx)),
+    async start(c) {
+      await act(c, (room, pid, ctx) => G.start(room, pid, ctx));
+      await count('online');
+    },
     order(c, m) {
       if (!Array.isArray(m.ids) || m.ids.length > G.MAX_PLAYERS || !m.ids.every(x => typeof x === 'string')) G.fail('bad-message');
       return act(c, (room, pid) => G.order(room, pid, m.ids));
@@ -401,20 +419,61 @@ export function createHub({ kv, instance = G.randomId(8), times = G.TIMES, rng =
     } catch (e) {
       log.warn('Lebenszeichen fehlgeschlagen:', String(e));
     }
-    for (const [ip, s] of ips) {
-      if (!s.open && !s.create.some(t => now - t < 60_000) && !s.join.some(t => now - t < 60_000)) ips.delete(ip);
-    }
+    sweep(now);
   }
   function startBeat() {
     beatOnce();
     beat = setInterval(() => { if (conns.size) beatOnce(); }, BEAT_MS);
   }
 
+  /* ---------- Statistik ---------- */
+  // Ein gestartetes Spiel zählen. Klappt das nicht, läuft trotzdem alles weiter.
+  async function count(kind) {
+    try {
+      await St.countGame(kv, kind, Date.now());
+      shown = null;
+    } catch (e) {
+      log.warn('Zählen fehlgeschlagen:', String(e));
+    }
+  }
+  async function readStats() {
+    const now = Date.now();
+    if (shown && now - shown.at < STATS_FRESH) return shown.data;
+    if (now - pruned > 60 * 60_000) {
+      pruned = now;
+      try { await St.pruneHours(kv, now); } catch (e) { log.warn('Aufräumen der Statistik:', String(e)); }
+    }
+    const data = await St.readStats(kv, now);
+    shown = { at: now, data };
+    return data;
+  }
+
   /* ---------- HTTP ---------- */
   async function handle(req, info) {
     const url = new URL(req.url);
+    const cors = { 'access-control-allow-origin': '*' };
     if (url.pathname === '/health') {
-      return Response.json({ app: 'hexa', protocol: G.PROTOCOL, online, ok: true }, { headers: { 'access-control-allow-origin': '*' } });
+      return Response.json({ app: 'hexa', protocol: G.PROTOCOL, online, ok: true }, { headers: cors });
+    }
+    // Lokales Spiel gestartet. Die App schickt nur diese Anfrage, ohne Inhalt.
+    if (url.pathname === '/count') {
+      if (req.method !== 'POST') return new Response('Nur POST', { status: 405, headers: Object.assign({ allow: 'POST' }, cors) });
+      const ip = ipKey(info && info.remoteAddr && info.remoteAddr.hostname);
+      if (ips.size > 5000) sweep(Date.now());
+      if (!limit(ip, 'count')) return new Response(null, { status: 429, headers: cors });
+      await count('local');
+      return new Response(null, { status: 204, headers: cors });
+    }
+    if (url.pathname === '/stats' || url.pathname === '/stats.json') {
+      if (req.method !== 'GET' && req.method !== 'HEAD') return new Response('Nur GET', { status: 405, headers: { allow: 'GET, HEAD' } });
+      let data;
+      try { data = await readStats(); } catch (e) {
+        log.error('Statistik:', e);
+        return new Response('Statistik gerade nicht verfügbar', { status: 503 });
+      }
+      const headers = { 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' };
+      if (url.pathname === '/stats.json') return Response.json(data, { headers: Object.assign(headers, cors) });
+      return new Response(St.statsPage(data), { headers: Object.assign(headers, { 'content-type': TYPES.html }) });
     }
     if ((url.pathname === '/' || url.pathname === '/index.html') && redirectHosts.includes(url.hostname)) {
       return new Response(null, { status: 302, headers: { location: appUrl } });

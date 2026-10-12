@@ -32,8 +32,8 @@ Der Server würfelt, prüft jeden Zug und achtet auf die Zugzeit von 60 Sekunden
 1. **Der Server entscheidet.** Er würfelt, prüft jeden Eintrag mit `js/rules.js` und führt den Spielstand. Die App zeigt an und schickt nur Wünsche wie „würfeln“, „Würfel 3 halten“ oder „Große Straße eintragen“. So kann niemand schummeln, obwohl der ganze Code offen ist.
 2. **Immer der ganze Stand.** Nach jeder Änderung schickt der Server den kompletten Spielstand, nicht nur die Änderung. Das sind nur ein paar KB. Wer kurz weg war, ist nach dem Wiederverbinden sofort auf dem neuesten Stand.
 3. **Gleiche Form wie lokal.** Der Online-Stand hat dieselben Teile wie der lokale (`players`, `scores`, `cds`, `dice`, `cdGame`). So können Block, Würfel, Countdown und Ergebnis fast unverändert bleiben.
-4. **Lokal bleibt lokal.** Erst wenn jemand auf „Online“ tippt, verbindet sich die App mit dem Server. Der lokale Modus und die ZIP-Version laufen weiter ohne Internet.
-5. **So wenig Daten wie möglich.** Gespeichert werden der Spitzname, ein zufälliger Geräteschlüssel und der Spielstand. Dauerhaft bleibt nichts: Lobbys und Spiele löschen sich von selbst.
+4. **Lokal bleibt lokal.** Erst wenn jemand auf „Online“ tippt, verbindet sich die App mit dem Server. Der lokale Modus und die ZIP-Version laufen weiter ohne Internet. Einzige Ausnahme: Beim Start eines lokalen Spiels schickt die App eine leere Meldung, damit der Server Spiele zählen kann (siehe [Statistik](../server/README.md#statistik)).
+5. **So wenig Daten wie möglich.** Gespeichert werden der Spitzname, ein zufälliger Geräteschlüssel und der Spielstand. Lobbys und Spiele löschen sich von selbst. Dauerhaft bleiben nur Zähler, wie viele Spiele pro Tag gestartet wurden.
 
 ## Begriffe
 
@@ -242,8 +242,8 @@ Spitznamen sind fremde Eingaben: Schon in der Lobby siehst du Namen, die jemand 
 Das muss vor dem Start fertig sein:
 
 - **Impressum und Datenschutzerklärung**, erreichbar aus der App und auf der Seite.
-- **Nur das Nötigste speichern:** Spitzname, zufälliger Geräteschlüssel (nur als Hash) und Spielstand. Keine E-Mail, kein Konto. IP-Adressen kommen nicht in die Datenbank. Die Bremse gegen zu viele Versuche merkt sie sich nur kurz im Arbeitsspeicher.
-- **Automatisch löschen:** Deno KV kann Einträge mit Ablaufzeit speichern. Eine Lobby ohne Start verschwindet nach 1 Stunde, ein Spiel 24 Stunden nach der letzten Aktion. Ohne Bestenliste speichert der Server nichts dauerhaft.
+- **Nur das Nötigste speichern:** Spitzname, zufälliger Geräteschlüssel (nur als Hash) und Spielstand. Keine E-Mail, kein Konto. IP-Adressen kommen nicht in die Datenbank. Die Bremse gegen zu viele Versuche merkt sie sich nur kurz im Arbeitsspeicher. Für die Statistik zählt der Server gestartete Spiele pro Tag, ohne Bezug zu Personen. Lokale Spiele meldet die App dafür mit einer leeren Anfrage. Das gehört als Satz in die Datenschutzerklärung.
+- **Automatisch löschen:** Deno KV kann Einträge mit Ablaufzeit speichern. Eine Lobby ohne Start verschwindet nach 1 Stunde, ein Spiel 24 Stunden nach der letzten Aktion. Dauerhaft bleiben nur die Zähler der Statistik.
 - **Deno als Dienstleister:** Deno ist ein US-Anbieter. Vor dem Start klären: Gibt es einen Vertrag zur Auftragsverarbeitung (AVV)? Wo liegen die Daten? Was protokolliert Deno selbst, zum Beispiel IP-Adressen?
 
 ## Technik
@@ -313,6 +313,7 @@ Doppelte Tipps fängt der Server ab: `roll` sagt, der wievielte Wurf es sein sol
 | Schlüssel | Inhalt | Wie lange |
 |---|---|---|
 | `["hexa_room", "KXMP"]` | Lobby oder Spiel: Status, Host, Personen in ihrer Reihenfolge, Block, Würfel, Countdown, Deadline, letztes Ergebnis | 1 Stunde ohne Start, sonst 24 Stunden nach der letzten Aktion |
+| `["hexa_stats", …]` | Zähler für gestartete Spiele pro Tag, Stunde und insgesamt, siehe [Statistik](../server/README.md#statistik) | Tage und Summe bleiben, Stunden 2 Tage |
 
 So könnte eine Lobby mitten im Spiel aussehen (Runde 3, Tim ist dran):
 

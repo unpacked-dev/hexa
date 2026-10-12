@@ -334,6 +334,50 @@ Deno.test('HTTP: Produktion leitet die Startseite zur App weiter, Server und Dat
   await env.stop();
 });
 
+Deno.test('Statistik: Online-Start zählt der Server, lokale Spiele kommen per POST /count', async () => {
+  const env = await servers(2);
+  const stats = async (i = 0) => (await fetch(env.http(i) + '/stats.json')).json();
+  assert.deepEqual((await stats()).total, { all: 0, online: 0, local: 0 });
+
+  const { apps: [lena, tim] } = await lobbyOf(env, ['Lena', 'Tim']);
+  lena.send({ t: 'start' });
+  await tim.until(r => r.status === 'playing');
+  lena.send({ t: 'start' });
+  assert.equal(await lena.error('start'), 'game-running');   // zählt nicht doppelt
+
+  for (let i = 0; i < 3; i++) {
+    const r = await fetch(env.http(1) + '/count', { method: 'POST' });
+    assert.equal(r.status, 204);
+    assert.equal(r.headers.get('access-control-allow-origin'), '*');
+  }
+  const s = await stats(1);
+  assert.deepEqual(s.total, { all: 4, online: 1, local: 3 });
+  assert.deepEqual(s.last24h, s.total);
+  assert.deepEqual(s.last365d, s.total);
+  assert.match(s.since, /^\d{4}-\d\d-\d\d$/);
+
+  const page = await fetch(env.http(0) + '/stats');
+  assert.match(page.headers.get('content-type'), /text\/html/);
+  assert.equal(page.headers.get('cache-control'), 'no-store');
+  const html = await page.text();
+  assert.match(html, /Gestartete Spiele/);
+  assert.match(html, /Insgesamt<\/th><td class="all">4<\/td><td>1<\/td><td>3<\/td>/);
+
+  // Nur POST, und nicht beliebig oft von derselben Verbindung
+  const get = await fetch(env.http(0) + '/count');
+  assert.equal(get.status, 405);
+  await get.body.cancel();
+  const codes = [];
+  for (let i = 0; i < 9; i++) {
+    const r = await fetch(env.http(1) + '/count', { method: 'POST' });
+    codes.push(r.status);
+    await r.body?.cancel();
+  }
+  assert.deepEqual(codes, [204, 204, 204, 204, 204, 204, 204, 429, 429]);
+  assert.equal((await stats(1)).total.local, 10);   // Instanz 0 zeigt bis zu 30 Sekunden den alten Stand
+  await env.stop(lena, tim);
+});
+
 Deno.test('Bremsen zählen pro Anschluss: IPv4 einzeln, IPv6 pro /64-Netz', () => {
   assert.equal(ipKey('160.79.106.134'), '160.79.106.134');
   assert.equal(ipKey('::ffff:160.79.106.134'), '160.79.106.134');

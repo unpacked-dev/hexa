@@ -8,9 +8,10 @@ Der Server würfelt, prüft jeden Zug und achtet auf die Zugzeit. Er läuft mit 
 
 | Datei | Was drin ist |
 |---|---|
-| `main.js` | Einstieg: HTTP (App und `/health`), WebSocket, Nachrichten, Zugzeit, Anwesenheit, Bremsen |
+| `main.js` | Einstieg: HTTP (App, `/health`, `/count`, `/stats`), WebSocket, Nachrichten, Zugzeit, Anwesenheit, Bremsen |
 | `game.js` | Spielablauf, nur Rechnen: Stand + Aktion + Uhrzeit ergibt den neuen Stand |
 | `store.js` | Deno KV: Lobbys anlegen, atomar ändern, beobachten |
+| `stats.js` | Spielzähler in Deno KV und die Seite unter `/stats` |
 | `tests/*.spec.js` | Tests für Spielablauf, Datenbank und den ganzen Server |
 
 Die `deno.json` liegt im Hauptordner des Repos und nicht hier. Der Server lädt nämlich `js/config.js`, `js/rules.js` und `js/bot.js`, deshalb muss Deno Deploy das ganze Repo sehen.
@@ -75,7 +76,24 @@ Die App fragt beim Start `health` auf ihrer eigenen Adresse. Antwortet dort ein 
 - **Zugzeit:** Gespeichert wird nur das Ende des Zugs. Kurz danach (1 Sekunde Puffer) streicht die Instanz ein zufälliges freies Feld. Ein Countdown bekommt eigene 30 Sekunden. Wer zweimal hintereinander die Zeit verpasst und nicht verbunden ist, wird sofort übersprungen.
 - **Bots:** Der Server spielt sie selbst, mit derselben Logik wie die App (`js/bot.js`). Wann der nächste Schritt fällig ist, steht in `turn.botAt`, genau wie das Ende der Zugzeit. Die Instanz, deren Timer zuerst abläuft, macht ihn. Weil jeder Schritt durch die Spielregeln geprüft und atomar gespeichert wird, passiert nichts doppelt. Pro Aufruf gibt es höchstens einen Schritt, die Pausen dazwischen kommen aus `botDelays`. Bots verpassen nie die Zeit. Ohne Verbindungen gibt es keinen Timer: Dann steht das Spiel, auch für die Bots, bis jemand zurückkommt.
 - **Anwesenheit:** Jede Instanz meldet sich alle 10 Sekunden in der Datenbank. Stürzt eine ab, gelten ihre Verbindungen nach etwa 40 Sekunden als getrennt.
-- **Aufräumen:** Lobbys ohne Start verschwinden nach 1 Stunde, Spiele 24 Stunden nach der letzten Aktion. IP-Adressen kommen nie in die Datenbank, die Bremsen merken sie sich nur kurz im Arbeitsspeicher. Bei IPv6 zählt der ganze Anschluss (/64-Netz), sonst ließe sich die Bremse mit immer neuen Adressen umgehen.
+- **Aufräumen:** Lobbys ohne Start verschwinden nach 1 Stunde, Spiele 24 Stunden nach der letzten Aktion. Dauerhaft bleiben nur die Zähler der Statistik, ohne Bezug zu Personen. IP-Adressen kommen nie in die Datenbank, die Bremsen merken sie sich nur kurz im Arbeitsspeicher. Bei IPv6 zählt der ganze Anschluss (/64-Netz), sonst ließe sich die Bremse mit immer neuen Adressen umgehen.
+
+## Statistik
+
+Unter [backend.hexa-countdown.app/stats](https://backend.hexa-countdown.app/stats) steht, wie viele Spiele gestartet wurden: in den letzten 24 Stunden, 7, 30 und 365 Tagen und insgesamt, jeweils online und lokal. Dieselben Zahlen gibt es als JSON unter `/stats.json`. Die Seite ist öffentlich, sie zeigt nur Zahlen.
+
+- **Online** zählt der Server selbst, sobald der Host ein Spiel startet, auch bei jeder Revanche.
+- **Lokal** schickt die App beim Tippen auf „Spiel starten“ ein leeres `POST /count`, ohne Spitzname und ohne Geräteschlüssel. Ohne Internet geht die Meldung verloren. Läuft die App auf einem einfachen Testserver auf localhost, meldet sie nichts. Pro Internetverbindung zählen höchstens 10 Meldungen in 10 Minuten.
+- **Zeiträume:** „Letzte 24 Stunden“ rechnet in ganzen Stunden (diese und die 23 davor), alles andere in ganzen Tagen nach deutscher Zeit. Heute zählt mit: „Letzte 7 Tage“ sind heute und die 6 Tage davor.
+- **In der Datenbank** liegen nur Zähler, erhöht mit `sum`, damit gleichzeitige Starts nicht verloren gehen:
+
+| Schlüssel | Inhalt | Wie lange |
+|---|---|---|
+| `["hexa_stats", "day", "2026-10-12", "online"]` | Spiele an diesem Tag (deutsche Zeit), ebenso mit `"local"` | bleibt |
+| `["hexa_stats", "hour", "2026-10-12T14", "online"]` | Spiele in dieser Stunde (UTC), nur für die letzten 24 Stunden | 2 Tage |
+| `["hexa_stats", "total", "online"]` | alle Spiele seit Beginn | bleibt |
+
+Jede Instanz zeigt bis zu 30 Sekunden denselben Stand, damit häufiges Neuladen die Datenbank schont. Höchstens einmal pro Stunde löscht sie dabei die alten Stunden.
 
 ## Nachrichten
 

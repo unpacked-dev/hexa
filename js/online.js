@@ -1,7 +1,7 @@
 /* HEXA – Verbindung zum Online-Server.
    Eine WebSocket-Verbindung pro Gerät. Reißt sie ab (Handy gesperrt, Funkloch, Server-Update), verbindet die
-   App von selbst neu und bekommt den ganzen Stand. Hier liegen auch Geräteschlüssel, Spitzname und die
-   aktuelle Lobby. Die Ansichten stehen in js/app.js, das Protokoll in server/README.md. */
+   App von selbst neu und bekommt den ganzen Stand. Hier liegen auch Geräteschlüssel, Spitzname, die
+   aktuelle Lobby und die Meldung für den Spielzähler. Die Ansichten stehen in js/app.js, das Protokoll in server/README.md. */
 window.HexaOnline = (() => {
   'use strict';
 
@@ -155,6 +155,18 @@ window.HexaOnline = (() => {
     clearTimeout(probe);
     probe = setTimeout(drop, 4000);
   }
+  // Ein lokales Spiel hat begonnen: Der Server zählt es für die Statistik unter /stats. Die Anfrage ist leer,
+  // ohne Spitzname und Geräteschlüssel. Ohne Internet geht sie verloren. Ein einfacher Testserver auf
+  // localhost (ohne HEXA-Server dahinter) zählt nicht mit, damit Entwicklung nicht in der echten Statistik landet.
+  async function count() {
+    if (navigator.onLine === false) return;
+    if (!url) url = await findServer();
+    if (url === SERVER && /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) return;
+    try {
+      await fetch(url.replace(/^ws/, 'http').replace(/\/ws$/, '/count'), { method: 'POST', keepalive: true });
+    } catch (e) { /* dann eben nicht */ }
+  }
+
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') check(); });
   window.addEventListener('online', check);
   window.addEventListener('offline', check);
@@ -187,5 +199,6 @@ window.HexaOnline = (() => {
     },
     on(fn) { subs.push(fn); },
     forget,
+    count,
   };
 })();

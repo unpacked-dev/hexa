@@ -1748,6 +1748,7 @@
     render();
     try { window.scrollTo(0, 0); } catch (e) { /* egal */ }
     focusView();
+    Online.count();   // für die Statistik, ohne Inhalt
   }
 
   // „Menü“ unten in der Leiste und das Logo oben

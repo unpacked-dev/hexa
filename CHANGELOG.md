@@ -3,6 +3,12 @@
 Alle wichtigen Änderungen an HEXA: Countdown stehen hier.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), die Versionen folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [Unreleased]
+
+### Neu
+
+- **Statistik der gestarteten Spiele:** Unter [backend.hexa-countdown.app/stats](https://backend.hexa-countdown.app/stats) steht, wie viele Spiele in den letzten 24 Stunden, 7, 30 und 365 Tagen und insgesamt gestartet wurden, getrennt nach online und lokal. Als JSON unter `/stats.json`. Online zählt der Server selbst. Bei lokalen Spielen schickt die App beim Start eine leere Meldung, ohne Namen und ohne Geräteschlüssel. Ohne Internet geht sie verloren. In Deno KV liegen nur Zähler pro Tag, Stunde und insgesamt.
+
 ## [1.14.1] – 2026-10-08
 
 Eintragen im oberen Block mit Würfeln statt Rechnung.
