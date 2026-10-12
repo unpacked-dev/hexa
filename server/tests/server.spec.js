@@ -476,6 +476,34 @@ Deno.test('Bots: Der Host holt sie dazu, sie spielen auf zwei Instanzen genau ei
   }
 });
 
+Deno.test('Eigene Würfel über zwei Instanzen: Wahl in der Lobby, Wert eintragen, kein Zeitlimit, überspringen', async () => {
+  const env = await servers(2, { turn: 300, cd: 300, grace: 50 });
+  const { apps: [lena, tim], ids: [lenaId, timId] } = await lobbyOf(env, ['Lena', 'Tim']);
+  tim.send({ t: 'via', via: 'own' });
+  assert.equal(await tim.error('via'), 'not-host');
+  lena.send({ t: 'via', via: 'own' });
+  await tim.until(r => r.via === 'own');
+  lena.send({ t: 'start' });
+  const r0 = await tim.until(r => r.status === 'playing');
+  assert.equal(r0.turn.deadline, null);
+  lena.send({ t: 'roll', n: 1 });
+  assert.equal(await lena.error('roll'), 'own-dice');
+  // Länger als die (kurze) Zugzeit warten: Es wird nichts gestrichen
+  await new Promise(res => setTimeout(res, 700));
+  assert.equal(Object.keys(lena.state.scores).length, 0);
+  lena.send({ t: 'enter', field: 'gstrasse', pts: 40, cd: 20 });
+  const r1 = await tim.until(r => r.turn.player === timId);
+  assert.equal(r1.scores[lenaId].gstrasse, 40);
+  assert.deepEqual(r1.cds[lenaId], [20]);
+  lena.send({ t: 'fix', field: 'gstrasse', pts: 0 });
+  await tim.until(r => r.scores[lenaId].gstrasse === 0);
+  // Tim ist nicht dran zu erreichen: Lena (Host) überspringt
+  lena.send({ t: 'skip', turn: r1.turn.no });
+  const r2 = await tim.until(r => r.turn.player === lenaId);
+  assert.equal(Object.values(r2.scores[timId]).join(), '0');
+  await env.stop(lena, tim);
+});
+
 Deno.test('Online aus (enableOnline: false): Der Server nimmt niemanden an', async () => {
   const env = await servers(1, G.TIMES, { online: false });
   const c = app(env.ws(0));

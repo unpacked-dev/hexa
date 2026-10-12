@@ -7,6 +7,8 @@ Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), die V
 
 ### Neu
 
+- **Online mit eigenen Würfeln** ([#14](https://github.com/unpacked-dev/hexa/issues/14)): Der Host kann in der Lobby „Mit eigenen Würfeln“ wählen, vorher kommt ein Hinweis, dass die App nichts prüfen kann. Dann würfelt ihr mit echten Würfeln am Tisch, und jede Person trägt reihum in ihrer Spalte ein, wie lokal mit eigenen Würfeln. Ein Countdown aus dem Zug kommt beim Eintragen gleich mit. Eigene Felder und Countdowns lassen sich jederzeit korrigieren. Es gibt kein Zeitlimit und keine Bots. Ist jemand nicht verbunden, kann der Host den Zug überspringen. Das Protokoll steigt dafür auf Version 3, ältere Apps werden zum Neuladen aufgefordert.
+
 - **Block in den Highscores** ([#15](https://github.com/unpacked-dev/hexa/issues/15)): Ein Tipp auf ein Ergebnis zeigt den Block dieses Spiels, nur zum Lesen, mit allen Personen. Die Spalte aus der Zeile ist gelb hinterlegt, darüber steht die Platzierung. Gespeichert wird der Block ab jetzt beim Spielende, lokal und online, aber nur für die Spiele in den Top 10. Ältere Einträge haben keinen Block, dort kommt ein kurzer Hinweis.
 
 ### Geändert

@@ -38,13 +38,13 @@ deno task dev    # App und Server auf http://localhost:8000, WebSocket unter ws:
 deno task test   # alle Server-Tests
 ```
 
-`http://localhost:8000/` öffnet die App, `http://localhost:8000/health` zeigt `{"app":"hexa","protocol":2,"online":true,"ok":true}`. Mit zwei Browserfenstern (oder einem privaten Fenster) lässt sich so gegen sich selbst spielen. Die Datenbank liegt lokal in einer Datei im Deno-Cache. Mit `HEXA_KV=./hexa.kv` bestimmst du den Ort selbst.
+`http://localhost:8000/` öffnet die App, `http://localhost:8000/health` zeigt `{"app":"hexa","protocol":3,"online":true,"ok":true}`. Mit zwei Browserfenstern (oder einem privaten Fenster) lässt sich so gegen sich selbst spielen. Die Datenbank liegt lokal in einer Datei im Deno-Cache. Mit `HEXA_KV=./hexa.kv` bestimmst du den Ort selbst.
 
 ## Auf Deno Deploy einrichten
 
 1. Auf [console.deno.com](https://console.deno.com) eine neue App anlegen und das GitHub-Repo `unpacked-dev/hexa` verbinden. Das App-Verzeichnis bleibt leer (Hauptordner des Repos).
 2. **Datenbank:** unter *Databases* eine Deno-KV-Datenbank anlegen (*Provision Database*) und der App zuweisen (*Assign*). Mehr ist nicht nötig, `Deno.openKv()` findet sie von selbst. Bei uns heißt sie `unpacked` und gehört der ganzen Organisation. Ihr Name steht nirgends im Code, Umbenennen ändert also nichts. Damit sich HEXA dort nicht mit anderen Apps in die Quere kommt, beginnen alle Schlüssel mit `hexa_`. Jeder Branch bekommt automatisch eine eigene Datenbank.
-3. **Prüfen:** An die Adresse eines Builds `/health` anhängen. Dort muss `{"app":"hexa","protocol":2,"online":true,"ok":true}` stehen. Der WebSocket ist dann `wss://<adresse>/ws`, unter der Adresse selbst läuft die App.
+3. **Prüfen:** An die Adresse eines Builds `/health` anhängen. Dort muss `{"app":"hexa","protocol":3,"online":true,"ok":true}` stehen. Der WebSocket ist dann `wss://<adresse>/ws`, unter der Adresse selbst läuft die App.
 
 Einstiegspunkt und Laufzeit stehen in der `deno.json` unter `deploy.runtime`: `mode: "dynamic"` mit `entrypoint: "server/main.js"`. Diese Angabe geht den Einstellungen im Dashboard vor. Ohne sie findet Deno Deploy die `index.html` im Hauptordner und liefert einfach die Website aus. Die `deno.json` schaltet außerdem mit `"unstable": ["kv"]` Deno KV frei, sonst bricht der Start mit „Deno.openKv is not a function“ ab.
 
@@ -74,6 +74,7 @@ Die App fragt beim Start `health` auf ihrer eigenen Adresse. Antwortet dort ein 
 - **Ein Eintrag pro Lobby** unter `["hexa_room", Code]` mit dem ganzen Stand. Jede Änderung läuft so: lesen, prüfen, atomar schreiben. Kommen zwei Aktionen gleichzeitig, gewinnt eine, die andere wird mit dem neuen Stand wiederholt.
 - **Gemerkter Stand:** Jede Instanz merkt sich den neuesten Stand ihrer Lobbys samt Version (aus dem eigenen Schreiben, `kv.watch()` und dem Nachfragen). Die nächste Aktion rechnet gleich damit und schreibt nur, wenn die Version in der Datenbank noch dieselbe ist. War eine andere Instanz schneller, schlägt das fehl, und es geht mit frisch gelesenem Stand weiter. Fehler und Aktionen, die nichts ändern, prüft der Server immer mit frischem Stand. Das spart pro Aktion einen Weg zur Datenbank.
 - **Mehrere Instanzen:** Jede Instanz beobachtet ihre Lobbys mit `kv.watch()` und schickt Änderungen sofort an ihre Verbindungen. Zusätzlich fragt sie alle 5 Sekunden nach (siehe `HEXA_POLL_MS`).
+- **Mit eigenen Würfeln** (`room.via` ist `own`): Niemand würfelt in der App, `roll`, `hold` und `cdRoll` lehnt der Server mit `own-dice` ab. Jede Person trägt reihum ihren Wert selbst ein, der Server prüft nur, ob es ihn für das Feld gibt. Es gibt kein Zeitlimit (`turn.deadline` ist `null`), niemand wird automatisch übersprungen. Ist jemand weg, kann der Host mit `skip` weitermachen. Bots gibt es in diesem Modus nicht.
 - **Zugzeit:** Gespeichert wird nur das Ende des Zugs. Kurz danach (1 Sekunde Puffer) streicht die Instanz ein zufälliges freies Feld. Ein Countdown bekommt eigene 30 Sekunden. Wer zweimal hintereinander die Zeit verpasst und nicht verbunden ist, wird sofort übersprungen.
 - **Bots:** Der Server spielt sie selbst, mit derselben Logik wie die App (`js/bot.js`), in der Stufe, die der Host gewählt hat. Die Fehler leichterer Bots hängen an Lobby, Spiel und Bot, nicht am Zufall des Servers. So entscheidet ein Bot bei jedem Schritt seines Zugs gleich, auch auf verschiedenen Instanzen. Wann der nächste Schritt fällig ist, steht in `turn.botAt`, genau wie das Ende der Zugzeit. Die Instanz, deren Timer zuerst abläuft, macht ihn. Weil jeder Schritt durch die Spielregeln geprüft und atomar gespeichert wird, passiert nichts doppelt. Pro Aufruf gibt es höchstens einen Schritt, die Pausen dazwischen kommen aus `botDelays`. Bots verpassen nie die Zeit. Ohne Verbindungen gibt es keinen Timer: Dann steht das Spiel, auch für die Bots, bis jemand zurückkommt.
 - **Anwesenheit:** Jede Instanz meldet sich alle 10 Sekunden in der Datenbank. Stürzt eine ab, gelten ihre Verbindungen nach etwa 40 Sekunden als getrennt.
@@ -111,17 +112,21 @@ Alle Nachrichten sind JSON mit dem Feld `t` für die Art. Höchstens 4 KB pro Na
 
 | `t` | Felder | Wofür |
 |---|---|---|
-| `hello` | `v` (Protokoll, jetzt `2`), `key` (Geräteschlüssel, 16–128 Zeichen `A-Z a-z 0-9 _ -`), optional `code` | Als Erstes. Mit `code` geht es zurück ins eigene Spiel. Apps mit Protokoll 1 (vor den Bots) bekommen `update-needed`. |
+| `hello` | `v` (Protokoll, jetzt `3`), `key` (Geräteschlüssel, 16–128 Zeichen `A-Z a-z 0-9 _ -`), optional `code` | Als Erstes. Mit `code` geht es zurück ins eigene Spiel. Apps mit Protokoll 1 (vor den Bots) und 2 (vor den eigenen Würfeln) bekommen `update-needed`. |
 | `create` | `name` | Lobby erstellen |
 | `join` | `code`, `name` | Lobby beitreten. Ist das Gerät schon drin, geht es einfach zurück. |
 | `order` | `ids` (alle Personen in neuer Reihenfolge) | Nur Host, nur in der Lobby |
 | `kick` | `id` | Nur Host, nur in der Lobby. Entfernt auch Bots. |
 | `addBot` | optional `level`: `easy`, `medium` oder `hard` | Nur Host, nur in der Lobby. Name kommt aus `botNames`. Ohne `level` spielt der Bot schwer, so schicken es ältere Apps. |
 | `botLevel` | `id`, `level` | Nur Host, nur in der Lobby: Stufe eines Bots wechseln |
+| `via` | `via`: `app` oder `own` | Nur Host, nur in der Lobby: mit der App oder mit eigenen Würfeln. `own` nur ohne Bots. |
 | `start` | | Nur Host. Auch allein. |
 | `roll` | `n`: der wievielte Wurf (1–3) | Würfeln |
 | `hold` | `i` (0–5), `on` (`true`/`false`) | Würfel halten oder loslassen |
-| `enter` | `field`, z. B. `gstrasse` | Feld eintragen |
+| `enter` | `field`, z. B. `gstrasse`. Mit eigenen Würfeln dazu `pts` und optional `cd` | Feld eintragen. Mit eigenen Würfeln der selbst gewählte Wert (muss für das Feld möglich sein, siehe `valuesFor` in `js/rules.js`) und die Punkte aus dem Countdown dieses Zugs (10 bis 60). |
+| `fix` | `field`, `pts` | Nur mit eigenen Würfeln: ein eigenes, schon ausgefülltes Feld korrigieren |
+| `cds` | `list`, z. B. `[20, 10]` | Nur mit eigenen Würfeln: die eigenen Countdowns korrigieren, höchstens einer pro ausgefülltem Feld |
+| `skip` | `turn`: die Nummer des Zugs | Nur mit eigenen Würfeln, nur Host: den Zug der Person überspringen, die gerade dran ist. Ein zufälliges freies Feld wird gestrichen. |
 | `cdRoll` | `stage`: welche Stufe (0–5) | Countdown würfeln |
 | `expired` | | „Bei mir ist die Zeit um.“ Der Server prüft selbst. |
 | `away` | | Zum Hauptmenü: Das Spiel läuft ohne dich weiter. |
@@ -145,6 +150,7 @@ Alle Nachrichten sind JSON mit dem Feld `t` für die Art. Höchstens 4 KB pro Na
 ```js
 {
   code: 'KXMP', status: 'playing',        // lobby | playing
+  via: 'app',                             // app | own (eigene Würfel)
   seq: 42, game: 1, host: 'a1b2c3d4e5', you: 'f6g7h8i9j0',
   players: [{ id, name, online, missed }], // in der Reihenfolge des Hosts, Bots mit bot: true und level
   scores: { [id]: { u1: 3, gstrasse: 40 } },
@@ -183,5 +189,7 @@ Alle Nachrichten sind JSON mit dem Feld `t` für die Art. Höchstens 4 KB pro Na
 | `countdown-running`, `no-countdown` | Gerade läuft ein Countdown / kein Countdown |
 | `no-roll-yet`, `no-rolls`, `all-held` | Erst würfeln / drei Würfe sind vorbei / alle Würfel gehalten |
 | `field-taken` | Feld schon ausgefüllt |
+| `own-dice` | Mit eigenen Würfeln würfelt die App nicht (und es gibt keine Bots) |
+| `has-bots` | Eigene Würfel gehen nur ohne Bots in der Lobby |
 | `stale` | Doppelter Tipp oder veraltete Ansicht |
 | `server-error` | Unerwarteter Fehler auf dem Server |

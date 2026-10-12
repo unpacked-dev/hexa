@@ -510,6 +510,7 @@
 
   function renderDice() {
     const root = $('#view-dice');
+    if (ownDice()) { root.innerHTML = ownDiceHTML(); return; }
     const d = state.dice;
     const done = turnDone();
     const owner = d.owner ? playerById(d.owner) : null;
@@ -663,8 +664,8 @@
       return;
     }
     const endHTML = gameDone() ? endCard(tr('end.noteBlock')) : '';
-    root.innerHTML = `${endHTML}${padHTML()}
-      <p class="pad-hint">${tr(online() ? 'online.blockHint' : 'block.hint')}</p>`;
+    root.innerHTML = `${endHTML}${ownSkipHTML()}${padHTML()}
+      <p class="pad-hint">${tr(ownDice() ? 'online.ownHint' : online() ? 'online.blockHint' : 'block.hint')}</p>`;
     padSync(root, true);
   }
 
@@ -1294,19 +1295,14 @@
     }, name);
   }
 
-  function openFieldSheet(pid, key) {
-    const p = playerById(pid);
+  // Die Werte zum Antippen für ein Feld, wie auf dem Papierblock: oben die Würfel, sonst geschafft oder gestrichen,
+  // bei der Chance die Summe. cur ist der eingetragene Wert, match der zum aktuellen Wurf passende.
+  function fieldChoices(key, cur, match) {
     const f = F[key];
-    if (!p || !f) return;
-    if (p.bot) { toast(tr('bot.cell', { name: p.name })); return; }
-    const cur = scoreOf(pid, key);
-    const d = state.dice;
-    const match = d.vals && d.rolls && !turnDone() && d.owner === pid ? scoreFor(key, d.vals) : null;
     const choice = (v, small, art, label) => {
       const c = 'ch' + (cur === v ? ' cur' : '') + (match === v ? ' match' : '');
       return `<button type="button" class="${c}" data-act="sheet-do" data-do="pick" data-v="${v}"${label ? ` aria-label="${esc(label)}"` : ''}>${art || ''}<b>${v}</b>${small ? `<small>${small}</small>` : ''}</button>`;
     };
-    const name = fieldName(key);
     let grid = '';
     let cls = '';
     let note = '';
@@ -1324,6 +1320,19 @@
       for (let v = 6; v <= 36; v++) grid += choice(v, '');
       note = tr('field.sum');
     }
+    return { grid, cls, note };
+  }
+
+  function openFieldSheet(pid, key) {
+    const p = playerById(pid);
+    const f = F[key];
+    if (!p || !f) return;
+    if (p.bot) { toast(tr('bot.cell', { name: p.name })); return; }
+    const cur = scoreOf(pid, key);
+    const d = state.dice;
+    const match = d.vals && d.rolls && !turnDone() && d.owner === pid ? scoreFor(key, d.vals) : null;
+    const name = fieldName(key);
+    const { grid, cls, note } = fieldChoices(key, cur, match);
     openSheet(`
       <h3 class="s-title">${name}</h3>
       <p class="s-who">${esc(tr('quick.for', { name: p.name }))}</p>
@@ -1366,7 +1375,8 @@
     return `<span class="ch-art" aria-hidden="true">${rows.map(r => `<span class="ch-dr">${miniDie(n).repeat(r)}</span>`).join('')}</span>`;
   }
 
-  function openCdSheet(pid) {
+  // send: online mit eigenen Würfeln geht die neue Liste an den Server, statt sie lokal zu speichern
+  function openCdSheet(pid, send) {
     const p = playerById(pid);
     if (!p) return;
     if (p.bot) { toast(tr('bot.cell', { name: p.name })); return; }
@@ -1390,6 +1400,14 @@
       </div>`, {
       add: v => {
         const n = Number(v);
+        if (send) {
+          closeSheet();
+          // Höchstens ein Countdown pro eingetragenem Feld, wie auf dem Server
+          if (cdList(pid).length >= filled(pid)) { toast(tr('online.ownCdMax')); return; }
+          send(cdList(pid).concat(n));
+          toast(tr('cdSheet.added', { pts: trPts(n) }));
+          return;
+        }
         const snap = snapshot();
         state.cds[pid] = cdList(pid).concat(n);
         closeSheet();
@@ -1399,6 +1417,12 @@
         showResultIfOver();
       },
       pop: () => {
+        if (send) {
+          closeSheet();
+          send(cdList(pid).slice(0, -1));
+          toast(tr('cdSheet.popped'));
+          return;
+        }
         const snap = snapshot();
         state.cds[pid] = cdList(pid).slice(0, -1);
         closeSheet();
@@ -2560,7 +2584,7 @@
     'room-not-found': 'notFound', 'room-closed': 'closed', 'game-running': 'running', 'room-full': 'full',
     'name-invalid': 'name', 'too-many': 'tooMany', 'not-host': 'notHost', 'not-your-turn': 'notYourTurn',
     'update-needed': 'update', 'server-old': 'serverOld', removed: 'removed', 'not-in-room': 'notInRoom',
-    'bots-full': 'botsFull', 'online-off': 'onlineOff',
+    'bots-full': 'botsFull', 'online-off': 'onlineOff', 'own-dice': 'ownDice', 'has-bots': 'hasBots',
   };
   const NAME_CHARS = /[^A-Za-z0-9ÄÖÜäöüß _.!?-]/g;
   let serverTimes = { turn: 60000, cd: 30000, grace: 1000 };
@@ -2580,6 +2604,8 @@
   let expiredFor = null;
 
   const myTurn = () => online() && !!room && room.status === 'playing' && !!room.turn && room.turn.player === room.you;
+  // Online mit eigenen Würfeln: Niemand würfelt in der App, jede Person trägt selbst ein, ohne Zeitlimit
+  const ownDice = () => online() && !!room && room.via === 'own';
   // Beim Zuschauen: Wie viele sind noch vor dir? Wer alle Felder voll hat, schaut nur noch zu.
   // Online, während jemand anderes spielt: wie viele noch vor dir dran sind, die Person am Zug mitgezählt.
   function waitText() {
@@ -2611,7 +2637,7 @@
       else scores = Object.assign({}, scores, { [r.you]: Object.assign({}, mine, { [pe.key]: pe.pts }) });
     }
     return {
-      v: 1, tab: state.tab || 'dice', duo: local.duo, started: !!r && r.status === 'playing', via: 'app',
+      v: 1, tab: state.tab || 'dice', duo: local.duo, started: !!r && r.status === 'playing', via: r && r.via === 'own' ? 'own' : 'app',
       players: r ? r.players.map(p => Object.assign({ id: p.id, name: p.name }, p.bot ? { bot: true, level: Bot.levelOf(p.level) } : {})) : [],
       scores,
       cds: r ? r.cds : {},
@@ -2807,7 +2833,16 @@
     // Bots holt nur der Host dazu. Grenzen und Namen wie lokal aus js/config.js.
     const taken = new Set(P.map(p => p.name.toLowerCase()));
     const canBot = P.length < Config.maxPlayers && P.filter(p => p.bot).length < Config.maxBots && Config.botNames.some(n => !taken.has(n.toLowerCase()));
-    const addBot = host ? `<button type="button" class="btn btn-line add-bot" data-act="ol-add-bot"${canBot ? '' : ' disabled'}>${ICON.bot}<span>${tr(canBot ? 'setup.addBot' : 'setup.botsFull')}</span></button>` : '';
+    const via = r.via === 'own' ? 'own' : 'app';
+    // Mit eigenen Würfeln gibt es keine Bots, die können nicht am Tisch würfeln
+    const addBot = host && via === 'app' ? `<button type="button" class="btn btn-line add-bot" data-act="ol-add-bot"${canBot ? '' : ' disabled'}>${ICON.bot}<span>${tr(canBot ? 'setup.addBot' : 'setup.botsFull')}</span></button>` : '';
+    const viaHTML = host
+      ? `<h2 class="h-sec ol-via-h" id="ol-via-h">${tr('setup.viaTitle')}</h2>
+        <div class="seg seg-two ol-via" role="group" aria-labelledby="ol-via-h">
+          <button type="button" class="seg-b" data-act="ol-via" data-via="app" aria-pressed="${via === 'app'}">${ICON.phone}<span>${tr('setup.app')}</span></button>
+          <button type="button" class="seg-b" data-act="ol-via" data-via="own" aria-pressed="${via === 'own'}">${ICON.dices}<span>${tr('setup.own')}</span></button>
+        </div>`
+      : `<p class="ol-via-t">${tr(via === 'own' ? 'online.viaOwnGuest' : 'online.viaAppGuest')}</p>`;
     const start = host
       ? `<button type="button" class="btn btn-pen ol-start" data-act="ol-start">${tr(P.length > 1 ? 'online.start' : 'online.startSolo')}</button>`
       : `<p class="ol-wait">${esc(tr('online.waitHost', { name: hostP ? hostP.name : '' }))}</p>`;
@@ -2828,7 +2863,8 @@
       <h2 class="h-sec">${tr('online.order')}</h2>
       <ol class="plist">${rows}</ol>
       ${addBot}
-      <p class="ol-rule">${tr('online.rule', { n: Math.round(serverTimes.turn / 1000) })}</p>
+      ${viaHTML}
+      <p class="ol-rule">${tr(via === 'own' ? 'online.ruleOwn' : 'online.rule', { n: Math.round(serverTimes.turn / 1000) })}</p>
       ${start}
       <p class="ol-status" role="status">${statusLine()}</p>
       ${last}`;
@@ -2854,13 +2890,14 @@
     let who;
     if (mine) who = tr(t.phase === 'cd' ? 'online.barYourCd' : 'online.yourTurn');
     else who = tr(t.phase === 'cd' ? 'online.barCd' : 'dice.turn', { name: cur ? cur.name : '' });
-    // Bots brauchen keine Zugzeit: kein Balken, keine Restzeit
+    // Bots brauchen keine Zugzeit, mit eigenen Würfeln gibt es keine: kein Balken, keine Restzeit
     const bot = !!(cur && cur.bot);
+    const untimed = bot || t.deadline == null;
     bar.classList.toggle('mine', mine);
-    bar.classList.toggle('bot', bot);
-    if (bot) bar.classList.remove('urgent');
-    bar.innerHTML = bot
-      ? `<div class="ol-row"><span class="ol-who">${botMark}${esc(who)}</span></div>`
+    bar.classList.toggle('bot', untimed);
+    if (untimed) bar.classList.remove('urgent');
+    bar.innerHTML = untimed
+      ? `<div class="ol-row"><span class="ol-who">${bot ? botMark : ''}${esc(who)}</span></div>`
       : `<div class="ol-row"><span class="ol-who">${esc(who)}</span><span class="ol-time"></span></div>
       <div class="ol-track" aria-hidden="true"><i class="ol-fill"></i></div>`;
     tickBar();
@@ -2871,7 +2908,7 @@
     if (!online() || !room || room.status !== 'playing' || !room.turn) return;
     const t = room.turn;
     const tp = onlinePlayer(t.player);
-    if (tp && tp.bot) return;
+    if ((tp && tp.bot) || t.deadline == null) return;
     const bar = $('#olBar');
     const total = t.phase === 'cd' ? serverTimes.cd : serverTimes.turn;
     const left = Math.max(0, t.deadline - Online.now());
@@ -2900,7 +2937,7 @@
   // Würfeln: Die Würfel rollen sofort los, die Zahlen kommen vom Server.
   function onlineRoll() {
     const d = state.dice;
-    if (rolling || pendingEnter || !myTurn() || room.turn.phase !== 'roll') return;
+    if (rolling || pendingEnter || ownDice() || !myTurn() || room.turn.phase !== 'roll') return;
     const first = d.turn !== room.turn.no || !d.rolls;
     const n = first ? 1 : d.rolls + 1;
     if (n > 3 || (!first && d.held.every(Boolean))) return;
@@ -2962,6 +2999,104 @@
     Sound.hold(on);
   }
 
+  /* Online mit eigenen Würfeln */
+  // Würfel-Tab: Hier wird nicht gewürfelt. Kurz erklären, wer dran ist, und zum Block schicken.
+  function ownDiceHTML() {
+    const cur = currentPlayer();
+    const mine = !!cur && cur.id === room.you;
+    const who = !cur ? tr('dice.over') : mine ? tr('online.yourTurn') : tr('dice.turn', { name: cur.name });
+    return `<div class="own-card">
+        <span class="own-ic">${ICON.dices}</span>
+        <h2 class="own-who">${esc(who)}</h2>
+        <p>${tr(mine ? 'online.ownYour' : 'online.ownWait')}</p>
+        <button type="button" class="btn btn-pen" data-act="tab" data-tab="block">${tr('online.ownToBlock')}</button>
+      </div>${ownSkipHTML()}`;
+  }
+  // Nur für den Host: Ist die Person am Zug nicht verbunden, lässt sich ihr Zug überspringen.
+  function ownSkipHTML() {
+    if (!ownDice() || room.host !== room.you || room.status !== 'playing' || !room.turn) return '';
+    const p = onlinePlayer(room.turn.player);
+    if (!p || p.id === room.you || p.online) return '';
+    return `<div class="own-skip"><p>${esc(tr('online.skipText', { name: p.name }))}</p><button type="button" class="btn btn-line" data-act="ol-skip">${tr('online.skip')}</button></div>`;
+  }
+  function confirmSkip() {
+    const p = room && room.turn ? onlinePlayer(room.turn.player) : null;
+    if (!p || !ownDice()) return;
+    const no = room.turn.no;
+    openSheet(`
+      <h3 class="s-title">${esc(tr('online.skipTitle', { name: p.name }))}</h3>
+      <p class="s-note">${tr('online.skipNote')}</p>
+      <div class="s-acts">
+        <button type="button" class="btn btn-pen" data-act="sheet-do" data-do="ok">${tr('online.skip')}</button>
+        <button type="button" class="btn btn-quiet" data-act="sheet-close">${tr('common.cancel')}</button>
+      </div>`, {
+      ok: () => { closeSheet(); if (!Online.send({ t: 'skip', turn: no })) toast(tr('online.offline')); },
+    }, tr('online.skip'));
+  }
+  // Mit eigenen Würfeln oder mit der App. Vor den eigenen Würfeln ein Hinweis: Die App kann nichts prüfen.
+  function olVia(via) {
+    if (!room || room.host !== room.you || room.status !== 'lobby' || (room.via || 'app') === via) return;
+    if (via === 'own' && room.players.some(p => p.bot)) { toast(tr('online.ownNoBots')); return; }
+    const go = () => { if (!Online.send({ t: 'via', via })) toast(tr('online.offline')); };
+    if (via !== 'own') { go(); return; }
+    openSheet(`
+      <div class="res-top"><span class="res-ic">${ICON.dices}</span></div>
+      <h3 class="s-title">${tr('online.ownWarnTitle')}</h3>
+      <p class="s-note">${tr('online.ownWarnText')}</p>
+      <div class="s-acts">
+        <button type="button" class="btn btn-pen" data-act="sheet-do" data-do="ok">${tr('online.ownWarnOk')}</button>
+        <button type="button" class="btn btn-quiet" data-act="sheet-close">${tr('common.cancel')}</button>
+      </div>`, {
+      ok: () => { closeSheet(); go(); },
+    }, tr('online.ownWarnTitle'));
+  }
+  // Tipp in den Block: nur die eigene Spalte. Freies Feld im eigenen Zug: eintragen. Volles Feld: korrigieren.
+  function ownCell(pid, key) {
+    if (pid !== room.you) { toast(tr('online.ownOthers')); return; }
+    if (room.status !== 'playing') return;
+    const fix = scoreOf(pid, key) !== null;
+    if (!fix && (pendingEnter || !myTurn() || room.turn.phase !== 'roll')) { toast(tr('online.ownNotYet')); return; }
+    openOwnSheet(key, fix);
+  }
+  // Wert wählen wie lokal mit eigenen Würfeln. Beim Eintragen auf Wunsch die Punkte aus dem Countdown dieses Zugs.
+  function openOwnSheet(key, fix) {
+    const me = onlinePlayer(room.you);
+    const cur = scoreOf(room.you, key);
+    const name = fieldName(key);
+    const { grid, cls, note } = fieldChoices(key, cur, null);
+    let cd = 0;
+    const cdRow = fix ? '' : `
+      <p class="s-lab" id="own-cd-l">${tr('online.ownCd')}</p>
+      <div class="own-cds" role="radiogroup" aria-labelledby="own-cd-l">${[0, 10, 20, 30, 40, 50, 60].map(v => `<button type="button" class="own-cd" role="radio" aria-checked="${v === 0}" data-act="sheet-do" data-do="cd" data-v="${v}">${v ? '+' + v : tr('online.ownCdNone')}</button>`).join('')}</div>
+      <p class="s-lab">${tr('online.ownValue')}</p>`;
+    openSheet(`
+      <h3 class="s-title">${name}</h3>
+      <p class="s-who">${esc(tr(fix ? 'online.ownFix' : 'quick.for', { name: me ? me.name : '' }))}</p>
+      <p class="s-note">${note}</p>
+      ${cdRow}
+      <div class="chs${cls}">${grid}</div>
+      <div class="s-acts"><button type="button" class="btn btn-quiet" data-act="sheet-close">${tr('common.cancel')}</button></div>`, {
+      cd: v => {
+        cd = Number(v);
+        $$('#sheet .own-cd').forEach(b => b.setAttribute('aria-checked', b.dataset.v === String(cd) ? 'true' : 'false'));
+      },
+      pick: v => {
+        const n = Number(v);
+        closeSheet();
+        if (fix) {
+          if (n === cur) return;
+          if (!Online.send({ t: 'fix', field: key, pts: n })) { toast(tr('online.offline')); return; }
+          toast(tr('online.ownFixed', { field: name, n }));
+          return;
+        }
+        const msg = { t: 'enter', field: key, pts: n };
+        if (cd) msg.cd = cd;
+        if (!Online.send(msg)) { toast(tr('online.offline')); return; }
+        markEntered(key, n);
+      },
+    }, name);
+  }
+
   // Eintragen sofort zeigen, mit Ton und Meldung. Bis der Server bestätigt, steht die Zahl etwas blasser im
   // Block, und würfeln oder halten geht nicht mehr. Lehnt er ab oder kommt nichts, verschwindet sie wieder.
   function markEntered(key, pts) {
@@ -2983,6 +3118,7 @@
 
   // Tipp auf ein Feld im Block: Online trägt man nur im eigenen Zug über die Würfel ein.
   function onlineCell(pid, key) {
+    if (ownDice()) { ownCell(pid, key); return; }
     const d = state.dice;
     if (myTurn() && !pendingEnter && pid === room.you && room.turn.phase === 'roll' && d.turn === room.turn.no && d.rolls && scoreOf(pid, key) === null) openQuick(key);
     else toast(tr('online.blockHint'));
@@ -3035,7 +3171,9 @@
     vibrate([30, 60, 30]);
     Sound.turn();
     activity();
-    if (state.tab !== 'dice' && !duoOn()) setTab('dice');
+    // Mit eigenen Würfeln geht es in den Block, sonst zu den Würfeln
+    const want = viaTab();
+    if (state.tab !== want && !duoOn()) setTab(want);
   }
 
   /* Menü, Verlassen, Ergebnis */
@@ -3182,6 +3320,7 @@
       case 'leave': if (!me) toast(tr('online.evLeave', { name })); break;
       case 'kick': if (!me) toast(tr('online.evKick', { name })); break;
       case 'host': toast(me ? tr('online.evHostYou') : tr('online.evHost', { name })); break;
+      case 'via': if (!me) toast(tr(e.via === 'own' ? 'online.evViaOwn' : 'online.evViaApp', { name })); break;
       case 'enter': {
         if (me && shownEnter === e.field) { shownEnter = null; break; }
         const field = fieldName(e.field);
@@ -3221,7 +3360,7 @@
     const wasStarted = state.started;
     const tab = state.tab;
     state = onlineView(r);
-    state.tab = wasStarted || !state.started ? tab : 'dice';
+    state.tab = wasStarted || !state.started ? tab : viaTab();
 
     const rolled = same && r.status === 'playing' && !!r.turn && r.dice.turn === r.turn.no && r.dice.rolls > 0 &&
       (prev.dice.turn !== r.dice.turn || r.dice.rolls > prev.dice.rolls);
@@ -3358,6 +3497,8 @@
       case 'ol-kick': confirmKick(t.dataset.pid); break;
       case 'ol-add-bot': if (!Online.send({ t: 'addBot', level: botLevelPref() })) toast(tr('online.offline')); break;
       case 'ol-bot-level': olBotLevel(t.dataset.pid); break;
+      case 'ol-via': olVia(t.dataset.via); break;
+      case 'ol-skip': confirmSkip(); break;
       case 'ol-copy': copyCode(); break;
       case 'home': showStart(); break;
       case 'menu': openMenu(); break;
@@ -3381,7 +3522,12 @@
         else if (isDaily()) dailyCell(t.dataset.pid, t.dataset.key);
         else openFieldSheet(t.dataset.pid, t.dataset.key);
         break;
-      case 'cd-cell': if (online()) toast(tr('online.blockHint')); else if (isDaily()) toast(tr('daily.blockHint')); else openCdSheet(t.dataset.pid); break;
+      case 'cd-cell':
+        if (ownDice() && t.dataset.pid === room.you && room.status === 'playing') openCdSheet(room.you, list => { if (!Online.send({ t: 'cds', list })) toast(tr('online.offline')); });
+        else if (online()) toast(tr(ownDice() ? 'online.ownOthers' : 'online.blockHint'));
+        else if (isDaily()) toast(tr('daily.blockHint'));
+        else openCdSheet(t.dataset.pid);
+        break;
       case 'add': addPlayer(); break;
       case 'add-bot': addBot(); break;
       case 'bot-level': cycleBotLevel(t.dataset.pid); break;

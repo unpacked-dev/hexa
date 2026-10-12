@@ -1274,3 +1274,26 @@ html:not(.ready) .start-top { visibility: hidden; }
     scroll-behavior: auto !important;
   }
 }
+
+/* ---------- Online mit eigenen Würfeln ---------- */
+.ol-via-h { margin-top: 28px; }
+.ol-via { margin-top: 10px; }
+.ol-via-t { margin: 18px 2px 0; font-size: 15px; color: var(--ink-2); }
+.own-card {
+  display: grid; justify-items: center; gap: 10px; margin-top: 12px; padding: 28px 20px 22px;
+  border-radius: 22px; background: var(--sheet); box-shadow: var(--lift); text-align: center;
+}
+.own-card p { margin: 0; max-width: 34ch; color: var(--ink-2); }
+.own-ic { display: grid; place-items: center; width: 64px; height: 64px; border-radius: 18px; background: var(--marker); color: #1C2030; }
+.own-ic svg { width: 32px; height: 32px; }
+.own-who { margin: 4px 0 0; font-size: 24px; font-weight: 900; font-stretch: 112%; line-height: 1.15; text-wrap: balance; }
+.own-card .btn { margin-top: 6px; min-width: 200px; }
+.own-skip { display: grid; gap: 10px; margin: 12px 0; padding: 14px 16px; border-radius: 16px; background: var(--wash); }
+.own-skip p { margin: 0; font-size: 15px; }
+.own-cds { display: flex; flex-wrap: wrap; gap: 6px; }
+.own-cd {
+  min-height: 40px; padding: 6px 12px; border: 1.5px solid var(--rule); border-radius: 999px;
+  background: transparent; color: var(--ink); font: inherit; font-weight: 700; cursor: pointer;
+}
+.own-cd[aria-checked="true"] { border-color: var(--pen); background: var(--pen); color: var(--on-pen); }
+.own-cd:focus-visible { outline: 2px solid var(--pen); outline-offset: 2px; }

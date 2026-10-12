@@ -182,6 +182,8 @@ export function createHub({ kv, instance = G.randomId(8), times = G.TIMES, rng =
     const room = L.room;
     if (!room || room.status !== 'playing' || !room.turn) return;
     const bot = G.playerById(room, room.turn.player);
+    // Ohne Zeitlimit (eigene Würfel) gibt es für Menschen nichts zu prüfen
+    if (!(bot && bot.bot) && room.turn.deadline == null) return;
     const due = bot && bot.bot ? room.turn.botAt : room.turn.deadline + times.grace;
     const wait = Math.max(pause, due - Date.now()) + 20 + Math.floor(Math.random() * 150);
     L.timer = setTimeout(async () => {
@@ -387,12 +389,21 @@ export function createHub({ kv, instance = G.randomId(8), times = G.TIMES, rng =
       if (typeof m.id !== 'string' || !G.BOT_LEVELS.includes(m.level)) G.fail('bad-message');
       return act(c, (room, pid) => G.setBotLevel(room, pid, m.id, m.level));
     },
+    // Mit der App oder mit eigenen Würfeln (nur Host, nur in der Lobby)
+    via(c, m) {
+      if (!G.VIAS.includes(m.via)) G.fail('bad-message');
+      return act(c, (room, pid) => G.setVia(room, pid, m.via));
+    },
     roll: (c, m) => act(c, (room, pid, ctx) => G.roll(room, pid, m.n, ctx)),
     hold(c, m) {
       if (typeof m.on !== 'boolean') G.fail('bad-message');
       return act(c, (room, pid) => G.hold(room, pid, m.i, m.on));
     },
-    enter: (c, m) => act(c, (room, pid, ctx) => G.enter(room, pid, m.field, ctx)),
+    // pts und cd nur mit eigenen Würfeln, sonst rechnet der Server selbst
+    enter: (c, m) => act(c, (room, pid, ctx) => G.enter(room, pid, m.field, ctx, m.pts, m.cd)),
+    fix: (c, m) => act(c, (room, pid) => G.fix(room, pid, m.field, m.pts)),
+    cds: (c, m) => act(c, (room, pid) => G.setCds(room, pid, m.list)),
+    skip: (c, m) => act(c, (room, pid, ctx) => G.skip(room, pid, m.turn, ctx)),
     cdRoll: (c, m) => act(c, (room, pid, ctx) => G.cdRoll(room, pid, m.stage, ctx)),
     // „Bei mir ist die Zeit um.“ Der Server prüft selbst und schickt auf jeden Fall den aktuellen Stand.
     async expired(c) {

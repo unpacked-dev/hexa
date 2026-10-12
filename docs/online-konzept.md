@@ -15,7 +15,7 @@ Der Server würfelt, prüft jeden Zug und achtet auf die Zugzeit von 60 Sekunden
 - Beitritt nur per Code, ohne Einladungslink. Eine eigene App für App Store und Google Play ist verworfen. Auf dem Handy lässt sich HEXA seit Version 1.14.0 als App installieren.
 - Der Code hat 4 Buchstaben. Beim Erstellen prüft der Server, ob er noch frei ist.
 - „Online“ im Hauptmenü führt zu: Lobby erstellen oder Lobby beitreten.
-- Online wird nur mit App-Würfeln gespielt.
+- Online wird mit App-Würfeln gespielt. Seit Version 3 des Protokolls kann der Host auch „Mit eigenen Würfeln“ wählen: echte Würfel am Tisch, jede Person trägt am eigenen Handy ein, ohne Zeitlimit und ohne Bots. Vorher kommt der Hinweis, dass die App nichts prüfen kann ([#14](https://github.com/unpacked-dev/hexa/issues/14)).
 - Man kann auch allein online spielen.
 - Keine feste Grenze, wie viele mitspielen.
 - Der Host legt die Reihenfolge fest, wie im Spieler-Tab des lokalen Spiels.
@@ -401,7 +401,6 @@ Im Oktober 2026 entschieden:
 
 - Konten, Passwörter, E-Mail-Adressen
 - Einladungslinks
-- Eigene Würfel im Online-Modus
 - Eine einstellbare Zugzeit
 - Chat, denn der bräuchte Moderation
 - Beitreten, wenn das Spiel schon läuft

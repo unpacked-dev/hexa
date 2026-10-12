@@ -15,12 +15,12 @@ import '../js/config.js';
 import '../js/rules.js';
 import '../js/bot.js';
 
-const { FIELDS, UPPER, LOWER, NF, BONUS_MIN, BONUS_PTS, scoreFor, countFaces, onlineName } = globalThis.HexaRules;
+const { FIELDS, UPPER, LOWER, NF, BONUS_MIN, BONUS_PTS, scoreFor, valuesFor, countFaces, onlineName } = globalThis.HexaRules;
 const Config = globalThis.HexaConfig;
 const Bot = globalThis.HexaBot;
 
-// 2: Bots in der Lobby. Ältere Apps müssen aktualisiert werden.
-export const PROTOCOL = 2;
+// 2: Bots in der Lobby. 3: mit eigenen Würfeln (via). Ältere Apps müssen aktualisiert werden.
+export const PROTOCOL = 3;
 // Zugzeit und Countdown-Zeit aus js/config.js, dazu 1 Sekunde Puffer für langsames Netz
 export const TIMES = { turn: Config.turnSeconds * 1000, cd: Config.countdownSeconds * 1000, grace: 1_000 };
 // Höchstens so viele Personen (Menschen und Bots) und Bots pro Lobby, siehe js/config.js
@@ -31,6 +31,12 @@ const BOT_MS = Config.botDelays;
 export const CODE_LETTERS = 'BCDFGHJKLMNPQRSTVWXZ';
 export const CODE_RE = /^[BCDFGHJKLMNPQRSTVWXZ]{4}$/;
 export const FIELD_KEYS = FIELDS.map(f => f.key);
+// Womit gewürfelt wird: 'app' (der Server würfelt) oder 'own' (echte Würfel, jede Person trägt selbst ein, ohne Zeitlimit)
+export const VIAS = ['app', 'own'];
+const CD_PTS = [10, 20, 30, 40, 50, 60];
+// Lobbys von vor Version 3 kennen via noch nicht
+const own = room => room.via === 'own';
+
 // Stufen der Bots aus js/bot.js: 'easy', 'medium', 'hard'. Ohne Angabe (etwa von älteren Apps) spielen sie schwer.
 export const BOT_LEVELS = Bot.LEVELS;
 export { onlineName };
@@ -80,6 +86,7 @@ export function newRoom(code, now) {
     v: 1,
     code,
     status: 'lobby',      // lobby | playing
+    via: 'app',           // app: der Server würfelt | own: eigene Würfel, ohne Zeitlimit
     seq: 0,               // zählt bei jeder gespeicherten Änderung hoch
     game: 0,              // wie viele Spiele in dieser Lobby gestartet wurden
     host: null,
@@ -145,6 +152,7 @@ export function join(room, { id, name, key }) {
 export function addBot(room, by, ctx, level) {
   if (room.status !== 'lobby') fail('game-running');
   if (room.host !== by) fail('not-host');
+  if (own(room)) fail('own-dice');
   if (room.players.length >= MAX_PLAYERS) fail('room-full');
   if (room.players.filter(p => p.bot).length >= MAX_BOTS) fail('bots-full');
   const taken = new Set(room.players.map(p => p.name.toLowerCase()));
@@ -154,6 +162,17 @@ export function addBot(room, by, ctx, level) {
   room.players.push(p);
   event(room, { type: 'join', player: p.id, name: p.name, bot: true });
   return p;
+}
+
+// Mit der App oder mit eigenen Würfeln: nur der Host, nur in der Lobby. Eigene Würfel nur ohne Bots.
+export function setVia(room, by, via) {
+  if (room.status !== 'lobby') fail('game-running');
+  if (room.host !== by) fail('not-host');
+  if (!VIAS.includes(via)) fail('bad-message');
+  if (via === 'own' && room.players.some(p => p.bot)) fail('has-bots');
+  if ((room.via || 'app') === via) return;
+  room.via = via;
+  event(room, { type: 'via', player: by, via });
 }
 
 // Stufe eines Bots ändern: nur der Host, nur in der Lobby
@@ -239,7 +258,8 @@ function nextTurn(room, ctx) {
   const p = nextPlayer(room);
   if (!p) { finish(room, ctx); return; }
   room.turnNo += 1;
-  room.turn = { no: room.turnNo, player: p.id, phase: 'roll', deadline: ctx.now + ctx.times.turn };
+  // Mit eigenen Würfeln gibt es kein Zeitlimit: keine Deadline
+  room.turn = { no: room.turnNo, player: p.id, phase: 'roll', deadline: own(room) ? null : ctx.now + ctx.times.turn };
   if (p.bot) room.turn.botAt = ctx.now + BOT_MS.start;
 }
 
@@ -252,6 +272,7 @@ function myTurn(room, by, phase) {
 // n: der wievielte Wurf das sein soll (1 bis 3). Ein doppelter Tipp schickt dieselbe Zahl noch mal
 // und wird so einfach abgelehnt.
 export function roll(room, by, n, ctx) {
+  if (own(room)) fail('own-dice');
   myTurn(room, by, 'roll');
   const first = room.dice.turn !== room.turn.no;
   const done = first ? 0 : room.dice.rolls;
@@ -274,6 +295,7 @@ export function roll(room, by, n, ctx) {
 
 // on: halten (true) oder loslassen (false). So ist es egal, wenn eine Nachricht doppelt ankommt.
 export function hold(room, by, i, on) {
+  if (own(room)) fail('own-dice');
   if (!Number.isInteger(i) || i < 0 || i > 5) fail('bad-message');
   myTurn(room, by, 'roll');
   const d = room.dice;
@@ -283,7 +305,10 @@ export function hold(room, by, i, on) {
   active(room, by);
 }
 
-export function enter(room, by, field, ctx) {
+// Mit eigenen Würfeln kommt der Wert mit (pts), dazu auf Wunsch die Punkte aus dem Countdown dieses Zugs (cd).
+// Geprüft wird nur, ob es den Wert für das Feld überhaupt gibt, nicht, ob er gewürfelt wurde.
+export function enter(room, by, field, ctx, value, cd) {
+  if (own(room)) { enterOwn(room, by, field, ctx, value, cd); return; }
   myTurn(room, by, 'roll');
   const d = room.dice;
   if (d.turn !== room.turn.no || !d.rolls) fail('no-roll-yet');
@@ -294,6 +319,51 @@ export function enter(room, by, field, ctx) {
   event(room, { type: 'enter', player: by, field, pts });
   active(room, by);
   afterEntry(room, ctx);
+}
+
+function enterOwn(room, by, field, ctx, pts, cd) {
+  myTurn(room, by, 'roll');
+  if (!FIELD_KEYS.includes(field) || !valuesFor(field).includes(pts)) fail('bad-message');
+  if (cd !== undefined && cd !== 0 && !CD_PTS.includes(cd)) fail('bad-message');
+  if (has(room.scores, by) && has(room.scores[by], field)) fail('field-taken');
+  scoresOf(room, by)[field] = pts;
+  event(room, { type: 'enter', player: by, field, pts });
+  if (cd) {
+    (has(room.cds, by) ? room.cds[by] : (room.cds[by] = [])).push(cd);
+    event(room, { type: 'countdown', player: by, pts: cd, perfect: cd === 60, timeout: false });
+  }
+  active(room, by);
+  nextTurn(room, ctx);
+}
+
+// Mit eigenen Würfeln: ein eigenes, schon ausgefülltes Feld korrigieren. Geht während des ganzen Spiels.
+export function fix(room, by, field, pts) {
+  if (!own(room)) fail('bad-message');
+  if (room.status !== 'playing') fail('not-playing');
+  if (!FIELD_KEYS.includes(field) || !valuesFor(field).includes(pts)) fail('bad-message');
+  if (!(has(room.scores, by) && has(room.scores[by], field))) fail('bad-message');
+  room.scores[by][field] = pts;
+  active(room, by);
+}
+
+// Mit eigenen Würfeln: die eigenen Countdowns korrigieren (ganze Liste). Höchstens einer pro eingetragenem Feld.
+export function setCds(room, by, list) {
+  if (!own(room)) fail('bad-message');
+  if (room.status !== 'playing') fail('not-playing');
+  if (!Array.isArray(list) || list.length > filled(room, by) || !list.every(x => CD_PTS.includes(x))) fail('bad-message');
+  room.cds[by] = list.slice();
+  active(room, by);
+}
+
+// Mit eigenen Würfeln: Ist jemand nicht da, kann der Host den Zug überspringen. Ein freies Feld wird gestrichen.
+export function skip(room, by, turnNo, ctx) {
+  if (!own(room)) fail('bad-message');
+  if (room.status !== 'playing' || !room.turn) fail('not-playing');
+  if (room.host !== by) fail('not-host');
+  if (room.turn.no !== turnNo) fail('stale');
+  const p = playerById(room, room.turn.player);
+  if (!p) fail('stale');
+  strike(room, p, ctx);
 }
 
 // Nach dem Eintragen oder Streichen: Countdown, wenn er in diesem Zug freigeschaltet wurde,
@@ -312,6 +382,7 @@ function afterEntry(room, ctx) {
 /* ---------- Countdown ---------- */
 // stage: welche Stufe gewürfelt werden soll (0 = sechs Würfel, eine 6 gesucht). Wie bei roll gegen doppelte Tipps.
 export function cdRoll(room, by, stage, ctx) {
+  if (own(room)) fail('own-dice');
   myTurn(room, by, 'cd');
   const g = room.cdGame;
   if (!g || g.status !== 'play') fail('no-countdown');
@@ -362,6 +433,8 @@ export function tick(room, ctx) {
       if (ctx.now >= (t.botAt || 0)) { botStep(room, p, ctx); changed = true; }
       break;
     }
+    // Mit eigenen Würfeln (keine Deadline) wird nie automatisch gestrichen, das macht nur der Host mit skip.
+    if (t.deadline == null) break;
     const due = ctx.now > t.deadline + ctx.times.grace;
     if (!due && !isAbsent(room, p)) break;
     changed = true;
@@ -497,6 +570,7 @@ export function view(room, you) {
   return {
     code: room.code,
     status: room.status,
+    via: room.via || 'app',
     seq: room.seq,
     game: room.game,
     host: room.host,

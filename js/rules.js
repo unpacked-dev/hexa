@@ -60,6 +60,18 @@
     }
   }
 
+  // Welche Punkte man in ein Feld selbst eintragen kann (mit eigenen Würfeln): oben 0 bis 6 passende Würfel,
+  // feste Felder geschafft oder 0, die Chance eine Augensumme von 6 bis 36.
+  function valuesFor(key) {
+    const f = F[key];
+    if (!f) return [];
+    if (f.type === 'upper') return [0, 1, 2, 3, 4, 5, 6].map(k => k * f.n);
+    if (f.type === 'fixed') return [f.pts, 0];
+    const out = [];
+    for (let v = 6; v <= 36; v++) out.push(v);
+    return out;
+  }
+
   // Spitznamen im Online-Spiel: nur Buchstaben (mit Ä, Ö, Ü und ß), Zahlen, Leerzeichen und - _ . ! ?
   // Mindestens ein Buchstabe oder eine Zahl, höchstens 20 Zeichen. HTML-Zeichen wie < > & " ' gehen nie.
   // Im lokalen Spiel gilt die Regel nicht, dort verlässt ein Name das Gerät ja nie.
@@ -73,7 +85,7 @@
     return NAME_OK.test(s) ? s : null;
   }
 
-  const api = { UPPER, LOWER, FIELDS, F, NF, BONUS_MIN, BONUS_PTS, NAME_MAX, sum, countFaces, scoreFor, onlineName };
+  const api = { UPPER, LOWER, FIELDS, F, NF, BONUS_MIN, BONUS_PTS, NAME_MAX, sum, countFaces, scoreFor, valuesFor, onlineName };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.HexaRules = api;
 })(typeof self !== 'undefined' ? self : this);

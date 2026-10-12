@@ -354,6 +354,75 @@ Deno.test('Bots: Stufe beim Hinzufügen und in der Lobby wechseln, nur der Host,
   assert.throws(() => G.setBotLevel(room, 'p1', old.id, 'easy'), code('game-running'));
 });
 
+Deno.test('Eigene Würfel: nur ohne Bots, Wert selbst eintragen, kein Zeitlimit, korrigieren, überspringen', () => {
+  const values = globalThis.HexaRules.valuesFor;
+  const room = lobby(['Lena', 'Tim']);
+  const b = G.addBot(room, 'p1', ctx(0));
+  assert.throws(() => G.setVia(room, 'p1', 'own'), code('has-bots'));
+  G.kick(room, 'p1', b.id, ctx(0));
+  assert.throws(() => G.setVia(room, 'p2', 'own'), code('not-host'));
+  assert.throws(() => G.setVia(room, 'p1', 'eigen'), code('bad-message'));
+  G.setVia(room, 'p1', 'own');
+  assert.equal(G.view(room, 'p2').via, 'own');
+  assert.deepEqual(lastEvent(room), { no: room.eventNo, type: 'via', player: 'p1', via: 'own' });
+  assert.throws(() => G.addBot(room, 'p1', ctx(0)), code('own-dice'));
+
+  G.start(room, 'p1', ctx(0));
+  assert.equal(room.turn.player, 'p1');
+  assert.equal(room.turn.deadline, null);
+  assert.throws(() => G.roll(room, 'p1', 1, ctx(0)), code('own-dice'));
+  assert.throws(() => G.hold(room, 'p1', 0, true), code('own-dice'));
+  // Kein Zeitlimit: Auch nach Stunden wird nichts gestrichen
+  assert.equal(G.tick(room, ctx(10 * 3600_000)), false);
+  assert.equal(room.turn.player, 'p1');
+
+  // Nur Werte, die es für das Feld gibt
+  assert.throws(() => G.enter(room, 'p1', 'u3', ctx(0), 7), code('bad-message'));
+  assert.throws(() => G.enter(room, 'p1', 'gstrasse', ctx(0), 30), code('bad-message'));
+  assert.throws(() => G.enter(room, 'p1', 'chance', ctx(0), 0), code('bad-message'));
+  assert.throws(() => G.enter(room, 'p1', 'u3', ctx(0), 9, 15), code('bad-message'));
+  assert.throws(() => G.enter(room, 'p2', 'u3', ctx(0), 9), code('not-your-turn'));
+  G.enter(room, 'p1', 'u3', ctx(0), 12, 30);
+  assert.equal(room.scores.p1.u3, 12);
+  assert.deepEqual(room.cds.p1, [30]);
+  assert.deepEqual(room.events.slice(-2).map(e => [e.type, e.pts]), [['enter', 12], ['countdown', 30]]);
+  assert.equal(room.turn.player, 'p2');
+
+  // Korrigieren: nur eigene, schon ausgefüllte Felder, nur mögliche Werte
+  G.fix(room, 'p1', 'u3', 9);
+  assert.equal(room.scores.p1.u3, 9);
+  assert.throws(() => G.fix(room, 'p1', 'u4', 4), code('bad-message'));
+  assert.throws(() => G.fix(room, 'p1', 'u3', 10), code('bad-message'));
+  // Countdowns korrigieren: höchstens einer pro ausgefülltem Feld
+  assert.throws(() => G.setCds(room, 'p1', [30, 10]), code('bad-message'));
+  assert.throws(() => G.setCds(room, 'p1', [35]), code('bad-message'));
+  G.setCds(room, 'p1', [20]);
+  assert.deepEqual(room.cds.p1, [20]);
+
+  // Tim ist nicht da: Der Host überspringt seinen Zug, ein freies Feld wird gestrichen
+  assert.throws(() => G.skip(room, 'p2', room.turn.no, ctx(0)), code('not-host'));
+  assert.throws(() => G.skip(room, 'p1', room.turn.no - 1, ctx(0)), code('stale'));
+  G.skip(room, 'p1', room.turn.no, ctx(0));
+  assert.deepEqual(Object.values(room.scores.p2), [0]);
+  assert.equal(lastEvent(room).type, 'timeout');
+  assert.equal(room.turn.player, 'p1');
+
+  // Zu Ende spielen: Ergebnis mit dem Countdown
+  for (let guard = 0; room.status === 'playing' && guard < 100; guard++) {
+    const who = room.turn.player;
+    const field = G.FIELD_KEYS.find(k => !(room.scores[who] && k in room.scores[who]));
+    G.enter(room, who, field, ctx(0), values(field)[1]);
+  }
+  assert.equal(room.status, 'lobby');
+  assert.equal(room.last.ranking.find(x => x.id === 'p1').cd, 20);
+  // Für die Revanche bleibt die Wahl, der Host kann sie ändern
+  assert.equal(room.via, 'own');
+  G.setVia(room, 'p1', 'app');
+  G.start(room, 'p1', ctx(5));
+  assert.equal(room.turn.deadline, 5 + G.TIMES.turn);
+  assert.throws(() => G.fix(room, 'p1', 'u1', 1), code('bad-message'));
+});
+
 Deno.test('Bots: höchstens maxBots, zählen zu maxPlayers, nur in der Lobby', () => {
   const room = lobby(['Lena']);
   const max = Math.min(G.MAX_BOTS, Config.botNames.length, G.MAX_PLAYERS - 1);
