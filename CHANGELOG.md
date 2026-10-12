@@ -5,6 +5,10 @@ Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), die V
 
 ## [Unreleased]
 
+### Geändert
+
+- **Countdown nur für die eigene Person** ([#13](https://github.com/unpacked-dev/hexa/issues/13)): Nach einem Countdown mit App-Würfeln gehen die Punkte an die Person, die ihn gewürfelt hat. Die Auswahl „Eintragen für“ und „Nicht eintragen“ gibt es nicht mehr. Mit eigenen Würfeln trägt man den Countdown wie bisher im Block ein.
+
 ### Entfernt
 
 - **Highscores ohne Tab „Online“:** Der Platzhalter mit „Bald verfügbar“ ist weg, weil es keine Online-Bestenliste geben wird. Die Highscores sind jetzt eine Liste. Deine Ergebnisse aus Online-Spielen stehen wie bisher mit drin.

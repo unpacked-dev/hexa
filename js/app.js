@@ -719,7 +719,6 @@
     sync();
   }
 
-  let cdPick = null;
   function renderCountdown() {
     const g = state.cdGame;
     const box = $('#cd .cd-in');
@@ -773,17 +772,14 @@
         : `<div class="cd-res"><div class="cd-big">${g.pts}</div><p>${tr(g.pts ? 'cd.result' : 'cd.none')}</p></div>`;
     } else if (g.status === 'play') {
       foot = `<button type="button" class="btn btn-marker btn-roll" data-act="cd-roll"><span class="rl">${tr('cd.roll')}</span><small>${tr('cd.rollSub', { n: target })}</small></button>`;
+    } else if (g.pts > 0 && owner) {
+      // Die Punkte gehören der Person, die den Countdown gewürfelt hat. Eine Auswahl gibt es nicht.
+      foot = `<div class="cd-res"><div class="cd-big">${g.pts}</div><p>${esc(tr('cd.resultFor', { name: owner.name }))}</p></div>
+        <button type="button" class="btn btn-marker" data-act="cd-save">${tr('cd.enter')}</button>`;
     } else {
-      const P = state.players;
-      foot = `<div class="cd-res"><div class="cd-big">${g.pts}</div><p>${tr(g.pts ? 'cd.result' : 'cd.none')}</p></div>`;
-      if (g.pts > 0 && P.length) {
-        foot += `<p class="cd-for">${tr('cd.enterFor')}</p>
-          <div class="picks" role="radiogroup" aria-label="${esc(tr('cd.enterFor'))}">${P.map(p => `<button type="button" class="pick${cdPick === p.id ? ' sel' : ''}" role="radio" aria-checked="${cdPick === p.id ? 'true' : 'false'}" data-act="cd-pick" data-pid="${p.id}">${esc(p.name)}</button>`).join('')}</div>
-          <button type="button" class="btn btn-marker" data-act="cd-save"${cdPick ? '' : ' disabled'}>${tr('cd.enter')}</button>
-          <button type="button" class="btn btn-quiet-light" data-act="cd-discard">${tr('cd.skip')}</button>`;
-      } else {
-        foot += `<button type="button" class="btn btn-marker" data-act="cd-discard">${tr('common.done')}</button>`;
-      }
+      // Nichts geschafft, oder ohne Person gewürfelt (etwa nach dem Spielende): nur das Ergebnis
+      foot = `<div class="cd-res"><div class="cd-big">${g.pts}</div><p>${tr(g.pts ? 'cd.result' : 'cd.none')}</p></div>
+        <button type="button" class="btn btn-marker" data-act="cd-discard">${tr('common.done')}</button>`;
     }
 
     box.innerHTML = `
@@ -1391,7 +1387,6 @@
       save();
     }
     const g = state.cdGame;
-    cdPick = g.owner && playerById(g.owner) ? g.owner : (state.players.length === 1 ? state.players[0].id : null);
     const el = $('#cd');
     el.hidden = false;
     document.body.classList.add('lock');
@@ -1461,8 +1456,8 @@
     if (!g || g.status === 'play') return;
     const botCd = isBot(g.owner);
     if (botCd && !byBot) return;
-    let pid = !discard && g.pts > 0 && cdPick && playerById(cdPick) ? cdPick : null;
-    if (botCd) pid = g.pts > 0 ? g.owner : null;
+    // Immer für die Person, der der Countdown gehört
+    const pid = !discard && g.pts > 0 && g.owner && playerById(g.owner) ? g.owner : null;
     const snap = botCd ? null : snapshot();
     if (pid) state.cds[pid] = cdList(pid).concat(g.pts);
     if (state.dice.cd) state.dice.cd.played = true;
@@ -3317,7 +3312,6 @@
       case 'remove': removePlayer(t.dataset.pid); break;
       case 'cd-open': startCountdown(); break;
       case 'cd-roll': cdRoll(); break;
-      case 'cd-pick': cdPick = t.dataset.pid; renderCountdown(); break;
       case 'cd-save': if (online()) closeCountdown(); else cdSave(false); break;
       case 'cd-discard': if (online()) closeCountdown(); else cdSave(true); break;
       case 'cd-close': closeCountdown(); break;
