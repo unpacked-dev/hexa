@@ -465,6 +465,11 @@ button { touch-action: manipulation; }
 .p-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--rule); }
 .p-cell.is-turn .p-dot { width: 20px; height: 20px; border: 1.5px dashed var(--ink-3); background: transparent; }
 .p-cell.zero .p-w { color: var(--ink-3); }
+/* Tagesspiel: Serie, Rekord und wie oft gespielt */
+.dstats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 16px 0 4px; }
+.dstat { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 12px 6px; border-radius: 14px; background: var(--sheet-2); text-align: center; }
+.dstat b { font-size: 24px; font-weight: 900; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.dstat span { font-size: 12px; font-weight: 700; line-height: 1.25; color: var(--ink-3); }
 /* Online: eingetragen, der Server hat es noch nicht bestätigt */
 .p-cell.sending .p-w { opacity: .45; }
 .p-cell.zero::after {

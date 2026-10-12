@@ -18,7 +18,7 @@ Deno.test('Zeiträume: 24 Stunden laufend, sonst ganze Tage mit heute', async ()
   const kv = await Deno.openKv(':memory:');
   const empty = await readStats(kv, NOW);
   assert.equal(empty.since, null);
-  assert.deepEqual(empty.total, { all: 0, online: 0, local: 0 });
+  assert.deepEqual(empty.total, { all: 0, online: 0, local: 0, daily: 0 });
 
   const games = [
     [0, 'online'], [0, 'online'], [0, 'local'],
@@ -33,14 +33,26 @@ Deno.test('Zeiträume: 24 Stunden laufend, sonst ganze Tage mit heute', async ()
   ];
   for (const [ago, kind] of games) await countGame(kv, kind, NOW - ago);
   const s = await readStats(kv, NOW);
-  assert.deepEqual(s.last24h, { all: 4, online: 2, local: 2 });
-  assert.deepEqual(s.last7d, { all: 6, online: 3, local: 3 });
-  assert.deepEqual(s.last30d, { all: 8, online: 4, local: 4 });
-  assert.deepEqual(s.last365d, { all: 10, online: 5, local: 5 });
-  assert.deepEqual(s.total, { all: 11, online: 5, local: 6 });
+  assert.deepEqual(s.last24h, { all: 4, online: 2, local: 2, daily: 0 });
+  assert.deepEqual(s.last7d, { all: 6, online: 3, local: 3, daily: 0 });
+  assert.deepEqual(s.last30d, { all: 8, online: 4, local: 4, daily: 0 });
+  assert.deepEqual(s.last365d, { all: 10, online: 5, local: 5, daily: 0 });
+  assert.deepEqual(s.total, { all: 11, online: 5, local: 6, daily: 0 });
   assert.equal(s.since, '2025-10-12');
   assert.equal(s.today, '2026-10-12');
   await assert.rejects(countGame(kv, 'mogeln', NOW), /Unbekannte Art/);
+  kv.close();
+});
+
+Deno.test('Tagesspiele zählen extra', async () => {
+  const kv = await Deno.openKv(':memory:');
+  await countGame(kv, 'daily', NOW);
+  await countGame(kv, 'daily', NOW - 2 * D);
+  await countGame(kv, 'local', NOW);
+  const s = await readStats(kv, NOW);
+  assert.deepEqual(s.last24h, { all: 2, online: 0, local: 1, daily: 1 });
+  assert.deepEqual(s.total, { all: 3, online: 0, local: 1, daily: 2 });
+  assert.match(statsPage(s), /<th scope="col">Tages&shy;spiel<\/th>/);
   kv.close();
 });
 
@@ -48,7 +60,7 @@ Deno.test('Viele Starts gleichzeitig: keiner geht verloren', async () => {
   const kv = await Deno.openKv(':memory:');
   await Promise.all(Array.from({ length: 30 }, (_, i) => countGame(kv, i % 3 ? 'local' : 'online', NOW)));
   const s = await readStats(kv, NOW);
-  assert.deepEqual(s.total, { all: 30, online: 10, local: 20 });
+  assert.deepEqual(s.total, { all: 30, online: 10, local: 20, daily: 0 });
   assert.deepEqual(s.last24h, s.total);
   kv.close();
 });
@@ -77,7 +89,7 @@ Deno.test('Seite unter /stats: alle Zeiträume, deutsche Zahlen', async () => {
   await countGame(kv, 'online', NOW);
   const html = statsPage(await readStats(kv, NOW));
   for (const label of ['Letzte 24 Stunden', 'Letzte 7 Tage', 'Letzte 30 Tage', 'Letzte 365 Tage', 'Insgesamt']) assert.ok(html.includes(label), label);
-  assert.match(html, /<td class="all">1\.235<\/td><td>1<\/td><td>1\.234<\/td>/);
+  assert.match(html, /<td class="all">1\.235<\/td><td>1<\/td><td>1\.234<\/td><td>0<\/td>/);
   assert.match(html, /Gezählt seit 12\.10\.2026/);
   assert.match(html, /Stand: 12\.10\.2026, 12:00 Uhr/);
   kv.close();

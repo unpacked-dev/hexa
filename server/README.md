@@ -87,16 +87,17 @@ Damit es sich trotzdem schnell anfühlt, zeigt die App eigene Aktionen sofort: G
 
 ## Statistik
 
-Unter [backend.hexa-countdown.app/stats](https://backend.hexa-countdown.app/stats) steht, wie viele Spiele gestartet wurden: in den letzten 24 Stunden, 7, 30 und 365 Tagen und insgesamt, jeweils online und lokal. Dieselben Zahlen gibt es als JSON unter `/stats.json`. Die Seite ist öffentlich, sie zeigt nur Zahlen.
+Unter [backend.hexa-countdown.app/stats](https://backend.hexa-countdown.app/stats) steht, wie viele Spiele gestartet wurden: in den letzten 24 Stunden, 7, 30 und 365 Tagen und insgesamt, jeweils online, lokal und als Tagesspiel. Dieselben Zahlen gibt es als JSON unter `/stats.json`. Die Seite ist öffentlich, sie zeigt nur Zahlen.
 
 - **Online** zählt der Server selbst, sobald der Host ein Spiel startet, auch bei jeder Revanche.
 - **Lokal** schickt die App beim Tippen auf „Spiel starten“ ein leeres `POST /count`, ohne Spitzname und ohne Geräteschlüssel. Ohne Internet geht die Meldung verloren. Läuft die App auf einem einfachen Testserver auf localhost, meldet sie nichts. Pro Internetverbindung zählen höchstens 10 Meldungen in 10 Minuten.
+- **Tagesspiel** meldet die App genauso, mit `POST /count?kind=daily`. Übungsrunden zählen mit. Ergebnisse von Tagesspielen bleiben auf dem Gerät.
 - **Zeiträume:** „Letzte 24 Stunden“ rechnet in ganzen Stunden (diese und die 23 davor), alles andere in ganzen Tagen nach deutscher Zeit. Heute zählt mit: „Letzte 7 Tage“ sind heute und die 6 Tage davor.
 - **In der Datenbank** liegen nur Zähler, erhöht mit `sum`, damit gleichzeitige Starts nicht verloren gehen:
 
 | Schlüssel | Inhalt | Wie lange |
 |---|---|---|
-| `["hexa_stats", "day", "2026-10-12", "online"]` | Spiele an diesem Tag (deutsche Zeit), ebenso mit `"local"` | bleibt |
+| `["hexa_stats", "day", "2026-10-12", "online"]` | Spiele an diesem Tag (deutsche Zeit), ebenso mit `"local"` und `"daily"` | bleibt |
 | `["hexa_stats", "hour", "2026-10-12T14", "online"]` | Spiele in dieser Stunde (UTC), nur für die letzten 24 Stunden | 2 Tage |
 | `["hexa_stats", "total", "online"]` | alle Spiele seit Beginn | bleibt |
 

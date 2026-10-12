@@ -337,7 +337,7 @@ Deno.test('HTTP: Produktion leitet die Startseite zur App weiter, Server und Dat
 Deno.test('Statistik: Online-Start zählt der Server, lokale Spiele kommen per POST /count', async () => {
   const env = await servers(2);
   const stats = async (i = 0) => (await fetch(env.http(i) + '/stats.json')).json();
-  assert.deepEqual((await stats()).total, { all: 0, online: 0, local: 0 });
+  assert.deepEqual((await stats()).total, { all: 0, online: 0, local: 0, daily: 0 });
 
   const { apps: [lena, tim] } = await lobbyOf(env, ['Lena', 'Tim']);
   lena.send({ t: 'start' });
@@ -351,7 +351,7 @@ Deno.test('Statistik: Online-Start zählt der Server, lokale Spiele kommen per P
     assert.equal(r.headers.get('access-control-allow-origin'), '*');
   }
   const s = await stats(1);
-  assert.deepEqual(s.total, { all: 4, online: 1, local: 3 });
+  assert.deepEqual(s.total, { all: 4, online: 1, local: 3, daily: 0 });
   assert.deepEqual(s.last24h, s.total);
   assert.deepEqual(s.last365d, s.total);
   assert.match(s.since, /^\d{4}-\d\d-\d\d$/);
@@ -361,8 +361,15 @@ Deno.test('Statistik: Online-Start zählt der Server, lokale Spiele kommen per P
   assert.equal(page.headers.get('cache-control'), 'no-store');
   const html = await page.text();
   assert.match(html, /Gestartete Spiele/);
-  assert.match(html, /Insgesamt<\/th><td class="all">4<\/td><td>1<\/td><td>3<\/td>/);
+  assert.match(html, /Insgesamt<\/th><td class="all">4<\/td><td>1<\/td><td>3<\/td><td>0<\/td>/);
 
+  // Tagesspiele mit ?kind=daily, andere Arten gibt es nicht
+  const daily = await fetch(env.http(0) + '/count?kind=daily', { method: 'POST' });
+  assert.equal(daily.status, 204);
+  const odd = await fetch(env.http(0) + '/count?kind=online', { method: 'POST' });
+  assert.equal(odd.status, 400);
+  await odd.body.cancel();
+  assert.deepEqual((await stats(0)).total, { all: 5, online: 1, local: 3, daily: 1 });
   // Nur POST, und nicht beliebig oft von derselben Verbindung
   const get = await fetch(env.http(0) + '/count');
   assert.equal(get.status, 405);

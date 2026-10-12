@@ -8,6 +8,7 @@ Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), die V
 ### Neu
 
 - **Bots in drei Stufen** ([#10](https://github.com/unpacked-dev/hexa/issues/10)): leicht, mittel und schwer. Ein Tipp auf das Schild neben dem Namen wechselt die Stufe, in der Spielerliste wie in der Online-Lobby (dort nur der Host). Neue Bots bekommen die zuletzt gewählte Stufe, am Anfang „mittel“. Im Schnitt holen sie 230, 283 und 322 Punkte (100.000 Testspiele). Leichtere Bots machen Fehler wie Menschen: Sie denken weniger an später und lassen öfter nicht die besten Würfel liegen. Die Stufe steht auch im Ergebnis. Bots aus älteren Spielständen und von älteren Apps spielen weiter schwer.
+- **Tagesspiel** ([#11](https://github.com/unpacked-dev/hexa/issues/11)): Unter „Spielen“ gibt es jeden Tag dieselben Würfe für alle. Für jeden Zug, Wurf und Würfelplatz steht die Augenzahl fest (`js/daily.js`), auch im Countdown. Der Tag wechselt um Mitternacht deutscher Zeit. Gewertet wird der erste Durchgang, danach geht eine Übungsrunde mit denselben Würfen. Ergebnis, Rekord und Serie bleiben auf dem Gerät, das Ergebnis lässt sich als Text teilen. Ein pausiertes lokales Spiel bleibt unberührt. Im Tagesspiel gibt es kein Rückgängig, keine freie Eingabe im Block und kein Abbrechen. Die Statistik zählt Tagesspiele in einer eigenen Spalte.
 
 ### Geändert
 

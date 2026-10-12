@@ -242,7 +242,7 @@ Spitznamen sind fremde Eingaben: Schon in der Lobby siehst du Namen, die jemand 
 Das muss vor dem Start fertig sein:
 
 - **Impressum und Datenschutzerklärung**, erreichbar aus der App und auf der Seite.
-- **Nur das Nötigste speichern:** Spitzname, zufälliger Geräteschlüssel (nur als Hash) und Spielstand. Keine E-Mail, kein Konto. IP-Adressen kommen nicht in die Datenbank. Die Bremse gegen zu viele Versuche merkt sie sich nur kurz im Arbeitsspeicher. Für die Statistik zählt der Server gestartete Spiele pro Tag, ohne Bezug zu Personen. Lokale Spiele meldet die App dafür mit einer leeren Anfrage. Das gehört als Satz in die Datenschutzerklärung.
+- **Nur das Nötigste speichern:** Spitzname, zufälliger Geräteschlüssel (nur als Hash) und Spielstand. Keine E-Mail, kein Konto. IP-Adressen kommen nicht in die Datenbank. Die Bremse gegen zu viele Versuche merkt sie sich nur kurz im Arbeitsspeicher. Für die Statistik zählt der Server gestartete Spiele pro Tag, ohne Bezug zu Personen. Lokale Spiele und Tagesspiele meldet die App dafür mit einer leeren Anfrage. Das gehört als Satz in die Datenschutzerklärung.
 - **Automatisch löschen:** Deno KV kann Einträge mit Ablaufzeit speichern. Eine Lobby ohne Start verschwindet nach 1 Stunde, ein Spiel 24 Stunden nach der letzten Aktion. Dauerhaft bleiben nur die Zähler der Statistik.
 - **Deno als Dienstleister:** Deno ist ein US-Anbieter. Vor dem Start klären: Gibt es einen Vertrag zur Auftragsverarbeitung (AVV)? Wo liegen die Daten? Was protokolliert Deno selbst, zum Beispiel IP-Adressen?
 

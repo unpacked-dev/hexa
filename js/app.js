@@ -1,12 +1,13 @@
 /* HEXA – App: Startbildschirm, Spieler, Würfel, Spielblock, Countdown, Highscores, Bots.
    Braucht js/config.js (window.HexaConfig), js/i18n.js (window.HexaI18n, Texte aus lang/*.js),
-   js/rules.js (window.HexaRules), js/bot.js (window.HexaBot) und js/sound.js (window.HexaSound). */
+   js/rules.js (window.HexaRules), js/bot.js (window.HexaBot), js/daily.js (window.HexaDaily) und js/sound.js (window.HexaSound). */
 (() => {
   'use strict';
 
   const { UPPER, LOWER, FIELDS, F, NF, BONUS_MIN, BONUS_PTS, sum, countFaces, scoreFor } = window.HexaRules;
   const Sound = window.HexaSound;
   const Bot = window.HexaBot;
+  const Daily = window.HexaDaily;
   const Config = window.HexaConfig;
   const I18n = window.HexaI18n;
   const tr = I18n.t;
@@ -46,6 +47,7 @@
     share: svg('<path d="M12 2v13"/><path d="m16 6-4-4-4 4"/><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>'),
     plusSq: svg('<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M8 12h8"/><path d="M12 8v8"/>'),
     check: svg('<path d="M20 6 9 17l-5-5"/>'),
+    calendar: svg('<path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/>'),
     enter: svg('<path d="m10 17 5-5-5-5"/><path d="M15 12H3"/><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>'),
     copy: svg('<rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>'),
     rules: svg('<path d="M5 4.5A1.5 1.5 0 0 1 6.5 3H19v15H6.5A1.5 1.5 0 0 0 5 19.5z"/><path d="M5 19.5A1.5 1.5 0 0 0 6.5 21H19"/><path d="M9 7.5h6"/><path d="M9 11h4"/>'),
@@ -74,6 +76,11 @@
     try { return new Date(t).toLocaleDateString(I18n.locale(), { day: '2-digit', month: '2-digit', year: '2-digit' }); }
     catch (e) { return ''; }
   };
+  // Ein Tag wie „2026-10-12“ als 12.10. (mit year: 12.10.2026)
+  const fmtDay = (day, year) => {
+    try { return new Date(day + 'T12:00:00Z').toLocaleDateString(I18n.locale(), Object.assign({ day: 'numeric', month: 'numeric', timeZone: 'UTC' }, year ? { year: 'numeric' } : {})); }
+    catch (e) { return day; }
+  };
   function vibrate(p) {
     try { if (navigator.vibrate) navigator.vibrate(p); } catch (e) { /* nicht verfügbar */ }
   }
@@ -87,6 +94,12 @@
     } catch (e) {
       return 1 + Math.floor(Math.random() * 6);
     }
+  }
+
+  // Tagesspiel: Würfel aus der Tabelle des Tages (js/daily.js) für diesen Zug, Wurf und Platz. Sonst fair zufällig.
+  function dieAt(slot, rollNo) {
+    const t = state.dice.ownerFilled;
+    return isDaily() && t < NF ? Daily.die(dailyMeta.day, t, rollNo, slot) : d6();
   }
 
   /* ---------- Zustand (localStorage) ---------- */
@@ -148,6 +161,7 @@
   }
   // Gespeichert wird nur das lokale Spiel. Online kommt der Stand vom Server.
   function save() {
+    if (isDaily()) { saveDaily(); return; }
     if (state !== local) return;
     syncHistory();
     saveLocal();
@@ -157,7 +171,36 @@
   }
 
   let local = load();   // das lokale Spiel, dazu die Highscores
-  let state = local;    // was gerade zu sehen ist: das lokale Spiel oder der Stand eines Online-Spiels
+  let state = local;    // was gerade zu sehen ist: das lokale Spiel, das Tagesspiel oder der Stand eines Online-Spiels
+
+  /* ---------- Tagesspiel (Zustand) ---------- */
+  // Eigener Spielstand neben dem lokalen Spiel, ein pausiertes Spiel bleibt so unberührt. Gespeichert unter DAILY_KEY:
+  // { cur: { day, practice, game } oder null, done: { '2026-10-12': { s: Punkte, cd: davon Countdown, t: Zeit } } }
+  // Gewertet wird nur der erste Durchgang eines Tages. Danach kann man mit denselben Würfen üben (practice).
+  const DAILY_KEY = 'hexa-daily';
+  function loadDaily() {
+    const out = { cur: null, done: {} };
+    let raw = null;
+    try { raw = JSON.parse(localStorage.getItem(DAILY_KEY)); } catch (e) { raw = null; }
+    if (!isObj(raw)) return out;
+    if (isObj(raw.done)) {
+      Object.keys(raw.done).forEach(day => {
+        const r = raw.done[day];
+        if (Daily.DAY_RE.test(day) && isObj(r) && Number.isFinite(r.s)) out.done[day] = { s: r.s | 0, cd: r.cd | 0, t: Number(r.t) || 0 };
+      });
+    }
+    const c = raw.cur;
+    if (isObj(c) && Daily.DAY_RE.test(c.day) && isObj(c.game)) out.cur = { day: c.day, practice: !!c.practice, game: c.game };
+    return out;
+  }
+  let dailyStore = loadDaily();
+  let dailyState = null;   // das Tagesspiel, solange es zu sehen ist (dann ist state === dailyState)
+  let dailyMeta = null;    // { day, practice, over }
+  const isDaily = () => !!dailyState && state === dailyState;
+  function saveDaily() {
+    if (dailyState && dailyMeta) dailyStore.cur = dailyMeta.over ? null : { day: dailyMeta.day, practice: dailyMeta.practice, game: dailyState };
+    try { localStorage.setItem(DAILY_KEY, JSON.stringify(dailyStore)); } catch (e) { /* Speicher voll oder gesperrt */ }
+  }
   let atStart = true;   // Beim Öffnen kommt zuerst der Startbildschirm.
   let rulesOpen = false; // Regeln als eigene Seite, aus dem Hauptmenü über „Spiel lernen“
 
@@ -485,6 +528,8 @@
     else if (done) { who = tr('dice.turn', { name: cur.name }); sub = tr('dice.entered', { name: owner ? owner.name : '' }); }
     else if (!idle && owner) who = tr('dice.turn', { name: owner.name });
     else who = tr('dice.turn', { name: cur.name });
+
+    if (isDaily() && cur) who = tr(dailyMeta.practice ? 'daily.practiceBar' : 'daily.bar', { date: fmtDay(dailyMeta.day) });
 
     // Im Nebeneinander steht der Kasten zum Spielende nur über dem Block.
     const endHTML = gameDone() && !duoOn() ? endCard(tr('end.noteDice')) : '';
@@ -833,7 +878,8 @@
   /* ---------- Rückmeldungen ---------- */
   let toastTimer = 0;
   let undoSnap = null;
-  const snapshot = () => JSON.stringify(state);
+  // Im Tagesspiel gibt es kein Rückgängig: Sonst ließe sich ein Zug mit Blick auf die nächsten Würfe neu wählen.
+  const snapshot = () => (isDaily() ? null : JSON.stringify(state));
 
   function toast(msg, snap) {
     const el = $('#toast');
@@ -1094,8 +1140,9 @@
     const wasStraight = !first && isStraight(d.vals);
     const next = (d.vals || [1, 2, 3, 4, 5, 6]).slice();
     const idx = [];
+    const rollNo = first ? 1 : d.rolls + 1;
     for (let i = 0; i < 6; i++) {
-      if (first || !d.held[i]) { next[i] = d6(); idx.push(i); }
+      if (first || !d.held[i]) { next[i] = dieAt(i, rollNo); idx.push(i); }
     }
     d.vals = next;
     d.rolls = first ? 1 : d.rolls + 1;
@@ -1371,7 +1418,8 @@
     const g = state.cdGame;
     if (!g || g.status !== 'play' || rolling || (!byBot && isBot(g.owner))) return;
     const n = 6 - g.stage;
-    const vals = Array.from({ length: n }, () => d6());
+    const t = state.dice.ownerFilled;
+    const vals = Array.from({ length: n }, (_, i) => (isDaily() && t < NF ? Daily.cd(dailyMeta.day, t, g.stage, i) : d6()));
     const hit = vals.indexOf(n);
     g.last = vals;
     g.hit = hit;
@@ -1791,7 +1839,7 @@
     if (online()) { openOnlineMenu(); return; }
     if (!state.started) { showStart(); return; }
     // Noch nichts gewürfelt oder eingetragen: Beim nächsten Mal geht es wieder zur Spieler-Auswahl.
-    if (!gameTouched()) { state.started = false; save(); showStart(); return; }
+    if (!gameTouched() && !isDaily()) { state.started = false; save(); showStart(); return; }
     if (gameDone()) { openResult(); return; }
     openPause();
   }
@@ -1805,10 +1853,10 @@
           </button>`;
     openSheet(`
       <h3 class="s-title">${tr('pause.title')}</h3>
-      <p class="s-note">${over ? tr('pause.cdOpen') : tr('pause.round', { r: roundNo(), total: NF })}</p>
+      <p class="s-note">${over ? tr('pause.cdOpen') : tr('pause.round', { r: roundNo(), total: NF })}${isDaily() ? ' ' + tr(dailyMeta.practice ? 'daily.pausePractice' : 'daily.pauseNote') : ''}</p>
       <div class="choices">
         ${choice('pause', '', 'pause', tr('pause.pause'), tr('pause.pauseSub'))}
-        ${over ? '' : choice('abort', ' choice-danger', 'x', tr('pause.abort'), tr('pause.abortSub'))}
+        ${over || isDaily() ? '' : choice('abort', ' choice-danger', 'x', tr('pause.abort'), tr('pause.abortSub'))}
       </div>
       <div class="s-acts"><button type="button" class="btn btn-quiet" data-act="sheet-close">${tr('pause.back')}</button></div>`, {
       pause: () => showStart(),
@@ -1825,6 +1873,7 @@
 
   // Ergebnis am Ende: Platzierung aller Personen. Die Punkte stehen dann schon in den Highscores.
   function openResult() {
+    if (isDaily()) { openDailyResult(); return; }
     const P = state.players;
     if (!P.length || !isOver()) return;
     syncHistory();
@@ -2179,9 +2228,11 @@
       <div class="choices">
         ${choice('local', 'users', tr('start.local'), s.local)}
         ${choice('online', 'globe', tr('start.online'), off ? tr('online.paused') : noNet ? tr('online.noNet') : s.online, off || noNet)}
+        ${choice('daily', 'calendar', tr('daily.title'), dailySub())}
       </div>
       <div class="s-acts"><button type="button" class="btn btn-quiet" data-act="sheet-close">${tr('common.close')}</button></div>`, {
       local: () => { closeSheet(true); enterLocal(); },
+      daily: () => { closeSheet(true); openDaily(); },
       online: () => {
         if (off) { toast(tr('online.paused')); return; }
         if (navigator.onLine === false) { toast(tr('online.noNetToast')); return; }
@@ -2189,6 +2240,150 @@
         enterOnline();
       },
     }, tr('start.play'));
+  }
+
+  /* ---------- Tagesspiel ---------- */
+  // Allein, mit App-Würfeln aus der Tabelle des Tages. Ein angefangenes Tagesspiel (auch von gestern) geht weiter.
+  // Ist das heutige schon gespielt, gibt es das Ergebnis, Teilen und eine Übungsrunde, die nicht zählt.
+  function openDaily() {
+    const cur = dailyStore.cur;
+    if (cur) { enterDaily(cur.day, cur.practice, normalize(cur.game)); return; }
+    const today = Daily.dayKey();
+    if (dailyStore.done[today]) { openDailyDone(today); return; }
+    startDaily(today, false);
+  }
+  // Name im Block: wie online oder wie im lokalen Spiel, sonst „Spieler“
+  function dailyName() {
+    const h = local.players.find(p => !p.bot);
+    return Online.name() || (h && h.name) || tr('setup.fallback');
+  }
+  function startDaily(day, practice) {
+    const s = freshState();
+    s.players = [{ id: 'me', name: dailyName() }];
+    s.started = true;
+    s.duo = local.duo;
+    enterDaily(day, practice, s);
+    saveDaily();
+    Online.count('daily');
+  }
+  function enterDaily(day, practice, s) {
+    dailyState = s;
+    dailyMeta = { day, practice, over: false };
+    state = s;
+    enterLocal();
+  }
+  function leaveDaily() {
+    if (isDaily()) saveDaily();
+    dailyState = null;
+    dailyMeta = null;
+    state = local;
+  }
+  // Im Tagesspiel trägt man nur den aktuellen Wurf ein, wie online. Freie Werte oder Löschen gibt es nicht.
+  function dailyCell(pid, key) {
+    const d = state.dice;
+    if (d.vals && d.rolls && !turnDone() && d.owner === pid && scoreOf(pid, key) === null) openQuick(key);
+    else toast(tr('daily.blockHint'));
+  }
+  // Rekord, Serie (Tage am Stück bis heute oder gestern) und wie oft gespielt
+  function dailyStats() {
+    const done = dailyStore.done;
+    const days = Object.keys(done);
+    let streak = 0;
+    let d = Daily.dayKey();
+    if (!done[d]) d = Daily.addDays(d, -1);
+    while (done[d]) { streak++; d = Daily.addDays(d, -1); }
+    return { best: days.reduce((m, k) => Math.max(m, done[k].s), 0), streak, played: days.length };
+  }
+  const streakText = n => tr(n === 1 ? 'daily.streakOne' : 'daily.streakMany', { n });
+  function dailySub() {
+    const cur = dailyStore.cur;
+    const today = Daily.dayKey();
+    if (cur) {
+      if (cur.practice) return tr('daily.subPractice');
+      if (cur.day !== today) return tr('daily.subOld', { date: fmtDay(cur.day) });
+      const sc = isObj(cur.game.scores) && isObj(cur.game.scores.me) ? Object.keys(cur.game.scores.me).length : 0;
+      return tr('daily.subResume', { r: Math.min(NF, sc + 1), total: NF });
+    }
+    const r = dailyStore.done[today];
+    return r ? tr('daily.subDone', { pts: trPts(r.s), streak: streakText(dailyStats().streak) }) : tr('daily.sub');
+  }
+  function dailyStatsHTML() {
+    const st = dailyStats();
+    const box = (n, label) => `<div class="dstat"><b>${n}</b><span>${label}</span></div>`;
+    return `<div class="dstats">${box(st.streak, tr('daily.streak'))}${box(st.best, tr('daily.best'))}${box(st.played, tr('daily.played'))}</div>`;
+  }
+  // Teilen als kurzer Text, ohne Namen. Ohne Teilen-Funktion in die Zwischenablage.
+  async function shareDaily(day) {
+    const r = dailyStore.done[day];
+    if (!r) return;
+    const text = tr('daily.shareText', { date: fmtDay(day, true), pts: trPts(r.s) }) + ' https://hexa-countdown.app/';
+    if (navigator.share) {
+      try { await navigator.share({ text }); return; } catch (e) { if (e && e.name === 'AbortError') return; }
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+      toast(tr('daily.copied'));
+    } catch (e) {
+      toast(text);
+    }
+  }
+  // Ende des Tagesspiels: Ergebnis festhalten (nur der erste Durchgang des Tages), Serie und Rekord zeigen
+  function openDailyResult() {
+    if (!isOver()) return;
+    const me = state.players[0];
+    const total = totals(me.id).total;
+    const day = dailyMeta.day;
+    const done = dailyStore.done;
+    const earlier = Object.keys(done).filter(k => k !== day).map(k => done[k].s);
+    let fresh = false;
+    if (!dailyMeta.practice && !done[day]) {
+      done[day] = { s: total, cd: totals(me.id).cd, t: Date.now() };
+      fresh = true;
+    }
+    dailyMeta.over = true;
+    saveDaily();
+    const record = !dailyMeta.practice && earlier.length > 0 && done[day].s > Math.max(...earlier);
+    const counted = done[day];
+    const note = dailyMeta.practice
+      ? tr('daily.practiceNote', { pts: counted ? trPts(counted.s) : '–' })
+      : tr('daily.resultNote', { date: fmtDay(day, true) });
+    openSheet(`
+      <div class="res-top"><span class="res-ic">${ICON.calendar}</span>${record ? `<span class="chip chip-rec">${tr('result.record')}</span>` : ''}</div>
+      <h3 class="s-title">${esc(trPts(total))}</h3>
+      <p class="s-note">${esc(note)}</p>
+      ${dailyStatsHTML()}
+      <div class="s-acts">
+        ${dailyMeta.practice ? '' : `<button type="button" class="btn btn-pen" data-act="sheet-do" data-do="share">${ICON.share}<span>${tr('daily.share')}</span></button>`}
+        <button type="button" class="btn ${dailyMeta.practice ? 'btn-pen' : 'btn-line'}" data-act="sheet-do" data-do="menu">${tr('common.toMenu')}</button>
+        <button type="button" class="btn btn-quiet" data-act="sheet-close">${tr('common.close')}</button>
+      </div>`, {
+      share: () => shareDaily(day),
+      menu: () => showStart(),
+    }, tr('daily.title'));
+    if (record && fresh) {
+      setTimeout(() => {
+        if ($('#sheet').hidden) return;
+        confetti($('#sheet .res-ic'));
+        Sound.sparkle();
+      }, 320);
+    }
+  }
+  // Heute schon gespielt: Ergebnis, Teilen, Übungsrunde
+  function openDailyDone(day) {
+    const r = dailyStore.done[day];
+    openSheet(`
+      <div class="res-top"><span class="res-ic">${ICON.calendar}</span></div>
+      <h3 class="s-title">${tr('daily.doneTitle')}</h3>
+      <p class="s-note">${esc(tr('daily.doneNote', { pts: trPts(r.s) }))}</p>
+      ${dailyStatsHTML()}
+      <div class="s-acts">
+        <button type="button" class="btn btn-pen" data-act="sheet-do" data-do="share">${ICON.share}<span>${tr('daily.share')}</span></button>
+        <button type="button" class="btn btn-line" data-act="sheet-do" data-do="practice">${tr('daily.practice')}</button>
+        <button type="button" class="btn btn-quiet" data-act="sheet-close">${tr('common.close')}</button>
+      </div>`, {
+      share: () => shareDaily(day),
+      practice: () => { closeSheet(true); startDaily(day, true); },
+    }, tr('daily.title'));
   }
 
   // Sechs Würfel mit 1 bis 6, die beim Erscheinen einmal kurz rollen
@@ -2203,6 +2398,7 @@
   }
 
   function showStart() {
+    if (isDaily()) leaveDaily();
     closeSheet(true);
     hideCountdown();
     atStart = true;
@@ -3119,8 +3315,12 @@
       case 'roll': roll(); break;
       case 'hold': toggleHold(Number(t.dataset.i)); break;
       case 'quick': openQuick(t.dataset.key); break;
-      case 'cell': if (online()) onlineCell(t.dataset.pid, t.dataset.key); else openFieldSheet(t.dataset.pid, t.dataset.key); break;
-      case 'cd-cell': if (online()) toast(tr('online.blockHint')); else openCdSheet(t.dataset.pid); break;
+      case 'cell':
+        if (online()) onlineCell(t.dataset.pid, t.dataset.key);
+        else if (isDaily()) dailyCell(t.dataset.pid, t.dataset.key);
+        else openFieldSheet(t.dataset.pid, t.dataset.key);
+        break;
+      case 'cd-cell': if (online()) toast(tr('online.blockHint')); else if (isDaily()) toast(tr('daily.blockHint')); else openCdSheet(t.dataset.pid); break;
       case 'add': addPlayer(); break;
       case 'add-bot': addBot(); break;
       case 'bot-level': cycleBotLevel(t.dataset.pid); break;

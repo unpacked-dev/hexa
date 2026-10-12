@@ -467,13 +467,15 @@ export function createHub({ kv, instance = G.randomId(8), times = G.TIMES, rng =
     if (url.pathname === '/health') {
       return Response.json({ app: 'hexa', protocol: G.PROTOCOL, online, ok: true }, { headers: cors });
     }
-    // Lokales Spiel gestartet. Die App schickt nur diese Anfrage, ohne Inhalt.
+    // Lokales Spiel oder Tagesspiel (?kind=daily) gestartet. Die App schickt nur diese Anfrage, ohne Inhalt.
     if (url.pathname === '/count') {
       if (req.method !== 'POST') return new Response('Nur POST', { status: 405, headers: Object.assign({ allow: 'POST' }, cors) });
+      const kind = url.searchParams.get('kind') || 'local';
+      if (kind !== 'local' && kind !== 'daily') return new Response('Unbekannte Art', { status: 400, headers: cors });
       const ip = ipKey(info && info.remoteAddr && info.remoteAddr.hostname);
       if (ips.size > 5000) sweep(Date.now());
       if (!limit(ip, 'count')) return new Response(null, { status: 429, headers: cors });
-      await count('local');
+      await count(kind);
       return new Response(null, { status: 204, headers: cors });
     }
     if (url.pathname === '/stats' || url.pathname === '/stats.json') {

@@ -77,6 +77,7 @@ Der Server würfelt und prüft jeden Zug. Ist die Zeit um, streicht er ein zufä
 - **Countdown als Bonusspiel** – wird automatisch freigeschaltet und direkt nach dem Zug gestartet.
 - **Mehrere Personen oder solo** – Reihenfolge vor dem Spiel festlegen. Im Spiel lassen sich Namen ändern und Personen entfernen.
 - **Bots als Gegner** – Computergegner mit Namen wie Pasch-Paula oder Dr. Wurf, lokal und online, in drei Stufen: **leicht** (im Schnitt 230 Punkte), **mittel** (283) und **schwer** (322, fast perfekt, perfektes Spiel bringt 324). Sie spielen sichtbar Zug für Zug. Online spielt sie der Server. In die Highscores kommen nur Menschen.
+- **Tagesspiel** – jeden Tag dieselben Würfe für alle, allein gespielt. Für jeden Zug, Wurf und Würfelplatz steht die Augenzahl fest, berechnet aus dem Datum. Was man hält und wo man einträgt, entscheidet über die Punkte. Gewertet wird der erste Durchgang des Tages, danach kann man mit denselben Würfen üben. Rekord und Serie bleiben auf dem Gerät, das Ergebnis lässt sich als kurzer Text teilen. Rückgängig machen, freie Eingabe im Block und Abbrechen gibt es dort nicht.
 - **Online spielen** – jede Person am eigenen Gerät. Eine Person erstellt eine Lobby und bekommt einen Code aus 4 Buchstaben, die anderen treten damit bei. Allein geht auch, Bots können mitspielen. Der Server würfelt, jeder Zug hat 60 Sekunden, und alle sehen die Würfel live mitrollen. Was du selbst tust, zeigt die App sofort, auch bei langsamem Netz. Kein Konto, nur ein Spitzname.
 - **Spielende und Highscores** – das Ergebnis zeigt alle Platzierungen und neue Rekorde. Die zehn besten Ergebnisse bleiben auf dem Gerät gespeichert, bei Online-Spielen dein eigenes.
 - **Nichts geht verloren** – Spiele lassen sich pausieren und bleiben auch nach dem Schließen erhalten. Einträge, entfernte Personen oder ein abgebrochenes Spiel lassen sich mit einem Tipp rückgängig machen.
@@ -191,7 +192,7 @@ HEXA ist bewusst einfach gebaut: **reines HTML, CSS und JavaScript** – kein Fr
 - **Faire Würfel:** Zufallszahlen kommen aus `crypto.getRandomValues`, ohne Modulo-Verzerrung. Online würfelt der Server genauso.
 - **Online-Server ohne Pakete:** [Deno](https://deno.com) mit `Deno.serve` für HTTP und WebSocket und Deno KV als Datenbank, auf Deno Deploy. Der Server würfelt, prüft jeden Zug und schickt nach jeder Änderung allen den ganzen Stand. Die App zeigt ihn nur an. Mehr in [server/README.md](server/README.md).
 - **Bots mit Mathe statt KI:** Ein Bot rechnet jeden Zug exakt durch. Für jede Möglichkeit, Würfel liegen zu lassen, kennt er die Wahrscheinlichkeit jedes Ergebnisses. Was ein Feld für den Rest des Spiels wert ist, schätzt er mit rund 170 Zahlen. Die stammen aus dem perfekten Spiel, das die Werkzeuge in `tools/` für alle 1,65 Millionen Spielstände ausrechnen. Leichtere Stufen machen Fehler wie Menschen: Sie denken weniger an später und lassen öfter nicht die besten Würfel liegen.
-- **Lokal bleibt alles auf dem Gerät:** Spielstand, Highscores, Design und Ton werden im `localStorage` deines Browsers gespeichert und nie übertragen. Startet ein lokales Spiel, schickt die App nur eine leere Meldung, damit der Server Spiele zählen kann ([Statistik](https://backend.hexa-countdown.app/stats)). Sonst spricht sie nur im Online-Modus mit dem Server, auch dann ohne Konto.
+- **Lokal bleibt alles auf dem Gerät:** Spielstand, Highscores, Tagesspiele, Design und Ton werden im `localStorage` deines Browsers gespeichert und nie übertragen. Startet ein lokales Spiel oder ein Tagesspiel, schickt die App nur eine leere Meldung, damit der Server Spiele zählen kann ([Statistik](https://backend.hexa-countdown.app/stats)). Sonst spricht sie nur im Online-Modus mit dem Server, auch dann ohne Konto.
 - **Offline dank Service Worker:** `sw.js` legt beim ersten Öffnen alle Dateien auf dem Gerät ab (rund 0,7 MB). Code kommt zuerst aus dem Netz, damit Updates sofort ankommen. Ohne Netz oder nach 3 Sekunden Warten nimmt die App ihre Kopie. Schriften und Icons kommen gleich aus der Kopie. Eine Versionsnummer braucht es dafür nicht.
 - **Keine fremden Server:** Schriften und Icons liegen im Repository. Beim Spielen wird nichts von Google oder anderen Anbietern geladen. Es gibt keine Cookies und kein Tracking.
 - **Barrierearm:** Bedienbar per Tastatur, mit Screenreader-Beschriftungen, sichtbarem Fokus und Rücksicht auf *reduzierte Bewegung*.
@@ -210,6 +211,7 @@ hexa/
 │   ├── config.js          # Einstellungen: Online an/aus, Bots, Grenzen, Zugzeiten
 │   ├── rules.js           # Felder, Punkte und Wertung
 │   ├── bot.js             # Computergegner: welche Würfel liegen bleiben, welches Feld
+│   ├── daily.js           # Tagesspiel: feste Würfe aus dem Datum
 │   ├── sound.js           # Effekte und Lo-Fi-Musik (Web Audio)
 │   ├── i18n.js            # wählt die Sprache und liefert die Texte
 │   ├── online.js          # Verbindung zum Online-Server, verbindet von selbst neu
@@ -227,6 +229,7 @@ hexa/
 │   ├── lang.test.js       # prüft, dass beide Sprachen vollständig sind
 │   ├── config.test.js     # prüft die Werte in js/config.js
 │   ├── sw.test.js         # prüft, dass sw.js jede Datei der App kennt
+│   ├── daily.test.js      # Tests für das Tagesspiel
 │   └── bot.test.js        # Tests für die Bots
 ├── tools/
 │   ├── bot-optimal.js     # rechnet das perfekte Spiel für alle Spielstände aus

@@ -187,15 +187,16 @@ window.HexaOnline = (() => {
     clearTimeout(probe);
     probe = setTimeout(drop, 4000);
   }
-  // Ein lokales Spiel hat begonnen: Der Server zählt es für die Statistik unter /stats. Die Anfrage ist leer,
-  // ohne Spitzname und Geräteschlüssel. Ohne Internet geht sie verloren. Ein einfacher Testserver auf
-  // localhost (ohne HEXA-Server dahinter) zählt nicht mit, damit Entwicklung nicht in der echten Statistik landet.
-  async function count() {
+  // Ein lokales Spiel oder ein Tagesspiel (kind 'daily') hat begonnen: Der Server zählt es für die Statistik
+  // unter /stats. Die Anfrage ist leer, ohne Spitzname und Geräteschlüssel. Ohne Internet geht sie verloren.
+  // Ein einfacher Testserver auf localhost (ohne HEXA-Server dahinter) zählt nicht mit, damit Entwicklung nicht
+  // in der echten Statistik landet.
+  async function count(kind = 'local') {
     if (navigator.onLine === false) return;
     if (!url) url = await findServer();
     if (url === SERVER && /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) return;
     try {
-      await fetch(url.replace(/^ws/, 'http').replace(/\/ws$/, '/count'), { method: 'POST', keepalive: true });
+      await fetch(url.replace(/^ws/, 'http').replace(/\/ws$/, '/count') + (kind === 'daily' ? '?kind=daily' : ''), { method: 'POST', keepalive: true });
     } catch (e) { /* dann eben nicht */ }
   }
 

@@ -1,12 +1,13 @@
-/* HEXA – Spielzähler in Deno KV. Gezählt wird nur, dass ein Spiel gestartet wurde, getrennt nach online und lokal.
+/* HEXA – Spielzähler in Deno KV. Gezählt wird nur, dass ein Spiel gestartet wurde, getrennt nach online, lokal und Tagesspiel.
    Keine Namen, keine Geräte, keine Adressen.
      ["hexa_stats", "day", "2026-10-12", Art]     Spiele an diesem Tag (deutsche Zeit), bleiben
      ["hexa_stats", "hour", "2026-10-12T14", Art]  Spiele in dieser Stunde (UTC), nur für „Letzte 24 Stunden“, nach 2 Tagen weg
      ["hexa_stats", "total", Art]                  alle Spiele seit Beginn
    Gezählt wird mit sum: Starten viele gleichzeitig, geht keins verloren, und es gibt keine Konflikte.
-   Online-Spiele zählt der Server beim Start selbst, lokale meldet die App über POST /count. */
+   Online-Spiele zählt der Server beim Start selbst, lokale meldet die App über POST /count, Tagesspiele über
+   POST /count?kind=daily (Übungsrunden mit). */
 
-export const KINDS = ['online', 'local'];
+export const KINDS = ['online', 'local', 'daily'];
 const STATS = 'hexa_stats';
 const TZ = 'Europe/Berlin';
 const HOUR = 3_600_000;
@@ -87,7 +88,7 @@ const deDay = day => dateFmt.format(Date.parse(day + 'T12:00:00Z'));
 export function statsPage(s) {
   const at = Date.parse(s.at);
   const rows = RANGES.map(r => `
-      <tr${r.id === 'total' ? ' class="sum"' : ''}><th scope="row">${r.label}</th><td class="all">${nf.format(s[r.id].all)}</td><td>${nf.format(s[r.id].online)}</td><td>${nf.format(s[r.id].local)}</td></tr>`).join('');
+      <tr${r.id === 'total' ? ' class="sum"' : ''}><th scope="row">${r.label}</th><td class="all">${nf.format(s[r.id].all)}</td><td>${nf.format(s[r.id].online)}</td><td>${nf.format(s[r.id].local)}</td><td>${nf.format(s[r.id].daily)}</td></tr>`).join('');
   return `<!doctype html>
 <html lang="de">
 <head>
@@ -109,10 +110,10 @@ h1 { margin: 0; font-size: 30px; font-weight: 900; font-stretch: 125%; letter-sp
 h1 span { display: block; margin-top: 8px; font-size: 13px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--pen); }
 .card { background: var(--sheet); border-radius: 16px; padding: 6px 18px; box-shadow: 0 1px 1px rgba(28, 32, 48, .04), 0 10px 30px -14px rgba(28, 32, 48, .28); overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
-th, td { padding: 12px 0; text-align: right; border-bottom: 1px solid var(--rule); white-space: nowrap; }
-th:first-child { text-align: left; padding-right: 12px; font-weight: 600; }
-td { padding-left: 14px; color: var(--ink-2); }
-thead th { font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+th, td { padding: 12px 0 12px 12px; text-align: right; border-bottom: 1px solid var(--rule); white-space: nowrap; }
+th:first-child { padding-left: 0; text-align: left; font-weight: 600; white-space: normal; }
+td { color: var(--ink-2); }
+thead th { vertical-align: bottom; font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); white-space: normal; hyphens: manual; }
 td.all { color: var(--ink); font-weight: 800; font-size: 18px; }
 tr.sum th, tr.sum td { border-bottom: 0; }
 tr.sum th { font-weight: 800; }
@@ -125,12 +126,12 @@ a { color: var(--pen); }
   <h1>HEXA<span>Gestartete Spiele</span></h1>
   <div class="card">
     <table>
-      <thead><tr><th scope="col">Zeitraum</th><th scope="col">Alle</th><th scope="col">Online</th><th scope="col">Lokal</th></tr></thead>
+      <thead><tr><th scope="col">Zeitraum</th><th scope="col">Alle</th><th scope="col">Online</th><th scope="col">Lokal</th><th scope="col">Tages&shy;spiel</th></tr></thead>
       <tbody>${rows}
       </tbody>
     </table>
   </div>
-  <p>${s.since ? `Gezählt seit ${deDay(s.since)}. ` : 'Noch kein Spiel gezählt. '}Tage nach deutscher Zeit, heute zählt mit. Lokale Spiele meldet die App beim Start, ohne Internet gehen sie verloren.</p>
+  <p>${s.since ? `Gezählt seit ${deDay(s.since)}. ` : 'Noch kein Spiel gezählt. '}Tage nach deutscher Zeit, heute zählt mit. Lokale Spiele und Tagesspiele meldet die App beim Start, ohne Internet gehen sie verloren.</p>
   <p>Stand: ${dateFmt.format(at)}, ${timeFmt.format(at)} Uhr · <a href="/stats.json">als JSON</a></p>
 </main>
 </body>
