@@ -21,6 +21,7 @@
 - Die Online-Logik wird vereinfacht, weil alle Verbindungen über denselben Server laufen (23.10.2026).
 - Coolify läuft schon auf dem VPS, eingerichtet und abgesichert, zusammen mit anderen Projekten mit Bun. Für HEXA kommt nur ein neues Projekt dazu (23.10.2026).
 - Online ist ab sofort aus, bis der Server auf dem VPS läuft. Erledigt am 23.10.2026, siehe [Online deaktivieren](#online-deaktivieren-erledigt).
+- Testadresse ist `hexa.unpacked.dev`. `hexa-countdown.app` bleibt die reine Adresse für die Produktion. `unpacked.dev` zeigt mit allen Subdomains schon auf den VPS (23.10.2026).
 
 ## Was anders ist als im Issue
 
@@ -205,7 +206,7 @@ CMD ["bun", "server/main.js"]
 |---|---|---|---|
 | [A](#a-code-im-branch) | Code im Branch | Claude | |
 | [B](#b-repo-in-coolify-freigeben) | Repo in Coolify freigeben | du | 5 Minuten |
-| [C](#c-testadresse-einrichten) | Neues Projekt in Coolify, Testadresse einrichten | du | 20 Minuten |
+| [C](#c-testadresse-einrichten) | Neues Projekt in Coolify, Testadresse einrichten | du | 15 Minuten |
 | [D](#d-auf-echten-geräten-testen) | Auf echten Geräten testen | du | 1 Stunde |
 | [E](#e-avv-mit-zap-hosting) | AVV mit ZAP-Hosting | du | |
 | [F](#f-umzugstag) | Umzugstag: umziehen, Online wieder an, Release 1.17.0 | du, Claude für die Commits | 1 bis 2 Stunden |
@@ -224,7 +225,7 @@ Die Namen von Knöpfen und Feldern in Coolify und Deno Deploy stammen aus deren 
 |---|---|---|
 | Name in Coolify | `hexa-test` | `hexa` |
 | Branch | `claude/charming-maxwell-yrwmwc` (Neben-Branch) | `main` |
-| Domain | `https://test.hexa-countdown.app` | `https://backend.hexa-countdown.app` |
+| Domain | `https://hexa.unpacked.dev` | `https://backend.hexa-countdown.app` |
 | Build Pack | Dockerfile | Dockerfile |
 | Ports Exposes | `8000` | `8000` |
 | Port Mappings | leer | leer |
@@ -287,7 +288,7 @@ Die GitHub App von Coolify gibt es schon für deine anderen Projekte. Es fehlt h
 
 ### C. Testadresse einrichten
 
-1. **DNS bei Spaceship:** A-Eintrag `test` → IPv4 des VPS, dazu AAAA, falls es IPv6 gibt. Prüfen mit `dig +short test.hexa-countdown.app`.
+1. **DNS:** Nichts zu tun. `unpacked.dev` zeigt mit allen Subdomains schon auf den VPS. Kurz prüfen: `dig +short hexa.unpacked.dev` zeigt die IP des VPS.
 2. **Neues Projekt:** In Coolify *Projects → + Add*, Name `HEXA`. Die Umgebung `production` öffnen.
 3. *+ New* → *Private Repository (with GitHub App)* → derselbe Server wie bei deinen anderen Projekten → deine GitHub App → Repository `unpacked-dev/hexa` → *Load Repository*.
 4. Branch `claude/charming-maxwell-yrwmwc`, Build Pack *Dockerfile*, Base Directory `/`, Port `8000` → *Continue*.
@@ -295,9 +296,9 @@ Die GitHub App von Coolify gibt es schon für deine anderen Projekte. Es fehlt h
 6. *Persistent Storage* → *Add* → *Volume Mount*: Name `hexa-test-data`, *Destination Path* `/data`. Speichern.
 7. *Deploy* und in den *Deployment Logs* zuschauen. Der erste Build dauert ein bis zwei Minuten.
 8. **Prüfen:**
-   - `https://test.hexa-countdown.app/health` zeigt `{"app":"hexa","protocol":3,"online":true,"ok":true}`.
+   - `https://hexa.unpacked.dev/health` zeigt `{"app":"hexa","protocol":3,"online":true,"ok":true}`.
    - Das Schloss im Browser ist da, das Zertifikat stimmt.
-   - `https://test.hexa-countdown.app/` zeigt die App selbst. Sie spielt über den Server der Testadresse.
+   - `https://hexa.unpacked.dev/` zeigt die App selbst. Sie spielt über den Server der Testadresse.
 
 Ab jetzt baut jeder Push auf den Neben-Branch die Testadresse neu. Dort ist Online an. Die Testadresse spielt also online, obwohl Online in der Produktion aus ist.
 
@@ -305,7 +306,7 @@ Ab jetzt baut jeder Push auf den Neben-Branch die Testadresse neu. Dort ist Onli
 
 ### D. Auf echten Geräten testen
 
-Zwei Geräte, eins im WLAN, eins mit Mobilfunk. Beide öffnen `https://test.hexa-countdown.app`.
+Zwei Geräte, eins im WLAN, eins mit Mobilfunk. Beide öffnen `https://hexa.unpacked.dev`.
 
 - [ ] Lobby erstellen, beitreten, Reihenfolge ändern, eine ganze Partie
 - [ ] Bots in allen drei Stufen, ein Countdown
@@ -314,7 +315,7 @@ Zwei Geräte, eins im WLAN, eins mit Mobilfunk. Beide öffnen `https://test.hexa
 - [ ] **Update mitten im Spiel:** In Coolify *Redeploy* drücken. Nach kurzem Neuverbinden läuft das Spiel weiter.
 - [ ] **Neustart mitten im Spiel:** In Coolify *Restart* drücken. Die Lobby ist noch da.
 - [ ] Beide Geräte erstellen kurz nacheinander je eine Lobby. Keins bekommt „Zu viele Versuche“. (Prüft die IP hinter dem Proxy.)
-- [ ] `https://test.hexa-countdown.app/stats` zählt die gestarteten Spiele.
+- [ ] `https://hexa.unpacked.dev/stats` zählt die gestarteten Spiele.
 
 Klappt etwas nicht: Claude Bescheid geben. Die Korrektur kommt in den Neben-Branch, die Testadresse baut von selbst neu.
 
@@ -401,7 +402,6 @@ Direkt nach dem Umzug, sobald F10 geklappt hat. Einen Weg zurück zu Deno gibt e
 
 ## Offen
 
-- Name der Testadresse: `test.hexa-countdown.app`?
 - Hat der VPS eine IPv6-Adresse (F2)?
 - Nutzen andere Apps der Organisation die Datenbank „unpacked“ auf Deno Deploy (G3)?
 - Reicht ein tägliches Backup auf dem VPS selbst (H1)?

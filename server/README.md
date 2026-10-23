@@ -56,7 +56,7 @@ Der Server läuft als Anwendung in Coolify, gebaut aus dem `Dockerfile`. Wie man
 | Einstellung | Produktion | Test |
 |---|---|---|
 | Branch | `main` | Neben-Branch `claude/charming-maxwell-yrwmwc` |
-| Domain | `https://backend.hexa-countdown.app` | `https://test.hexa-countdown.app` |
+| Domain | `https://backend.hexa-countdown.app` | `https://hexa.unpacked.dev` |
 | Build Pack | Dockerfile | Dockerfile |
 | Ports Exposes | `8000` | `8000` |
 | Port Mappings | leer | leer |
@@ -67,7 +67,7 @@ Der Server läuft als Anwendung in Coolify, gebaut aus dem `Dockerfile`. Wie man
 - **Jeder Push** auf den Branch baut neu, auch wenn sich nur die App ändert, denn der Server liefert sie mit aus. Coolify startet den neuen Container, wartet auf den Health Check und hält dann den alten an.
 - **Beim Anhalten** (`SIGTERM`) nimmt der Server keine neuen Verbindungen mehr an und schließt alle offenen mit `1001` („Server hält an“). Die Apps verbinden sich von selbst neu, mit dem neuen Container. Die Lobbys stehen in der Datei auf dem Volume, laufende Spiele gehen also weiter.
 - **Sicherung:** Eine geplante Aufgabe in Coolify (*Scheduled Tasks*) führt täglich `bun server/backup.js` aus. Das schreibt `/data/backup-<datum>.sqlite` und behält die letzten 7 Kopien.
-- Das Zertifikat für die Domain holt Coolify von selbst (Let's Encrypt). Bei Spaceship steht dafür ein A-Eintrag auf den Server.
+- Das Zertifikat für die Domain holt Coolify von selbst (Let's Encrypt). Bei Spaceship steht dafür ein A-Eintrag `backend` auf den Server. `unpacked.dev` zeigt mit allen Subdomains schon dorthin, für die Testadresse ist also nichts einzutragen.
 
 ### Die App gleich mit
 
