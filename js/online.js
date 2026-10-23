@@ -7,8 +7,8 @@ window.HexaOnline = (() => {
 
   const PROTOCOL = 3;   // 2: Bots in der Lobby, 3: mit eigenen Würfeln. Muss zum Server passen (server/game.js).
   const STORE = 'hexa-online';
-  // Der HEXA-Server auf Deno Deploy, unter der eigenen Domain. Ältere Versionen nutzen noch wss://hexa.unpacked-dev.deno.net/ws,
-  // die Adresse bleibt deshalb erreichbar. Kommt die App selbst von einem HEXA-Server (etwa zum Testen), nimmt sie den.
+  // Der HEXA-Server unter der eigenen Domain (Bun auf dem eigenen Server, siehe server/README.md).
+  // Kommt die App selbst von einem HEXA-Server (etwa von der Testadresse), nimmt sie den.
   const SERVER = 'wss://backend.hexa-countdown.app/ws';
   const KEY_RE = /^[A-Za-z0-9_-]{16,128}$/;
 

@@ -15,8 +15,11 @@ Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), die V
 
 - **Countdown nur für die eigene Person** ([#13](https://github.com/unpacked-dev/hexa/issues/13)): Nach einem Countdown mit App-Würfeln gehen die Punkte an die Person, die ihn gewürfelt hat. Die Auswahl „Eintragen für“ und „Nicht eintragen“ gibt es nicht mehr. Mit eigenen Würfeln trägt man den Countdown wie bisher im Block ein.
 
+- **Online-Server zieht um** ([#16](https://github.com/unpacked-dev/hexa/issues/16)): Der Server läuft jetzt mit Bun in einem Docker-Container auf einem eigenen Server bei ZAP-Hosting in Frankfurt, nicht mehr auf Deno Deploy. Lobbys und Statistik liegen in einer SQLite-Datei, laufende Spiele überstehen so jedes Update. Weil alle Verbindungen über einen Server laufen, ist der Server deutlich einfacher geworden. Die Statistik unter `/stats` fängt neu an. Die App spricht weiter mit `backend.hexa-countdown.app`.
+
 ### Entfernt
 
+- **Alte Server-Adresse** `hexa.unpacked-dev.deno.net`: Sie verschwindet mit Deno Deploy. Apps vor Version 1.13.0 holen sich beim nächsten Öffnen die neue Version.
 - **Highscores ohne Tab „Online“:** Der Platzhalter mit „Bald verfügbar“ ist weg, weil es keine Online-Bestenliste geben wird. Die Highscores sind jetzt eine Liste. Deine Ergebnisse aus Online-Spielen stehen wie bisher mit drin.
 
 ## [1.16.0] – 2026-10-12

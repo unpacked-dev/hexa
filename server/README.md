@@ -1,24 +1,26 @@
 # Online-Server für HEXA: Countdown
 
-Der Server würfelt, prüft jeden Zug und achtet auf die Zugzeit. Er läuft mit [Deno](https://deno.com), ganz ohne weitere Pakete: `Deno.serve` für HTTP und WebSocket, [Deno KV](https://docs.deno.com/deploy/kv/) als Datenbank. Die Regeln kommen aus `../js/rules.js`, genau wie in der App.
+Der Server würfelt, prüft jeden Zug und achtet auf die Zugzeit. Er läuft mit [Bun](https://bun.sh), ganz ohne weitere Pakete: `Bun.serve` für HTTP und WebSocket, SQLite (`bun:sqlite`) als Datenbank. Die Regeln kommen aus `../js/rules.js`, genau wie in der App. Betrieben wird er in einem Docker-Container mit [Coolify](https://coolify.io) auf einem eigenen Server bei ZAP-Hosting in Frankfurt.
 
-> **Stand:** Läuft seit Version 1.8.0 auf Deno Deploy, seit Version 1.13.0 unter der eigenen Adresse [backend.hexa-countdown.app](https://backend.hexa-countdown.app/): die App unter der Adresse selbst, der WebSocket unter `/ws`. Die alte Adresse [hexa.unpacked-dev.deno.net](https://hexa.unpacked-dev.deno.net/) bleibt für ältere Versionen erreichbar. Das Konzept steht in [`docs/online-konzept.md`](../docs/online-konzept.md).
+> **Stand:** Online seit Version 1.8.0, seit Version 1.13.0 unter der eigenen Adresse [backend.hexa-countdown.app](https://backend.hexa-countdown.app/): die App unter der Adresse selbst, der WebSocket unter `/ws`. Bis Version 1.16 lief der Server auf Deno Deploy mit Deno KV, seit Version 1.17.0 läuft er mit Bun auf dem eigenen Server ([#16](https://github.com/unpacked-dev/hexa/issues/16), Plan und Anleitung in [`docs/umzug-konzept.md`](../docs/umzug-konzept.md)). Das Konzept des Online-Modus steht in [`docs/online-konzept.md`](../docs/online-konzept.md).
 
 ## Dateien
 
 | Datei | Was drin ist |
 |---|---|
-| `main.js` | Einstieg: HTTP (App, `/health`, `/count`, `/stats`), WebSocket, Nachrichten, Zugzeit, Anwesenheit, Bremsen |
+| `main.js` | Einstieg: HTTP (App, `/health`, `/count`, `/stats`), WebSocket, Nachrichten, Zugzeit, Anwesenheit, Bremsen, Anhalten |
 | `game.js` | Spielablauf, nur Rechnen: Stand + Aktion + Uhrzeit ergibt den neuen Stand |
-| `store.js` | Deno KV: Lobbys anlegen, atomar ändern, beobachten |
-| `stats.js` | Spielzähler in Deno KV und die Seite unter `/stats` |
+| `db.js` | Öffnet die SQLite-Datei und legt die Tabellen an |
+| `store.js` | Lobbys anlegen und in einem Schritt ändern |
+| `stats.js` | Spielzähler und die Seite unter `/stats` |
+| `backup.js` | Sicherung der Datenbank, einmal am Tag |
 | `tests/*.spec.js` | Tests für Spielablauf, Datenbank und den ganzen Server |
 
-Die `deno.json` liegt im Hauptordner des Repos und nicht hier. Der Server lädt nämlich `js/config.js`, `js/rules.js` und `js/bot.js`, deshalb muss Deno Deploy das ganze Repo sehen.
+Im Hauptordner liegen dazu `package.json` (Befehle), `Dockerfile` und `.dockerignore`. Der Server lädt `js/config.js`, `js/rules.js` und `js/bot.js`, deshalb baut das Dockerfile aus dem ganzen Repo.
 
 ## Einstellungen in `js/config.js`
 
-App und Server lesen dieselbe Datei. Nach einer Änderung auf `main` bringen, dann übernehmen GitHub Pages und Deno Deploy sie von selbst. `node --test` prüft, ob die Werte gültig sind.
+App und Server lesen dieselbe Datei. Nach einer Änderung auf `main` bringen, dann übernehmen GitHub Pages und Coolify sie von selbst. `node --test` prüft, ob die Werte gültig sind.
 
 | Eintrag | Wofür | Standard |
 |---|---|---|
@@ -31,58 +33,72 @@ App und Server lesen dieselbe Datei. Nach einer Änderung auf `main` bringen, da
 
 ## Lokal starten und testen
 
-Nötig ist nur [Deno 2](https://docs.deno.com/runtime/getting_started/installation/). Aus dem Hauptordner des Repos:
+Nötig ist nur [Bun](https://bun.sh/docs/installation) 1.3 oder neuer. Aus dem Hauptordner des Repos:
 
 ```bash
-deno task dev    # App und Server auf http://localhost:8000, WebSocket unter ws://localhost:8000/ws
-deno task test   # alle Server-Tests
+bun run dev    # App und Server auf http://localhost:8000, WebSocket unter ws://localhost:8000/ws
+bun run test   # alle Server-Tests
 ```
 
-`http://localhost:8000/` öffnet die App, `http://localhost:8000/health` zeigt `{"app":"hexa","protocol":3,"online":true,"ok":true}`. Mit zwei Browserfenstern (oder einem privaten Fenster) lässt sich so gegen sich selbst spielen. Die Datenbank liegt lokal in einer Datei im Deno-Cache. Mit `HEXA_KV=./hexa.kv` bestimmst du den Ort selbst.
+`http://localhost:8000/` öffnet die App, `http://localhost:8000/health` zeigt `{"app":"hexa","protocol":3,"online":true,"ok":true}`. Mit zwei Browserfenstern (oder einem privaten Fenster) lässt sich so gegen sich selbst spielen. Die Datenbank liegt lokal in `hexa.sqlite` im Hauptordner (steht in der `.gitignore`). Mit `HEXA_DB=pfad/zur/datei.sqlite` bestimmst du den Ort selbst.
 
-## Auf Deno Deploy einrichten
+So wie im Betrieb, im Container:
 
-1. Auf [console.deno.com](https://console.deno.com) eine neue App anlegen und das GitHub-Repo `unpacked-dev/hexa` verbinden. Das App-Verzeichnis bleibt leer (Hauptordner des Repos).
-2. **Datenbank:** unter *Databases* eine Deno-KV-Datenbank anlegen (*Provision Database*) und der App zuweisen (*Assign*). Mehr ist nicht nötig, `Deno.openKv()` findet sie von selbst. Bei uns heißt sie `unpacked` und gehört der ganzen Organisation. Ihr Name steht nirgends im Code, Umbenennen ändert also nichts. Damit sich HEXA dort nicht mit anderen Apps in die Quere kommt, beginnen alle Schlüssel mit `hexa_`. Jeder Branch bekommt automatisch eine eigene Datenbank.
-3. **Prüfen:** An die Adresse eines Builds `/health` anhängen. Dort muss `{"app":"hexa","protocol":3,"online":true,"ok":true}` stehen. Der WebSocket ist dann `wss://<adresse>/ws`, unter der Adresse selbst läuft die App.
+```bash
+docker build -t hexa .
+docker run --rm -p 8000:8000 -v hexa-data:/data hexa
+```
 
-Einstiegspunkt und Laufzeit stehen in der `deno.json` unter `deploy.runtime`: `mode: "dynamic"` mit `entrypoint: "server/main.js"`. Diese Angabe geht den Einstellungen im Dashboard vor. Ohne sie findet Deno Deploy die `index.html` im Hauptordner und liefert einfach die Website aus. Die `deno.json` schaltet außerdem mit `"unstable": ["kv"]` Deno KV frei, sonst bricht der Start mit „Deno.openKv is not a function“ ab.
+## Betrieb mit Coolify
 
-Die Produktion baut aus `main` und läuft unter https://backend.hexa-countdown.app und weiter unter https://hexa.unpacked-dev.deno.net. Jeder andere Branch bekommt eine eigene Adresse mit eigener Datenbank, zu finden unter *Timelines*. Deno Deploy baut bei jedem Push neu, auch wenn sich nur die App ändert, denn der Server liefert sie mit aus. Laufende Spiele verbinden sich danach von selbst kurz neu.
+Der Server läuft als Anwendung in Coolify, gebaut aus dem `Dockerfile`. Wie man sie einrichtet, steht Schritt für Schritt in [`docs/umzug-konzept.md`](../docs/umzug-konzept.md#anleitung-schritt-für-schritt).
 
-**Eigene Domain:** In der Deno-Konsole unter *Domains* der Organisation `backend.hexa-countdown.app` anlegen und der App zuweisen (*Assign*). Beim DNS-Anbieter (Spaceship) stehen dafür zwei CNAME-Einträge: `backend` → `alias.deno.net` und `_acme-challenge.backend` → der Wert aus der Deno-Konsole. Das Zertifikat holt und verlängert Deno selbst. Die Adresse auf deno.net bleibt daneben bestehen.
+| Einstellung | Produktion | Test |
+|---|---|---|
+| Branch | `main` | Neben-Branch `claude/charming-maxwell-yrwmwc` |
+| Domain | `https://backend.hexa-countdown.app` | `https://test.hexa-countdown.app` |
+| Build Pack | Dockerfile | Dockerfile |
+| Ports Exposes | `8000` | `8000` |
+| Port Mappings | leer | leer |
+| Persistent Storage | Volume `hexa-data` nach `/data` | Volume `hexa-test-data` nach `/data` |
+| Health Check | aus dem Dockerfile (`/health`) | aus dem Dockerfile |
+
+- **Port Mappings bleiben leer.** Sonst klappen die Updates ohne Pause nicht, und man käme am Proxy vorbei (siehe Bremsen unten).
+- **Jeder Push** auf den Branch baut neu, auch wenn sich nur die App ändert, denn der Server liefert sie mit aus. Coolify startet den neuen Container, wartet auf den Health Check und hält dann den alten an.
+- **Beim Anhalten** (`SIGTERM`) nimmt der Server keine neuen Verbindungen mehr an und schließt alle offenen mit `1001` („Server hält an“). Die Apps verbinden sich von selbst neu, mit dem neuen Container. Die Lobbys stehen in der Datei auf dem Volume, laufende Spiele gehen also weiter.
+- **Sicherung:** Eine geplante Aufgabe in Coolify (*Scheduled Tasks*) führt täglich `bun server/backup.js` aus. Das schreibt `/data/backup-<datum>.sqlite` und behält die letzten 7 Kopien.
+- Das Zertifikat für die Domain holt Coolify von selbst (Let's Encrypt). Bei Spaceship steht dafür ein A-Eintrag auf den Server.
 
 ### Die App gleich mit
 
-Der Server liefert auch die App aus: `index.html`, `favicon.svg`, `manifest.webmanifest`, `sw.js` und die Ordner `css/`, `js/`, `lang/`, `fonts/` und `icons/`. Alles andere (etwa `server/`, `docs/` oder `.github/`) gibt es nicht, nur diese Liste. So ist jede Adresse auf Deno Deploy gleich eine fertige Seite zum Spielen, auch jede Testadresse eines Branches.
+Der Server liefert auch die App aus: `index.html`, `favicon.svg`, `manifest.webmanifest`, `sw.js` und die Ordner `css/`, `js/`, `lang/`, `fonts/` und `icons/`. Alles andere (etwa `server/`, `docs/` oder `.github/`) gibt es nicht, nur diese Liste. So ist jede Adresse gleich eine fertige Seite zum Spielen, auch die Testadresse.
 
-Nur in der Produktion (`backend.hexa-countdown.app` und `hexa.unpacked-dev.deno.net`) leitet die Startseite auf https://hexa-countdown.app weiter. So gibt es nur eine Adresse, unter der man HEXA als App installiert, denn jede Adresse hat ihren eigenen Speicher. `/ws`, `/health` und die Dateien bleiben. Die Liste steht in `REDIRECT_HOSTS` in `server/main.js`.
+Nur in der Produktion (`backend.hexa-countdown.app`) leitet die Startseite auf https://hexa-countdown.app weiter. So gibt es nur eine Adresse, unter der man HEXA als App installiert, denn jede Adresse hat ihren eigenen Speicher. `/ws`, `/health` und die Dateien bleiben. Die Liste steht in `REDIRECT_HOSTS` in `server/main.js`.
 
-Die App fragt beim Start `health` auf ihrer eigenen Adresse. Antwortet dort ein HEXA-Server, spielt sie über ihn. Sonst nimmt sie den festen Server `wss://backend.hexa-countdown.app/ws`, zum Beispiel unter hexa-countdown.app (GitHub Pages) oder aus der ZIP. Ältere Versionen nutzen noch `wss://hexa.unpacked-dev.deno.net/ws`.
+Die App fragt beim Start `health` auf ihrer eigenen Adresse. Antwortet dort ein HEXA-Server, spielt sie über ihn. Sonst nimmt sie den festen Server `wss://backend.hexa-countdown.app/ws`, zum Beispiel unter hexa-countdown.app (GitHub Pages) oder aus der ZIP. Versionen vor 1.13.0 nutzten noch `wss://hexa.unpacked-dev.deno.net/ws`. Die Adresse gibt es seit dem Umzug nicht mehr.
 
 ### Einstellungen über Umgebungsvariablen
 
 | Variable | Wofür | Standard |
 |---|---|---|
-| `HEXA_POLL_MS` | Sicherheitsnetz: So oft (in ms) fragt jede Instanz zusätzlich nach dem Stand ihrer Lobbys. `0` schaltet es aus. | `5000` |
-| `HEXA_KV` | Nur lokal: Pfad der Datenbank-Datei | Deno-Cache |
-| `PORT` | Nur lokal: Port | `8000` |
+| `HEXA_DB` | Pfad der Datenbank-Datei | `hexa.sqlite`, im Container `/data/hexa.sqlite` |
+| `PORT` | Port | `8000` |
 
 ## So arbeitet der Server
 
 - **Eine WebSocket-Verbindung pro Gerät.** Es gibt keine Konten und keine Cookies. Das Gerät erzeugt einmal einen zufälligen Schlüssel und meldet sich damit an. Auf dem Server liegt davon nur ein Hash.
-- **Ein Eintrag pro Lobby** unter `["hexa_room", Code]` mit dem ganzen Stand. Jede Änderung läuft so: lesen, prüfen, atomar schreiben. Kommen zwei Aktionen gleichzeitig, gewinnt eine, die andere wird mit dem neuen Stand wiederholt.
-- **Gemerkter Stand:** Jede Instanz merkt sich den neuesten Stand ihrer Lobbys samt Version (aus dem eigenen Schreiben, `kv.watch()` und dem Nachfragen). Die nächste Aktion rechnet gleich damit und schreibt nur, wenn die Version in der Datenbank noch dieselbe ist. War eine andere Instanz schneller, schlägt das fehl, und es geht mit frisch gelesenem Stand weiter. Fehler und Aktionen, die nichts ändern, prüft der Server immer mit frischem Stand. Das spart pro Aktion einen Weg zur Datenbank.
-- **Mehrere Instanzen:** Jede Instanz beobachtet ihre Lobbys mit `kv.watch()` und schickt Änderungen sofort an ihre Verbindungen. Zusätzlich fragt sie alle 5 Sekunden nach (siehe `HEXA_POLL_MS`).
+- **Ein Server.** Alle Verbindungen hängen am selben Server. Er schickt jeden neuen Stand direkt an alle in der Lobby.
+- **Eine Zeile pro Lobby** in der Tabelle `rooms`, mit dem ganzen Stand als JSON. Jede Änderung läuft so: lesen, prüfen, schreiben, alles in einem Schritt mit Schreibsperre. `bun:sqlite` arbeitet synchron, dazwischen kann nichts anderes passieren. Bei einem Update hängen für ein paar Sekunden zwei Container an derselben Datei. Die Schreibsperre sorgt dafür, dass dabei nichts verloren geht.
 - **Mit eigenen Würfeln** (`room.via` ist `own`): Niemand würfelt in der App, `roll`, `hold` und `cdRoll` lehnt der Server mit `own-dice` ab. Jede Person trägt reihum ihren Wert selbst ein, der Server prüft nur, ob es ihn für das Feld gibt. Es gibt kein Zeitlimit (`turn.deadline` ist `null`), niemand wird automatisch übersprungen. Ist jemand weg, kann der Host mit `skip` weitermachen. Bots gibt es in diesem Modus nicht.
-- **Zugzeit:** Gespeichert wird nur das Ende des Zugs. Kurz danach (1 Sekunde Puffer) streicht die Instanz ein zufälliges freies Feld. Ein Countdown bekommt eigene 30 Sekunden. Wer zweimal hintereinander die Zeit verpasst und nicht verbunden ist, wird sofort übersprungen.
-- **Bots:** Der Server spielt sie selbst, mit derselben Logik wie die App (`js/bot.js`), in der Stufe, die der Host gewählt hat. Die Fehler leichterer Bots hängen an Lobby, Spiel und Bot, nicht am Zufall des Servers. So entscheidet ein Bot bei jedem Schritt seines Zugs gleich, auch auf verschiedenen Instanzen. Wann der nächste Schritt fällig ist, steht in `turn.botAt`, genau wie das Ende der Zugzeit. Die Instanz, deren Timer zuerst abläuft, macht ihn. Weil jeder Schritt durch die Spielregeln geprüft und atomar gespeichert wird, passiert nichts doppelt. Pro Aufruf gibt es höchstens einen Schritt, die Pausen dazwischen kommen aus `botDelays`. Bots verpassen nie die Zeit. Ohne Verbindungen gibt es keinen Timer: Dann steht das Spiel, auch für die Bots, bis jemand zurückkommt.
-- **Anwesenheit:** Jede Instanz meldet sich alle 10 Sekunden in der Datenbank. Stürzt eine ab, gelten ihre Verbindungen nach etwa 40 Sekunden als getrennt.
-- **Aufräumen:** Lobbys ohne Start verschwinden nach 1 Stunde, Spiele 24 Stunden nach der letzten Aktion. Dauerhaft bleiben nur die Zähler der Statistik, ohne Bezug zu Personen. IP-Adressen kommen nie in die Datenbank, die Bremsen merken sie sich nur kurz im Arbeitsspeicher. Bei IPv6 zählt der ganze Anschluss (/64-Netz), sonst ließe sich die Bremse mit immer neuen Adressen umgehen.
+- **Zugzeit:** Gespeichert wird nur das Ende des Zugs. Kurz danach (1 Sekunde Puffer) streicht der Server ein zufälliges freies Feld. Ein Countdown bekommt eigene 30 Sekunden. Wer zweimal hintereinander die Zeit verpasst und nicht verbunden ist, wird sofort übersprungen.
+- **Bots:** Der Server spielt sie selbst, mit derselben Logik wie die App (`js/bot.js`), in der Stufe, die der Host gewählt hat. Die Fehler leichterer Bots hängen an Lobby, Spiel und Bot, nicht am Zufall des Servers. So entscheidet ein Bot bei jedem Schritt seines Zugs gleich, auch nach einem Neustart. Wann der nächste Schritt fällig ist, steht in `turn.botAt`, genau wie das Ende der Zugzeit. Pro Aufruf gibt es höchstens einen Schritt, die Pausen dazwischen kommen aus `botDelays`. Bots verpassen nie die Zeit. Ohne Verbindungen gibt es keinen Timer: Dann steht das Spiel, auch für die Bots, bis jemand zurückkommt.
+- **Anwesenheit:** Nach einem Neustart gelten die Verbindungen von vorher nach etwa 40 Sekunden als getrennt, falls die Apps sich nicht schon neu verbunden haben.
+- **Bremsen** zählen pro Internetverbindung, nur im Arbeitsspeicher. Hinter dem Proxy von Coolify kommt jede Verbindung vom Proxy. Die echte Adresse hängt er als letzten Eintrag an `X-Forwarded-For` an. Der Server nimmt genau diesen Eintrag, und nur, wenn die Verbindung aus einem privaten Netz kommt. Direkt von außen ließe sich der Header sonst fälschen.
+- **Aufräumen:** Lobbys ohne Start verschwinden nach 1 Stunde, Spiele 24 Stunden nach der letzten Aktion. Einmal pro Stunde löscht der Server sie auch aus der Datei. Dauerhaft bleiben nur die Zähler der Statistik, ohne Bezug zu Personen. IP-Adressen kommen nie in die Datenbank, die Bremsen merken sie sich nur kurz. Bei IPv6 zählt der ganze Anschluss (/64-Netz), sonst ließe sich die Bremse mit immer neuen Adressen umgehen.
 
 ## Antwortzeiten messen
 
-In der App zeigt `HexaOnline.timing()` in der Konsole, wie lange Aktionen bis zur Antwort brauchen (Durchschnitt, Maximum, zuletzt, in ms). Mit `localStorage.setItem('hexa-timing', '1')` kommt jede Messung auch als eigene Zeile. Zum Vergleich ein Messlauf gegen die Produktion vom Testrechner aus (Oktober 2026): `ping` 42 ms, Aktionen wie würfeln, halten und eintragen 53 bis 87 ms. Der größte Teil ist also das Netz, Deno KV kommt mit rund 15 bis 45 ms dazu.
+In der App zeigt `HexaOnline.timing()` in der Konsole, wie lange Aktionen bis zur Antwort brauchen (Durchschnitt, Maximum, zuletzt, in ms). Mit `localStorage.setItem('hexa-timing', '1')` kommt jede Messung auch als eigene Zeile. Zum Vergleich ein Messlauf gegen die Produktion vom Testrechner aus (Oktober 2026, noch auf Deno Deploy): `ping` 42 ms, Aktionen wie würfeln, halten und eintragen 53 bis 87 ms. Der größte Teil ist also das Netz, Deno KV kam mit rund 15 bis 45 ms dazu. SQLite auf demselben Server braucht für eine Aktion weit unter einer Millisekunde.
 
 Damit es sich trotzdem schnell anfühlt, zeigt die App eigene Aktionen sofort: Gehaltene Würfel und eingetragene Felder stehen gleich da, die Würfel rollen los, bevor die Zahlen kommen. Ein eingetragenes Feld ist blasser, bis der Server es bestätigt. Lehnt er ab oder kommt nach 6 Sekunden nichts, verschwindet die Zahl wieder, und ein Hinweis bittet, noch einmal einzutragen.
 
@@ -94,15 +110,15 @@ Unter [backend.hexa-countdown.app/stats](https://backend.hexa-countdown.app/stat
 - **Lokal** schickt die App beim Tippen auf „Spiel starten“ ein leeres `POST /count`, ohne Spitzname und ohne Geräteschlüssel. Ohne Internet geht die Meldung verloren. Läuft die App auf einem einfachen Testserver auf localhost, meldet sie nichts. Pro Internetverbindung zählen höchstens 10 Meldungen in 10 Minuten.
 - **Tagesspiel** meldet die App genauso, mit `POST /count?kind=daily`. Übungsrunden zählen mit. Ergebnisse von Tagesspielen bleiben auf dem Gerät.
 - **Zeiträume:** „Letzte 24 Stunden“ rechnet in ganzen Stunden (diese und die 23 davor), alles andere in ganzen Tagen nach deutscher Zeit. Heute zählt mit: „Letzte 7 Tage“ sind heute und die 6 Tage davor.
-- **In der Datenbank** liegen nur Zähler, erhöht mit `sum`, damit gleichzeitige Starts nicht verloren gehen:
+- **In der Datenbank** liegen nur Zähler, in der Tabelle `stats`. Ein Start erhöht drei Zeilen in einem Schritt:
 
-| Schlüssel | Inhalt | Wie lange |
-|---|---|---|
-| `["hexa_stats", "day", "2026-10-12", "online"]` | Spiele an diesem Tag (deutsche Zeit), ebenso mit `"local"` und `"daily"` | bleibt |
-| `["hexa_stats", "hour", "2026-10-12T14", "online"]` | Spiele in dieser Stunde (UTC), nur für die letzten 24 Stunden | 2 Tage |
-| `["hexa_stats", "total", "online"]` | alle Spiele seit Beginn | bleibt |
+| `scope` | `bucket` | `kind` | Inhalt | Wie lange |
+|---|---|---|---|---|
+| `day` | `2026-10-12` | `online`, `local`, `daily` | Spiele an diesem Tag (deutsche Zeit) | bleibt |
+| `hour` | `2026-10-12T14` | wie oben | Spiele in dieser Stunde (UTC), nur für die letzten 24 Stunden | 2 Tage |
+| `total` | leer | wie oben | alle Spiele seit Beginn | bleibt |
 
-Jede Instanz zeigt bis zu 30 Sekunden denselben Stand, damit häufiges Neuladen die Datenbank schont. Höchstens einmal pro Stunde löscht sie dabei die alten Stunden.
+Der Server zeigt bis zu 30 Sekunden denselben Stand, damit häufiges Neuladen nicht jedes Mal rechnet. Nach einem neu gezählten Spiel gibt es gleich den neuen. Einmal pro Stunde löscht er die alten Stunden. Mit dem Umzug auf Bun hat die Statistik neu angefangen.
 
 ## Nachrichten
 

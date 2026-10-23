@@ -137,7 +137,7 @@ Die vollständigen Regeln mit Beispielen stehen in der App: im Hauptmenü unter 
 
 ## Loslegen
 
-**Im Browser:** [hexa-countdown.app](https://hexa-countdown.app/) öffnen und losspielen. Der Server für den Online-Modus läuft auf Deno Deploy unter `backend.hexa-countdown.app`.
+**Im Browser:** [hexa-countdown.app](https://hexa-countdown.app/) öffnen und losspielen. Der Server für den Online-Modus läuft auf einem eigenen Server unter `backend.hexa-countdown.app`.
 
 **Lokal:** Repository klonen und `index.html` im Browser öffnen – fertig. Es gibt keinen Build-Schritt.
 
@@ -153,7 +153,7 @@ Wer lieber über einen lokalen Server testet (z. B. für das Web-App-Manifest):
 python3 -m http.server 8000   # dann http://localhost:8000 öffnen
 ```
 
-Auch so geöffnet spielt die App online über den Server unter backend.hexa-countdown.app. Wer den Server selbst laufen lassen möchte, braucht [Deno 2](https://docs.deno.com/runtime/getting_started/installation/): `deno task dev` startet App und Server auf http://localhost:8000, mehr dazu in [server/README.md](server/README.md).
+Auch so geöffnet spielt die App online über den Server unter backend.hexa-countdown.app. Wer den Server selbst laufen lassen möchte, braucht [Bun](https://bun.sh/docs/installation): `bun run dev` startet App und Server auf http://localhost:8000, mehr dazu in [server/README.md](server/README.md).
 
 **Als App aufs Handy:** [hexa-countdown.app](https://hexa-countdown.app/) öffnen, dann im Hauptmenü auf *HEXA als App installieren* tippen oder in den Einstellungen auf *Als App installieren*.
 - **iPhone und iPad:** Im Browser auf *Teilen* tippen und *Zum Home-Bildschirm* wählen. Die App erklärt das in drei Schritten.
@@ -167,13 +167,13 @@ Das Wichtigste lässt sich ohne Programmieren in [`js/config.js`](js/config.js) 
 
 | Eintrag | Wofür |
 | --- | --- |
-| `enableOnline` | Online spielen an (`true`) oder aus (`false`), etwa wenn der kostenlose Tarif von Deno Deploy knapp wird |
+| `enableOnline` | Online spielen an (`true`) oder aus (`false`), etwa während eines Umzugs oder bei Problemen mit dem Server |
 | `maxPlayers`, `maxBots` | Höchstens so viele Personen und Bots pro Spiel, lokal wie online |
 | `botNames` | Namen der Bots |
 | `turnSeconds`, `countdownSeconds` | Online: Zeit pro Zug und für den Countdown |
 | `botDelays` | Tempo der Bots |
 
-Danach committen und auf `main` bringen. GitHub Pages und Deno Deploy übernehmen die Änderung von selbst. `node --test` prüft, ob die Werte gültig sind.
+Danach committen und auf `main` bringen. GitHub Pages und der Server (Coolify) übernehmen die Änderung von selbst. `node --test` prüft, ob die Werte gültig sind.
 
 ### Tastatur
 
@@ -190,7 +190,7 @@ HEXA ist bewusst einfach gebaut: **reines HTML, CSS und JavaScript** – kein Fr
 
 - **Ton aus dem Browser:** Alle Effekte und die Lo-Fi-Musik entstehen live mit der Web Audio API. Es wird keine einzige Audiodatei geladen.
 - **Faire Würfel:** Zufallszahlen kommen aus `crypto.getRandomValues`, ohne Modulo-Verzerrung. Online würfelt der Server genauso.
-- **Online-Server ohne Pakete:** [Deno](https://deno.com) mit `Deno.serve` für HTTP und WebSocket und Deno KV als Datenbank, auf Deno Deploy. Der Server würfelt, prüft jeden Zug und schickt nach jeder Änderung allen den ganzen Stand. Die App zeigt ihn nur an. Mehr in [server/README.md](server/README.md).
+- **Online-Server ohne Pakete:** [Bun](https://bun.sh) mit `Bun.serve` für HTTP und WebSocket und SQLite als Datenbank, in einem Docker-Container mit Coolify auf einem eigenen Server in Frankfurt. Der Server würfelt, prüft jeden Zug und schickt nach jeder Änderung allen den ganzen Stand. Die App zeigt ihn nur an. Mehr in [server/README.md](server/README.md).
 - **Bots mit Mathe statt KI:** Ein Bot rechnet jeden Zug exakt durch. Für jede Möglichkeit, Würfel liegen zu lassen, kennt er die Wahrscheinlichkeit jedes Ergebnisses. Was ein Feld für den Rest des Spiels wert ist, schätzt er mit rund 170 Zahlen. Die stammen aus dem perfekten Spiel, das die Werkzeuge in `tools/` für alle 1,65 Millionen Spielstände ausrechnen. Leichtere Stufen machen Fehler wie Menschen: Sie denken weniger an später und lassen öfter nicht die besten Würfel liegen.
 - **Lokal bleibt alles auf dem Gerät:** Spielstand, Highscores, Tagesspiele, Design und Ton werden im `localStorage` deines Browsers gespeichert und nie übertragen. Startet ein lokales Spiel oder ein Tagesspiel, schickt die App nur eine leere Meldung, damit der Server Spiele zählen kann ([Statistik](https://backend.hexa-countdown.app/stats)). Sonst spricht sie nur im Online-Modus mit dem Server, auch dann ohne Konto.
 - **Offline dank Service Worker:** `sw.js` legt beim ersten Öffnen alle Dateien auf dem Gerät ab (rund 0,7 MB). Code kommt zuerst aus dem Netz, damit Updates sofort ankommen. Ohne Netz oder nach 3 Sekunden Warten nimmt die App ihre Kopie. Schriften und Icons kommen gleich aus der Kopie. Eine Versionsnummer braucht es dafür nicht.
@@ -235,8 +235,9 @@ hexa/
 │   ├── bot-optimal.js     # rechnet das perfekte Spiel für alle Spielstände aus
 │   ├── bot-fit.js         # leitet daraus die Werte für die Bots ab
 │   └── bot-sim.js         # lässt Bots viele Partien spielen und zeigt die Zahlen
-├── server/                # Server für den Online-Modus (Deno, Deno KV), liefert auch die App aus und zählt Spiele, siehe server/README.md
-├── deno.json              # Befehle für den Server: deno task dev, deno task test
+├── server/                # Server für den Online-Modus (Bun, SQLite), liefert auch die App aus und zählt Spiele, siehe server/README.md
+├── package.json           # Befehle für den Server: bun run dev, bun run test
+├── Dockerfile             # Container für den Server, gebaut von Coolify
 ├── docs/                  # Screenshots, Vorschaubild und Konzept für den Online-Modus
 └── THIRD-PARTY-NOTICES.md # Lizenzen von Schriften und Icons
 ```
@@ -249,10 +250,10 @@ Wertung, Sprachen, Einstellungen und Bots sind mit dem eingebauten Test-Runner v
 node --test
 ```
 
-Der Server für den Online-Modus hat eigene Tests. Dafür braucht es [Deno 2](https://docs.deno.com/runtime/getting_started/installation/):
+Der Server für den Online-Modus hat eigene Tests. Dafür braucht es [Bun](https://bun.sh/docs/installation):
 
 ```bash
-deno task test
+bun run test
 ```
 
 Wer die Bots selbst nachrechnen möchte:

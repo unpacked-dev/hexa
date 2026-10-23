@@ -4,3 +4,6 @@ node_modules/
 dist/
 *.zip
 tools/out/
+# Datenbank und Sicherungen, wenn der Server lokal läuft
+*.sqlite
+*.sqlite-*

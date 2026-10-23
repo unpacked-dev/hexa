@@ -1,0 +1,12 @@
+# Nur schicken, was das Dockerfile braucht. Welche Dateien ins Image kommen, bestimmen die COPY-Zeilen.
+.git
+.github
+docs
+tools
+tests
+server/tests
+node_modules
+dist
+*.zip
+*.sqlite
+*.sqlite-*

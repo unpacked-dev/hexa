@@ -1,5 +1,8 @@
-// Tests für den Spielablauf (server/game.js). Ausführen mit: deno task test
+// Tests für den Spielablauf (server/game.js). Ausführen mit: bun run test
+import { test } from 'bun:test';
 import assert from 'node:assert/strict';
+import Config from '../../js/config.js';
+import Rules from '../../js/rules.js';
 import * as G from '../game.js';
 
 // Vorgegebener Zufall: erst die Würfel aus der Liste, danach immer 1. int nimmt die Zahlen aus ints.
@@ -20,7 +23,7 @@ const online = (room, ...ids) => ids.forEach(id => G.attach(room, id, 'i.' + id,
 const lastEvent = room => room.events[room.events.length - 1];
 const code = c => ({ code: c });
 
-Deno.test('Namen: erlaubte werden vereinheitlicht, alles andere abgelehnt', () => {
+test('Namen: erlaubte werden vereinheitlicht, alles andere abgelehnt', () => {
   for (const ok of ['Jürgen', 'Anna-Lena', 'dice_master', 'Dr. Würfel', 'Wer?!', 'ÄÖÜ äöü ß 42']) assert.equal(G.onlineName(ok), ok);
   assert.equal(G.onlineName('  Lena   Maria  '), 'Lena Maria');
   assert.equal(G.onlineName('Jürgen'), 'Jürgen');   // ü aus u und zwei Punkten
@@ -29,7 +32,7 @@ Deno.test('Namen: erlaubte werden vereinheitlicht, alles andere abgelehnt', () =
   }
 });
 
-Deno.test('Lobby: Host, doppelte Namen, Reihenfolge, Entfernen', () => {
+test('Lobby: Host, doppelte Namen, Reihenfolge, Entfernen', () => {
   const room = lobby();
   assert.equal(room.host, 'p1');
   assert.equal(G.join(room, { id: 'p3', name: 'lena', key: 'k3' }).name, 'lena 2');
@@ -49,7 +52,7 @@ Deno.test('Lobby: Host, doppelte Namen, Reihenfolge, Entfernen', () => {
   assert.deepEqual(lastEvent(room), { no: room.eventNo, type: 'kick', player: 'p3', name: 'lena 2' });
 });
 
-Deno.test('Lobby: höchstens 50 Personen, nach dem Start kommt niemand mehr dazu', () => {
+test('Lobby: höchstens 50 Personen, nach dem Start kommt niemand mehr dazu', () => {
   const room = lobby([]);
   for (let i = 0; i < G.MAX_PLAYERS; i++) G.join(room, { id: 'p' + i, name: 'Spieler ' + i, key: 'k' + i });
   assert.throws(() => G.join(room, { id: 'x', name: 'Noch wer', key: 'kx' }), code('room-full'));
@@ -60,7 +63,7 @@ Deno.test('Lobby: höchstens 50 Personen, nach dem Start kommt niemand mehr dazu
   assert.throws(() => G.start(lobby(), 'p2', ctx(0)), code('not-host'));
 });
 
-Deno.test('Ein Zug: würfeln, halten, nachwürfeln, eintragen, dann ist die nächste Person dran', () => {
+test('Ein Zug: würfeln, halten, nachwürfeln, eintragen, dann ist die nächste Person dran', () => {
   const room = lobby();
   G.start(room, 'p1', ctx(1000));
   assert.equal(room.status, 'playing');
@@ -95,7 +98,7 @@ Deno.test('Ein Zug: würfeln, halten, nachwürfeln, eintragen, dann ist die näc
   assert.throws(() => G.enter(room, 'p1', 'gstrasse', ctx(5400)), code('field-taken'));
 });
 
-Deno.test('Drei Würfe, dann ist Schluss. Alle Würfel gehalten: nicht würfeln', () => {
+test('Drei Würfe, dann ist Schluss. Alle Würfel gehalten: nicht würfeln', () => {
   const room = lobby(['Lena']);
   G.start(room, 'p1', ctx(0));
   G.roll(room, 'p1', 1, ctx(1));
@@ -108,7 +111,7 @@ Deno.test('Drei Würfe, dann ist Schluss. Alle Würfel gehalten: nicht würfeln'
   assert.throws(() => G.hold(room, 'p1', 0, false), code('no-rolls'));
 });
 
-Deno.test('Countdown: 4 gleiche schalten ihn frei, nach dem Eintragen wird er gespielt', () => {
+test('Countdown: 4 gleiche schalten ihn frei, nach dem Eintragen wird er gespielt', () => {
   const room = lobby();
   G.start(room, 'p1', ctx(0));
   G.roll(room, 'p1', 1, ctx(1000, rng([6, 6, 6, 6, 1, 2])));
@@ -136,7 +139,7 @@ Deno.test('Countdown: 4 gleiche schalten ihn frei, nach dem Eintragen wird er ge
   assert.equal(room.cdGame, null);
 });
 
-Deno.test('Countdown perfekt: 60 Punkte', () => {
+test('Countdown perfekt: 60 Punkte', () => {
   const room = lobby(['Lena']);
   G.start(room, 'p1', ctx(0));
   G.roll(room, 'p1', 1, ctx(1, rng([3, 3, 3, 3, 3, 3])));
@@ -150,7 +153,7 @@ Deno.test('Countdown perfekt: 60 Punkte', () => {
   assert.equal(room.turn.no, 2);   // allein: wieder Lena, aber ein neuer Zug
 });
 
-Deno.test('Zeit um: ein zufälliges freies Feld wird gestrichen, dann ist die nächste Person dran', () => {
+test('Zeit um: ein zufälliges freies Feld wird gestrichen, dann ist die nächste Person dran', () => {
   const room = lobby();
   G.start(room, 'p1', ctx(0));
   assert.equal(G.tick(room, ctx(60_900)), false);   // noch im Puffer
@@ -168,7 +171,7 @@ Deno.test('Zeit um: ein zufälliges freies Feld wird gestrichen, dann ist die n�
   assert.equal(G.playerById(room, 'p1').missed, 0);
 });
 
-Deno.test('Zeit um nach 4 gleichen: Der Countdown bekommt eigene 30 Sekunden', () => {
+test('Zeit um nach 4 gleichen: Der Countdown bekommt eigene 30 Sekunden', () => {
   const room = lobby();
   G.start(room, 'p1', ctx(0));
   G.roll(room, 'p1', 1, ctx(1000, rng([2, 2, 2, 2, 5, 6])));
@@ -191,7 +194,7 @@ Deno.test('Zeit um nach 4 gleichen: Der Countdown bekommt eigene 30 Sekunden', (
   assert.deepEqual(other.cds, { p1: [10] });
 });
 
-Deno.test('Abwesend: Wer zweimal die Zeit verpasst und weg ist, wird sofort übersprungen', () => {
+test('Abwesend: Wer zweimal die Zeit verpasst und weg ist, wird sofort übersprungen', () => {
   const room = lobby();
   online(room, 'p1');   // Tim ist nicht verbunden
   G.start(room, 'p1', ctx(0));
@@ -222,7 +225,7 @@ Deno.test('Abwesend: Wer zweimal die Zeit verpasst und weg ist, wird sofort übe
   assert.equal(G.tick(room, ctx(now + 20)), false);
 });
 
-Deno.test('Spielende: Ergebnis mit Bonus, Lobby wartet wieder, Revanche startet frisch', () => {
+test('Spielende: Ergebnis mit Bonus, Lobby wartet wieder, Revanche startet frisch', () => {
   const room = lobby(['Lena']);
   G.start(room, 'p1', ctx(0));
   room.scores.p1 = { u1: 3, u2: 6, u3: 12, u4: 16, u5: 20, u6: 24, pasch5: 40, pasch6: 0, paare: 30, drillinge: 40, kstrasse: 25, gstrasse: 40, tief: 25, hoch: 0 };
@@ -245,7 +248,7 @@ Deno.test('Spielende: Ergebnis mit Bonus, Lobby wartet wieder, Revanche startet 
   assert.equal(room.last.game, 1);
 });
 
-Deno.test('Ganze Partie zu zweit: immer abwechselnd, nach 30 Zügen steht das Ergebnis', () => {
+test('Ganze Partie zu zweit: immer abwechselnd, nach 30 Zügen steht das Ergebnis', () => {
   const room = lobby();
   G.start(room, 'p1', ctx(0));
   const r = plain();
@@ -264,7 +267,7 @@ Deno.test('Ganze Partie zu zweit: immer abwechselnd, nach 30 Zügen steht das Er
   assert.equal(room.last.ranking[0].total, G.totals(room, room.last.ranking[0].id).total);
 });
 
-Deno.test('Verlassen: Host und Zug gehen weiter, die Punkte sind weg, zuletzt wird gelöscht', () => {
+test('Verlassen: Host und Zug gehen weiter, die Punkte sind weg, zuletzt wird gelöscht', () => {
   const room = lobby(['Lena', 'Tim', 'Mia']);
   G.start(room, 'p1', ctx(0));
   G.roll(room, 'p1', 1, ctx(1, plain()));
@@ -279,7 +282,7 @@ Deno.test('Verlassen: Host und Zug gehen weiter, die Punkte sind weg, zuletzt wi
   assert.equal(room.gone, true);
 });
 
-Deno.test('Verbindungen: online, und nach einem Server-Update räumt sich alles auf', () => {
+test('Verbindungen: online, und nach einem Server-Update räumt sich alles auf', () => {
   const room = lobby();
   assert.equal(G.attach(room, 'p1', 'a.1', 0), true);
   assert.equal(G.attach(room, 'p1', 'a.1', 0), false);   // schon da: keine Änderung
@@ -296,7 +299,7 @@ Deno.test('Verbindungen: online, und nach einem Server-Update räumt sich alles 
   assert.equal(G.detach(room, 'p1', 'a.1'), false);
 });
 
-Deno.test('Zufall: fair verteilt, Codes aus 4 Konsonanten', () => {
+test('Zufall: fair verteilt, Codes aus 4 Konsonanten', () => {
   const count = [0, 0, 0, 0, 0, 0, 0];
   for (let i = 0; i < 60_000; i++) count[G.fairRandom.d6()]++;
   for (let v = 1; v <= 6; v++) assert.ok(Math.abs(count[v] - 10_000) < 500, `Zahl ${v}: ${count[v]}`);
@@ -305,7 +308,6 @@ Deno.test('Zufall: fair verteilt, Codes aus 4 Konsonanten', () => {
 });
 
 /* ---------- Bots ---------- */
-const Config = globalThis.HexaConfig;
 const BOT_MS = Config.botDelays;
 const isBotId = (room, id) => !!(G.playerById(room, id) || {}).bot;
 // Bots spielen lassen: Die Uhr springt jeweils zum nächsten Bot-Schritt. Gibt die neue Uhrzeit zurück.
@@ -319,7 +321,7 @@ function runBots(room, now, r, onStep = () => {}) {
   return now;
 }
 
-Deno.test('Bots: nur der Host holt sie dazu, Namen aus js/config.js, keiner doppelt', () => {
+test('Bots: nur der Host holt sie dazu, Namen aus js/config.js, keiner doppelt', () => {
   const room = lobby(['Lena', 'Alea']);
   assert.throws(() => G.addBot(room, 'p2', ctx(0)), code('not-host'));
   // int 1 wählt den zweiten freien Namen. „Alea“ ist schon vergeben, also „Tessa“.
@@ -338,7 +340,7 @@ Deno.test('Bots: nur der Host holt sie dazu, Namen aus js/config.js, keiner dopp
   assert.equal(G.playerById(room, b.id), null);
 });
 
-Deno.test('Bots: Stufe beim Hinzufügen und in der Lobby wechseln, nur der Host, ohne Angabe schwer', () => {
+test('Bots: Stufe beim Hinzufügen und in der Lobby wechseln, nur der Host, ohne Angabe schwer', () => {
   const room = lobby(['Lena', 'Tim']);
   assert.deepEqual(G.BOT_LEVELS, ['easy', 'medium', 'hard']);
   const easy = G.addBot(room, 'p1', ctx(0), 'easy');
@@ -354,8 +356,8 @@ Deno.test('Bots: Stufe beim Hinzufügen und in der Lobby wechseln, nur der Host,
   assert.throws(() => G.setBotLevel(room, 'p1', old.id, 'easy'), code('game-running'));
 });
 
-Deno.test('Eigene Würfel: nur ohne Bots, Wert selbst eintragen, kein Zeitlimit, korrigieren, überspringen', () => {
-  const values = globalThis.HexaRules.valuesFor;
+test('Eigene Würfel: nur ohne Bots, Wert selbst eintragen, kein Zeitlimit, korrigieren, überspringen', () => {
+  const values = Rules.valuesFor;
   const room = lobby(['Lena', 'Tim']);
   const b = G.addBot(room, 'p1', ctx(0));
   assert.throws(() => G.setVia(room, 'p1', 'own'), code('has-bots'));
@@ -423,7 +425,7 @@ Deno.test('Eigene Würfel: nur ohne Bots, Wert selbst eintragen, kein Zeitlimit,
   assert.throws(() => G.fix(room, 'p1', 'u1', 1), code('bad-message'));
 });
 
-Deno.test('Bots: höchstens maxBots, zählen zu maxPlayers, nur in der Lobby', () => {
+test('Bots: höchstens maxBots, zählen zu maxPlayers, nur in der Lobby', () => {
   const room = lobby(['Lena']);
   const max = Math.min(G.MAX_BOTS, Config.botNames.length, G.MAX_PLAYERS - 1);
   for (let i = 0; i < max; i++) G.addBot(room, 'p1', ctx(0));
@@ -440,7 +442,7 @@ Deno.test('Bots: höchstens maxBots, zählen zu maxPlayers, nur in der Lobby', (
   assert.throws(() => G.addBot(running, 'p1', ctx(0)), code('game-running'));
 });
 
-Deno.test('Bot-Zug: würfeln, Würfel einzeln halten, eintragen, mit den Pausen aus js/config.js', () => {
+test('Bot-Zug: würfeln, Würfel einzeln halten, eintragen, mit den Pausen aus js/config.js', () => {
   const room = lobby(['Lena']);
   const b = G.addBot(room, 'p1', ctx(0));
   G.order(room, 'p1', [b.id, 'p1']);
@@ -467,7 +469,7 @@ Deno.test('Bot-Zug: würfeln, Würfel einzeln halten, eintragen, mit den Pausen 
   assert.ok(end - 1000 < G.TIMES.turn, 'weit unter der Zugzeit');
 });
 
-Deno.test('Bots verpassen nie die Zeit: Stand das Spiel lange, geht es mit dem nächsten Schritt weiter', () => {
+test('Bots verpassen nie die Zeit: Stand das Spiel lange, geht es mit dem nächsten Schritt weiter', () => {
   const room = lobby(['Lena']);
   const b = G.addBot(room, 'p1', ctx(0));
   G.order(room, 'p1', [b.id, 'p1']);
@@ -481,7 +483,7 @@ Deno.test('Bots verpassen nie die Zeit: Stand das Spiel lange, geht es mit dem n
   assert.ok(!room.events.some(e => e.type === 'timeout'));
 });
 
-Deno.test('Bot im Countdown: spielt ihn selbst, danach ist die nächste Person dran', () => {
+test('Bot im Countdown: spielt ihn selbst, danach ist die nächste Person dran', () => {
   const room = lobby(['Lena']);
   const b = G.addBot(room, 'p1', ctx(0));
   G.order(room, 'p1', [b.id, 'p1']);
@@ -496,7 +498,7 @@ Deno.test('Bot im Countdown: spielt ihn selbst, danach ist die nächste Person d
   assert.ok(room.events.some(e => e.type === 'countdown' && e.player === b.id && e.pts === 10));
 });
 
-Deno.test('Ganze Partie: Lena gegen einen leichten und einen mittleren Bot, Ergebnis mit Bot-Zeichen und Stufe, kein Feld gestrichen', () => {
+test('Ganze Partie: Lena gegen einen leichten und einen mittleren Bot, Ergebnis mit Bot-Zeichen und Stufe, kein Feld gestrichen', () => {
   // Leichtere Bots würfeln mit Fehlern. Weil jeder Schritt neu plant, müssen sie bei jedem Schritt gleich entscheiden.
   const room = lobby(['Lena']);
   G.addBot(room, 'p1', ctx(0), 'easy');
@@ -525,7 +527,7 @@ Deno.test('Ganze Partie: Lena gegen einen leichten und einen mittleren Bot, Erge
   room.players.forEach(p => assert.equal(Object.keys(room.scores[p.id]).length, G.FIELD_KEYS.length));
 });
 
-Deno.test('Host geht: Host wird der nächste Mensch. Nur noch Bots übrig: Lobby weg', () => {
+test('Host geht: Host wird der nächste Mensch. Nur noch Bots übrig: Lobby weg', () => {
   const room = lobby(['Lena', 'Tim']);
   const b = G.addBot(room, 'p1', ctx(0));
   G.order(room, 'p1', [b.id, 'p1', 'p2']);

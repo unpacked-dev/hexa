@@ -1,14 +1,13 @@
-/* HEXA – Spielzähler in Deno KV. Gezählt wird nur, dass ein Spiel gestartet wurde, getrennt nach online, lokal und Tagesspiel.
-   Keine Namen, keine Geräte, keine Adressen.
-     ["hexa_stats", "day", "2026-10-12", Art]     Spiele an diesem Tag (deutsche Zeit), bleiben
-     ["hexa_stats", "hour", "2026-10-12T14", Art]  Spiele in dieser Stunde (UTC), nur für „Letzte 24 Stunden“, nach 2 Tagen weg
-     ["hexa_stats", "total", Art]                  alle Spiele seit Beginn
-   Gezählt wird mit sum: Starten viele gleichzeitig, geht keins verloren, und es gibt keine Konflikte.
+/* HEXA – Spielzähler in SQLite. Gezählt wird nur, dass ein Spiel gestartet wurde, getrennt nach online, lokal und Tagesspiel.
+   Keine Namen, keine Geräte, keine Adressen. Eine Zeile pro Zähler in der Tabelle stats (db.js):
+     scope 'day',   bucket '2026-10-12',    kind   Spiele an diesem Tag (deutsche Zeit), bleiben
+     scope 'hour',  bucket '2026-10-12T14', kind   Spiele in dieser Stunde (UTC), nur für „Letzte 24 Stunden“, nach 2 Tagen weg
+     scope 'total', bucket '',              kind   alle Spiele seit Beginn
    Online-Spiele zählt der Server beim Start selbst, lokale meldet die App über POST /count, Tagesspiele über
    POST /count?kind=daily (Übungsrunden mit). */
+import { atomic } from './db.js';
 
 export const KINDS = ['online', 'local', 'daily'];
-const STATS = 'hexa_stats';
 const TZ = 'Europe/Berlin';
 const HOUR = 3_600_000;
 const DAY = 24 * HOUR;
@@ -29,54 +28,38 @@ export function dayKey(now) {
 export const hourKey = now => new Date(now).toISOString().slice(0, 13);
 // Am Datum rechnen, nicht in Millisekunden: Bei der Zeitumstellung hat ein Tag 23 oder 25 Stunden.
 const addDays = (day, n) => new Date(Date.parse(day + 'T00:00:00Z') + n * DAY).toISOString().slice(0, 10);
-const num = v => (v instanceof Deno.KvU64 ? Number(v.value) : 0);
 
-export async function countGame(kv, kind, now) {
+export function countGame(db, kind, now) {
   if (!KINDS.includes(kind)) throw new Error('Unbekannte Art: ' + kind);
-  const res = await kv.atomic()
-    .sum([STATS, 'day', dayKey(now), kind], 1n)
-    .sum([STATS, 'hour', hourKey(now), kind], 1n)
-    .sum([STATS, 'total', kind], 1n)
-    .commit();
-  if (!res.ok) throw new Error('Zählen fehlgeschlagen');
+  const add = db.query('INSERT INTO stats (scope, bucket, kind, n) VALUES (?, ?, ?, 1) ON CONFLICT DO UPDATE SET n = n + 1');
+  atomic(db, () => {
+    add.run('day', dayKey(now), kind);
+    add.run('hour', hourKey(now), kind);
+    add.run('total', '', kind);
+  });
 }
 
-// Gibt { last24h, last7d, last30d, last365d, total } mit je { all, online, local } zurück,
+// Gibt { last24h, last7d, last30d, last365d, total } mit je { all, online, local, daily } zurück,
 // dazu since (erster gezählter Tag oder null), today und at (Zeitpunkt der Abfrage).
-export async function readStats(kv, now) {
+export function readStats(db, now) {
   const today = dayKey(now);
   const out = {};
   for (const r of RANGES) out[r.id] = Object.fromEntries([['all', 0], ...KINDS.map(k => [k, 0])]);
   Object.assign(out, { since: null, today, at: new Date(now).toISOString() });
-  const add = (id, kind, n) => { out[id][kind] += n; out[id].all += n; };
+  const add = (id, rows) => rows.forEach(r => { if (KINDS.includes(r.kind)) { out[id][r.kind] += r.n; out[id].all += r.n; } });
 
   // Diese angefangene Stunde und die 23 davor
-  for await (const e of kv.list({ prefix: [STATS, 'hour'], start: [STATS, 'hour', hourKey(now - 23 * HOUR)] })) {
-    if (KINDS.includes(e.key[3])) add('last24h', e.key[3], num(e.value));
-  }
-  const days = RANGES.filter(r => r.days).map(r => ({ id: r.id, from: addDays(today, 1 - r.days) }));
-  const oldest = days.reduce((a, d) => (d.from < a ? d.from : a), today);
-  for await (const e of kv.list({ prefix: [STATS, 'day'], start: [STATS, 'day', oldest] })) {
-    const [, , day, kind] = e.key;
-    if (!KINDS.includes(kind) || day > today) continue;
-    for (const d of days) if (day >= d.from) add(d.id, kind, num(e.value));
-  }
-  const totals = await kv.getMany(KINDS.map(k => [STATS, 'total', k]));
-  KINDS.forEach((k, i) => add('total', k, num(totals[i].value)));
-  for await (const e of kv.list({ prefix: [STATS, 'day'] }, { limit: 1 })) out.since = e.key[2];
+  add('last24h', db.query("SELECT kind, SUM(n) AS n FROM stats WHERE scope = 'hour' AND bucket >= ? GROUP BY kind").all(hourKey(now - 23 * HOUR)));
+  const days = db.query("SELECT kind, SUM(n) AS n FROM stats WHERE scope = 'day' AND bucket >= ? AND bucket <= ? GROUP BY kind");
+  for (const r of RANGES) if (r.days) add(r.id, days.all(addDays(today, 1 - r.days), today));
+  add('total', db.query("SELECT kind, n FROM stats WHERE scope = 'total'").all());
+  out.since = db.query("SELECT MIN(bucket) AS day FROM stats WHERE scope = 'day'").get().day || null;
   return out;
 }
 
-// Stunden, die älter als 2 Tage sind, braucht niemand mehr. Gibt die Zahl der gelöschten Einträge zurück.
-export async function pruneHours(kv, now) {
-  const keys = [];
-  for await (const e of kv.list({ prefix: [STATS, 'hour'], end: [STATS, 'hour', hourKey(now - 2 * DAY)] })) keys.push(e.key);
-  for (let i = 0; i < keys.length; i += 50) {
-    const op = kv.atomic();
-    keys.slice(i, i + 50).forEach(k => op.delete(k));
-    await op.commit();
-  }
-  return keys.length;
+// Stunden, die älter als 2 Tage sind, braucht niemand mehr. Gibt die Zahl der gelöschten Zeilen zurück.
+export function pruneHours(db, now) {
+  return db.query("DELETE FROM stats WHERE scope = 'hour' AND bucket < ?").run(hourKey(now - 2 * DAY)).changes;
 }
 
 /* ---------- Seite unter /stats ---------- */

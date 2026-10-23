@@ -1,150 +1,133 @@
-// Tests für Deno KV (server/store.js), mit einer Datenbank im Arbeitsspeicher. Ausführen mit: deno task test
+// Tests für die Lobbys in SQLite (server/store.js und server/db.js). Ausführen mit: bun run test
+import { test } from 'bun:test';
 import assert from 'node:assert/strict';
+import { mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { openDb } from '../db.js';
+import { backup } from '../backup.js';
 import * as S from '../store.js';
 import * as G from '../game.js';
 
 const host = (id = 'p1') => room => G.join(room, { id, name: 'Lena', key: 'k-' + id });
 const codes = (...list) => () => list.shift();
+// Ein leerer Ordner für Datenbank-Dateien, wird am Ende gelöscht
+function folder(fn) {
+  const dir = mkdtempSync(join(tmpdir(), 'hexa-'));
+  try { return fn(dir); } finally { rmSync(dir, { recursive: true, force: true }); }
+}
 
-Deno.test('Neue Lobby: Jeden Code gibt es nur einmal, auch wenn zwei gleichzeitig ziehen', async () => {
-  const kv = await Deno.openKv(':memory:');
-  const a = await S.createRoom(kv, host(), 0, codes('BBBB', 'CCCC'));
-  const b = await S.createRoom(kv, host(), 0, codes('BBBB', 'CCCC'));
+test('Neue Lobby: Jeden Code gibt es nur einmal', () => {
+  const db = openDb();
+  const a = S.createRoom(db, host(), 0, codes('BBBB', 'CCCC'));
+  const b = S.createRoom(db, host(), 0, codes('BBBB', 'CCCC'));
   assert.equal(a.code, 'BBBB');
   assert.equal(b.code, 'CCCC');
   assert.equal(a.host, 'p1');
-  // Beide ziehen im selben Moment DDDD: Nur eine Lobby bekommt ihn, die andere zieht neu
-  const [x, y] = await Promise.all([
-    S.createRoom(kv, host('x'), 0, codes('DDDD', 'FFFF')),
-    S.createRoom(kv, host('y'), 0, codes('DDDD', 'GGGG')),
-  ]);
-  assert.notEqual(x.code, y.code);
-  assert.ok([x.code, y.code].includes('DDDD'));
-  assert.equal((await S.readRoom(kv, 'DDDD', 0)).players.length, 1);
-  kv.close();
+  // Beide ziehen DDDD: Nur eine Lobby bekommt ihn, die andere zieht neu
+  const x = S.createRoom(db, host('x'), 0, codes('DDDD', 'FFFF'));
+  const y = S.createRoom(db, host('y'), 0, codes('DDDD', 'GGGG'));
+  assert.deepEqual([x.code, y.code], ['DDDD', 'GGGG']);
+  assert.equal(S.readRoom(db, 'DDDD', 0).host, 'x');
+  db.close();
 });
 
-Deno.test('Ändern: Gleichzeitige Änderungen gehen nicht verloren, unveränderte werden nicht gespeichert', async () => {
-  const kv = await Deno.openKv(':memory:');
-  await S.createRoom(kv, host('p0'), 0, codes('KXMP'));
-  await Promise.all(Array.from({ length: 20 }, (_, i) =>
-    S.mutate(kv, 'KXMP', room => G.join(room, { id: 'p' + (i + 1), name: 'Spieler ' + (i + 1), key: 'k' + i }), 0)));
-  const room = await S.readRoom(kv, 'KXMP', 0);
+test('Ändern: Jede Änderung zählt, unveränderte werden nicht gespeichert', () => {
+  const db = openDb();
+  S.createRoom(db, host('p0'), 0, codes('KXMP'));
+  for (let i = 0; i < 20; i++) S.mutate(db, 'KXMP', room => G.join(room, { id: 'p' + (i + 1), name: 'Spieler ' + (i + 1), key: 'k' + i }), 0);
+  const room = S.readRoom(db, 'KXMP', 0);
   assert.equal(room.players.length, 21);
   assert.equal(room.seq, 20);
 
-  const same = await S.mutate(kv, 'KXMP', () => 'nichts', 0);
+  const same = S.mutate(db, 'KXMP', () => 'nichts', 0);
   assert.equal(same.changed, false);
   assert.equal(same.result, 'nichts');
-  assert.equal((await S.readRoom(kv, 'KXMP', 0)).seq, 20);
+  assert.equal(same.room.seq, 20);
+  assert.equal(S.readRoom(db, 'KXMP', 0).seq, 20);
 
   // Fehler in der Änderung: nichts wird gespeichert
-  await assert.rejects(S.mutate(kv, 'KXMP', room => { room.players = []; G.fail('not-host'); }, 0), { code: 'not-host' });
-  assert.equal((await S.readRoom(kv, 'KXMP', 0)).players.length, 21);
+  assert.throws(() => S.mutate(db, 'KXMP', r => { r.players = []; G.fail('not-host'); }, 0), { code: 'not-host' });
+  assert.equal(S.readRoom(db, 'KXMP', 0).players.length, 21);
 
   // gone: gelöscht
-  const out = await S.mutate(kv, 'KXMP', room => { room.gone = true; }, 0);
+  const out = S.mutate(db, 'KXMP', r => { r.gone = true; }, 0);
   assert.equal(out.gone, true);
-  assert.equal(await S.readRoom(kv, 'KXMP', 0), null);
-  assert.equal((await S.mutate(kv, 'KXMP', () => {}, 0)).missing, true);
-  kv.close();
+  assert.equal(S.readRoom(db, 'KXMP', 0), null);
+  assert.equal(S.mutate(db, 'KXMP', () => {}, 0).missing, true);
+  db.close();
 });
 
-Deno.test('Ablauf: Eine Lobby ohne Start gilt nach 1 Stunde als weg, ihr Code ist wieder frei', async () => {
-  const kv = await Deno.openKv(':memory:');
-  const room = await S.createRoom(kv, host(), 0, codes('KXMP'));
+test('Ablauf: Eine Lobby ohne Start gilt nach 1 Stunde als weg, ihr Code ist wieder frei', () => {
+  const db = openDb();
+  const room = S.createRoom(db, host(), 0, codes('KXMP'));
   assert.equal(room.expires, S.LOBBY_TTL);
-  assert.ok(await S.readRoom(kv, 'KXMP', S.LOBBY_TTL - 1));
-  assert.equal(await S.readRoom(kv, 'KXMP', S.LOBBY_TTL + 1), null);
-  const again = await S.createRoom(kv, host('neu'), S.LOBBY_TTL + 1, codes('KXMP'));
+  assert.ok(S.readRoom(db, 'KXMP', S.LOBBY_TTL - 1));
+  assert.equal(S.readRoom(db, 'KXMP', S.LOBBY_TTL + 1), null);
+  assert.equal(S.mutate(db, 'KXMP', () => {}, S.LOBBY_TTL + 1).missing, true);
+  const again = S.createRoom(db, host('neu'), S.LOBBY_TTL + 1, codes('KXMP'));
   assert.equal(again.code, 'KXMP');
   assert.equal(again.host, 'neu');
+  assert.equal(again.seq, 0);
   // Ein laufendes Spiel bleibt 24 Stunden nach der letzten Aktion
-  const out = await S.mutate(kv, 'KXMP', room => G.start(room, 'neu', { now: 5, rng: G.fairRandom, times: G.TIMES }), 5);
+  const out = S.mutate(db, 'KXMP', r => G.start(r, 'neu', { now: 5, rng: G.fairRandom, times: G.TIMES }), 5);
   assert.equal(out.room.expires, 5 + S.GAME_TTL);
-  kv.close();
+  db.close();
 });
 
-// Zählt, wie oft gelesen wird. Alles andere geht unverändert an die Datenbank.
-function counting(kv) {
-  const n = { get: 0 };
-  const proxy = new Proxy(kv, {
-    get(target, prop) {
-      if (prop === 'get') return (...args) => { n.get++; return target.get(...args); };
-      const v = target[prop];
-      return typeof v === 'function' ? v.bind(target) : v;
-    },
-  });
-  return [proxy, n];
-}
-
-Deno.test('Gemerkter Stand: aktuell spart das Lesen, veraltet gibt trotzdem das richtige Ergebnis', async () => {
-  const base = await Deno.openKv(':memory:');
-  const [kv, n] = counting(base);
-  await S.createRoom(kv, host(), 0, codes('KXMP'));
-  let known = await kv.get(S.roomKey('KXMP'));
-  n.get = 0;
-  // Aktuell: kein Lesen, der neue Eintrag kommt zurück
-  const a = await S.mutate(kv, 'KXMP', room => G.join(room, { id: 'p2', name: 'Tim', key: 'k2' }), 0, known);
-  assert.equal(n.get, 0);
-  assert.equal(a.changed, true);
-  assert.equal(a.entry.value.seq, 1);
-  assert.equal(a.entry.versionstamp, (await base.get(S.roomKey('KXMP'))).versionstamp);
-  known = a.entry;
-  // Eine andere Instanz ändert inzwischen etwas: Der gemerkte Stand ist veraltet, nichts geht verloren
-  await S.mutate(base, 'KXMP', room => G.join(room, { id: 'p3', name: 'Mia', key: 'k3' }), 0);
-  const b = await S.mutate(kv, 'KXMP', room => G.join(room, { id: 'p4', name: 'Ben', key: 'k4' }), 0, known);
-  assert.deepEqual(b.room.players.map(p => p.name), ['Lena', 'Tim', 'Mia', 'Ben']);
-  assert.equal(b.room.seq, 3);
-  // Veraltet und laut altem Stand ein Fehler: Es zählt der frische Stand
-  const stale = b.entry;
-  await S.mutate(base, 'KXMP', room => G.order(room, 'p1', ['p4', 'p1', 'p2', 'p3']), 0);
-  const c = await S.mutate(kv, 'KXMP', room => { if (room.players[0].id !== 'p4') G.fail('stale'); return 'ok'; }, 0, stale);
-  assert.equal(c.result, 'ok');
-  // Veraltet und laut altem Stand unverändert: frisch nachsehen
-  const d = await S.mutate(kv, 'KXMP', room => { if (room.players[0].id === 'p4') room.host = 'p4'; }, 0, stale);
-  assert.equal(d.changed, true);
-  assert.equal(d.room.host, 'p4');
-  // Inzwischen gelöscht: missing, auch mit gemerktem Stand
-  await S.mutate(base, 'KXMP', room => { room.gone = true; }, 0);
-  assert.equal((await S.mutate(kv, 'KXMP', () => {}, 0, d.entry)).missing, true);
-  base.close();
+test('Aufräumen: Abgelaufene Lobbys verschwinden aus der Datei, laufende bleiben', () => {
+  const db = openDb();
+  S.createRoom(db, host(), 0, codes('BBBB'));
+  S.createRoom(db, host(), 1000, codes('CCCC'));
+  assert.equal(S.purgeRooms(db, S.LOBBY_TTL + 500), 1);
+  assert.deepEqual(db.query('SELECT code FROM rooms').all().map(r => r.code), ['CCCC']);
+  assert.equal(S.purgeRooms(db, S.LOBBY_TTL + 500), 0);
+  db.close();
 });
 
-Deno.test('Beobachten: Änderungen und Löschen kommen an', async () => {
-  const kv = await Deno.openKv(':memory:');
-  await S.createRoom(kv, host(), 0, codes('KXMP'));
-  const seen = [];
-  let wake = () => {};
-  const stop = S.watchRoom(kv, 'KXMP', value => { seen.push(value ? value.seq : null); wake(); });
-  const waitFor = pred => new Promise(resolve => { wake = () => { if (pred()) resolve(); }; wake(); });
-  await waitFor(() => seen.length > 0);
-  assert.equal(seen[0], 0);
-  await S.mutate(kv, 'KXMP', room => G.join(room, { id: 'p2', name: 'Tim', key: 'k2' }), 0);
-  await waitFor(() => seen.includes(1));
-  await S.mutate(kv, 'KXMP', room => { room.gone = true; }, 0);
-  await waitFor(() => seen.includes(null));
-  stop();
-  kv.close();
-});
+test('Neustart: Die Lobby steht in der Datei und ist danach noch da', () => folder(dir => {
+  const file = join(dir, 'hexa.sqlite');
+  const before = openDb(file);
+  S.createRoom(before, host(), 0, codes('KXMP'));
+  S.mutate(before, 'KXMP', r => G.join(r, { id: 'p2', name: 'Tim', key: 'k2' }), 0);
+  before.close();
+  const after = openDb(file);
+  const room = S.readRoom(after, 'KXMP', 0);
+  assert.deepEqual(room.players.map(p => p.name), ['Lena', 'Tim']);
+  assert.equal(room.seq, 1);
+  assert.equal(after.query('PRAGMA journal_mode').get().journal_mode, 'wal');
+  after.close();
+}));
 
-Deno.test('Lebenszeichen: laufende Server-Instanzen', async () => {
-  const kv = await Deno.openKv(':memory:');
-  await S.heartbeat(kv, 'a', 1000);
-  await S.heartbeat(kv, 'b', 1000);
-  assert.deepEqual([...await S.liveInstances(kv, 2000)].sort(), ['a', 'b']);
-  assert.deepEqual([...await S.liveInstances(kv, 60_000)], []);
-  await S.forgetInstance(kv, 'a');
-  assert.deepEqual([...await S.liveInstances(kv, 2000)], ['b']);
-  kv.close();
-});
+test('Update: Zwei Server an einer Datei, abwechselnd geändert, nichts geht verloren', () => folder(dir => {
+  const file = join(dir, 'hexa.sqlite');
+  const a = openDb(file);
+  const b = openDb(file);
+  S.createRoom(a, host('p0'), 0, codes('KXMP'));
+  for (let i = 0; i < 10; i++) S.mutate(i % 2 ? b : a, 'KXMP', r => G.join(r, { id: 'p' + (i + 1), name: 'Spieler ' + (i + 1), key: 'k' + i }), 0);
+  assert.equal(S.readRoom(a, 'KXMP', 0).players.length, 11);
+  assert.equal(S.readRoom(b, 'KXMP', 0).seq, 10);
+  a.close();
+  b.close();
+}));
 
-Deno.test('Schlüssel: Alles liegt unter hexa_, die Datenbank teilen sich mehrere Apps', async () => {
-  const kv = await Deno.openKv(':memory:');
-  await S.createRoom(kv, host(), 0, codes('KXMP'));
-  await S.heartbeat(kv, 'inst0', 0);
-  const keys = [];
-  for await (const e of kv.list({ prefix: [] })) keys.push(e.key[0]);
-  assert.deepEqual(keys.sort(), ['hexa_instance', 'hexa_room']);
-  kv.close();
-});
+test('Sicherung: Kopie neben der Datenbank, die letzten 7 bleiben', () => folder(dir => {
+  const file = join(dir, 'hexa.sqlite');
+  const db = openDb(file);
+  S.createRoom(db, host(), 0, codes('KXMP'));
+  for (let d = 1; d <= 8; d++) writeFileSync(join(dir, `backup-2026-01-0${d}.sqlite`), '');
+  const { file: copy, removed } = backup(file, Date.UTC(2026, 9, 23, 3));
+  assert.equal(copy, join(dir, 'backup-2026-10-23.sqlite'));
+  assert.deepEqual(removed, ['backup-2026-01-01.sqlite', 'backup-2026-01-02.sqlite']);
+  assert.equal(readdirSync(dir).filter(f => f.startsWith('backup-')).length, 7);
+  const saved = openDb(copy);
+  assert.equal(S.readRoom(saved, 'KXMP', 0).host, 'p1');
+  saved.close();
+  // Zweimal am selben Tag: Die Kopie wird ersetzt
+  S.mutate(db, 'KXMP', r => G.join(r, { id: 'p2', name: 'Tim', key: 'k2' }), 0);
+  backup(file, Date.UTC(2026, 9, 23, 4));
+  const again = openDb(copy);
+  assert.equal(S.readRoom(again, 'KXMP', 0).players.length, 2);
+  again.close();
+  db.close();
+}));

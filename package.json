@@ -1,0 +1,10 @@
+{
+  "name": "hexa",
+  "private": true,
+  "description": "HEXA: Countdown – Online-Server mit Bun. Die App selbst braucht keine Pakete und keinen Build.",
+  "scripts": {
+    "dev": "bun --watch server/main.js",
+    "start": "bun server/main.js",
+    "test": "bun test --timeout 30000 server/"
+  }
+}

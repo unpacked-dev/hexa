@@ -11,13 +11,12 @@
 
    Bots spielt der Server selbst, mit derselben Logik wie die App (js/bot.js). Wann ihr nächster Schritt
    fällig ist, steht in turn.botAt. tick() macht dann genau einen Schritt. */
-import '../js/config.js';
-import '../js/rules.js';
-import '../js/bot.js';
+// Die Dateien aus js/ schreiben im Browser auf window, in Bun und Node in module.exports. Darum mit Default-Import.
+import Config from '../js/config.js';
+import Rules from '../js/rules.js';
+import Bot from '../js/bot.js';
 
-const { FIELDS, UPPER, LOWER, NF, BONUS_MIN, BONUS_PTS, scoreFor, valuesFor, countFaces, onlineName } = globalThis.HexaRules;
-const Config = globalThis.HexaConfig;
-const Bot = globalThis.HexaBot;
+const { FIELDS, UPPER, LOWER, NF, BONUS_MIN, BONUS_PTS, scoreFor, valuesFor, countFaces, onlineName } = Rules;
 
 // 2: Bots in der Lobby. 3: mit eigenen Würfeln (via). Ältere Apps müssen aktualisiert werden.
 export const PROTOCOL = 3;
@@ -42,7 +41,7 @@ export const BOT_LEVELS = Bot.LEVELS;
 export { onlineName };
 
 const MAX_EVENTS = 12;
-// Eine Verbindung gilt erst nach dieser Zeit als verloren, wenn ihre Server-Instanz nicht mehr antwortet.
+// Verbindungen von vor einem Neustart des Servers gelten nach dieser Zeit als getrennt. Bis dahin sind die meisten wieder da.
 const CONN_GRACE = 40_000;
 
 export class GameError extends Error {
@@ -554,7 +553,7 @@ export function detach(room, id, conn) {
   return true;
 }
 // Verbindungen von Server-Instanzen, die nicht mehr laufen (etwa nach einem Update), fallen weg.
-// alive(instanz) sagt, ob eine Instanz noch läuft.
+// alive(instanz) sagt, ob eine Instanz noch läuft. Es läuft immer nur ein Server, also nur die aktuelle.
 export function prune(room, alive, now) {
   let changed = false;
   room.players.forEach(p => {

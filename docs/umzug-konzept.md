@@ -158,17 +158,17 @@ Die Bremsen zählen pro Internetverbindung (höchstens 20 Verbindungen, 6 neue L
 
 ## Dockerfile
 
-Ungefähr so:
+So steht es im Hauptordner:
 
 ```dockerfile
-# HEXA – Online-Server. Bun-Version zusammen mit .github/workflows/ci.yml ändern.
+# HEXA – Online-Server. Läuft mit Coolify auf dem eigenen Server, siehe server/README.md.
+# Die Bun-Version zusammen mit .github/workflows/ci.yml ändern.
 FROM oven/bun:1.3.11-alpine
 WORKDIR /app
 ENV NODE_ENV=production PORT=8000 HEXA_DB=/data/hexa.sqlite
 
-# Keine Pakete, also kein bun install. Nur was der Server braucht und ausliefert.
-COPY package.json ./
-COPY server/ server/
+# Keine Pakete, also kein bun install. Nur was der Server braucht und an die Apps ausliefert.
+COPY server/*.js server/
 COPY js/ js/
 COPY css/ css/
 COPY lang/ lang/
@@ -176,11 +176,12 @@ COPY fonts/ fonts/
 COPY icons/ icons/
 COPY index.html sw.js manifest.webmanifest favicon.svg ./
 
-# Das Volume übernimmt beim ersten Start den Besitzer dieses Ordners
+# Hier liegt die Datenbank. Das Volume übernimmt beim ersten Start den Besitzer dieses Ordners.
 RUN mkdir -p /data && chown bun:bun /data
 USER bun
 
 EXPOSE 8000
+# wget gibt es im Alpine-Image. Coolify nimmt diesen Health Check von selbst.
 HEALTHCHECK --interval=10s --timeout=3s --start-period=5s --retries=3 \
   CMD wget -q -O /dev/null http://127.0.0.1:8000/health || exit 1
 CMD ["bun", "server/main.js"]
@@ -260,6 +261,21 @@ Was dann passiert: In der App ist „Online“ ausgegraut. Wer gerade online spi
 
 **Fertig, wenn** alle Tests grün sind und der Container lokal läuft.
 
+**Erledigt am 23.10.2026.** Das ist dabei herausgekommen:
+
+- Die Funktionen für die Datenbank arbeiten synchron, wie `bun:sqlite` selbst. Jede Änderung an einer Lobby ist damit ein einziger Schritt.
+- 54 Server-Tests laufen mit `bun run test`: 24 für die Spiellogik, 7 für die Datenbank (mit Neustart, zwei Servern an einer Datei und Backup), 6 für die Statistik, 17 für den ganzen Server (mit Neustart mitten im Spiel und der IP hinter dem Proxy). Fünf Durchläufe hintereinander, alle grün. Die 41 App-Tests mit `node --test` laufen unverändert.
+- **Container lokal geprüft:**
+  - Der Health Check wird „healthy“.
+  - Unter `backend.hexa-countdown.app` leitet die Startseite weiter.
+  - `docker stop` dauert 270 ms.
+  - Nach dem Tausch auf einen neuen Container mit demselben Volume geht das laufende Spiel weiter.
+  - `bun server/backup.js` schreibt die Kopie nach `/data`.
+- **Im Browser geprüft:** Zwei Fenster spielen mit der echten App über den Bun-Server. Nach einem Neustart mitten im Spiel ist die App nach 0,5 Sekunden von selbst wieder verbunden, in derselben Lobby und im selben Zug. Fehler im Browser gab es keine.
+- Eine Änderung an einer vollen Lobby (50 Personen) dauert 0,13 ms.
+- **Eigenheit von Bun:** Der WebSocket-Client von Bun meldet den Code 1001 als 1000. Browser und Node sehen 1001, die App braucht den Code nicht. Der Test prüft deshalb den Grund „Server hält an“.
+- Die Bremse für `/count` gilt jetzt für den ganzen Server. Früher hatte jede Instanz ihre eigene.
+
 ### B. Repo in Coolify freigeben
 
 Die GitHub App von Coolify gibt es schon für deine anderen Projekte. Es fehlt höchstens der Zugriff auf dieses Repo.
@@ -323,7 +339,7 @@ Online ist schon aus. Laufende Spiele gibt es also keine, und nichts eilt.
 
 **Am Umzugstag**
 
-3. **Release vorbereiten** (Claude): `main` in den Neben-Branch holen, damit steht `enableOnline: false` auch dort. Abschnitt `## [1.17.0]` in `CHANGELOG.md` mit #13 bis #15 und dem Umzug. Alle Tests grün.
+3. **Release vorbereiten** (Claude): `main` in den Neben-Branch holen, damit steht `enableOnline: false` auch dort. Dabei den Kommentar über `enableOnline` in `js/config.js` anpassen, er nennt noch Deno Deploy. Er steht direkt über der Zeile, die `main` geändert hat, und bleibt bis dahin, damit es keinen Konflikt gibt. Abschnitt `## [1.17.0]` in `CHANGELOG.md` mit #13 bis #15 und dem Umzug. Alle Tests grün.
 4. **`main` nachziehen** (Claude), wie bei jedem Release. GitHub Pages bringt die App 1.17.0, noch mit Online aus. Deno Deploy baut `main` auch, der Bun-Code läuft dort aber nicht. Das ist egal, Online ist ja aus. Nur die Meldungen lokaler Spiele an die Statistik gehen bis Schritt 7 verloren.
 5. **DNS umstellen** bei Spaceship:
    - CNAME `backend` → `alias.deno.net` löschen.

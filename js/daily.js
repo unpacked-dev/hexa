@@ -5,7 +5,7 @@
    allen gleich, damit auch die Chancen auf den Countdown. Für den Countdown gibt es eigene Zahlen pro
    Zug, Stufe (0–5) und Würfel.
    Der Tag wechselt um Mitternacht deutscher Zeit, damit alle am selben Tag dasselbe Spiel haben.
-   Läuft im Browser (window.HexaDaily), in Node (Tests) und in Deno. */
+   Läuft im Browser (window.HexaDaily) und in Node (Tests). */
 (function (root) {
   'use strict';
 

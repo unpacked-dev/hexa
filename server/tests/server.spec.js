@@ -1,35 +1,43 @@
-// Tests für den ganzen Server: echte WebSocket-Verbindungen gegen echte Server-Instanzen.
-// Zwei Instanzen teilen sich eine Datenbank, wie auf Deno Deploy. Ausführen mit: deno task test
+// Tests für den ganzen Server: echte WebSocket-Verbindungen gegen einen echten Server. Ausführen mit: bun run test
+import { test } from 'bun:test';
 import assert from 'node:assert/strict';
-import { createHub, ipKey } from '../main.js';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import Config from '../../js/config.js';
+import { createHub, ipKey, clientIp, isPrivate } from '../main.js';
+import { openDb } from '../db.js';
 import * as G from '../game.js';
 
 const quiet = { error: () => {}, warn: () => {}, log: () => {} };
 
-async function servers(n, times = G.TIMES, opts = {}) {
-  const kv = await Deno.openKv(':memory:');
-  const hubs = [];
-  const running = [];
-  for (let i = 0; i < n; i++) {
-    const hub = createHub(Object.assign({ kv, instance: 'inst' + i, times, log: quiet }, opts));
-    hubs.push(hub);
-    running.push(Deno.serve({ port: 0, hostname: '127.0.0.1', onListen() {} }, hub.handle));
-  }
+// Ein Server auf einem freien Port. db: eigene Datenbank (sonst eine im Arbeitsspeicher).
+// Online ist an, egal was in js/config.js steht. Online aus prüft ein eigener Test.
+function start(times = G.TIMES, opts = {}) {
+  const db = opts.db || openDb();
+  const hub = createHub(Object.assign({ times, log: quiet, online: true }, opts, { db }));
+  const server = Bun.serve({ port: 0, hostname: '127.0.0.1', fetch: hub.fetch, websocket: hub.websocket });
   return {
-    ws: i => `ws://127.0.0.1:${running[i].addr.port}/ws`,
-    http: i => `http://127.0.0.1:${running[i].addr.port}`,
+    db,
+    hub,
+    ws: () => `ws://127.0.0.1:${server.port}/ws`,
+    http: () => `http://127.0.0.1:${server.port}`,
+    // Wie bei einem Update: Der Server hält an, die Datenbank bleibt
+    async halt() {
+      await hub.close();
+      server.stop(true);
+    },
     async stop(...clients) {
       await Promise.all(clients.map(c => c.close()));
-      for (const hub of hubs) await hub.close();
-      for (const s of running) await s.shutdown();
-      kv.close();
+      await this.halt();
+      if (!opts.db) db.close();
     },
   };
 }
 
 // Eine simulierte App. next wartet auf die nächste passende Nachricht, until auf einen passenden Stand.
-function app(url) {
-  const ws = new WebSocket(url);
+function app(url, headers) {
+  const ws = new WebSocket(url, headers ? { headers } : undefined);
   const msgs = [];
   let wake = null;
   const c = {
@@ -37,7 +45,7 @@ function app(url) {
     state: null,
     pos: 0,
     opened: new Promise((resolve, reject) => { ws.onopen = resolve; ws.onerror = reject; }),
-    closed: new Promise(resolve => { ws.onclose = resolve; }),
+    closed: new Promise(resolve => { ws.onclose = resolve; }),   // gibt das Ereignis mit code zurück
     send: m => ws.send(typeof m === 'string' ? m : JSON.stringify(m)),
     async next(pred, ms = 5000) {
       const end = Date.now() + ms;
@@ -79,8 +87,8 @@ function app(url) {
 const KEY = name => name.toLowerCase() + '-geraet-0123456789';
 const free = (room, id) => G.FIELD_KEYS.filter(k => !(room.scores[id] && k in room.scores[id]));
 
-async function lobbyOf(env, names, at = names.map((_, i) => i % 2)) {
-  const apps = names.map((n, i) => app(env.ws(at[i])));
+async function lobbyOf(env, names) {
+  const apps = names.map(() => app(env.ws()));
   await Promise.all(apps.map(a => a.opened));
   for (let i = 0; i < names.length; i++) assert.equal((await apps[i].hello(KEY(names[i]))).t, 'welcome');
   apps[0].send({ t: 'create', name: names[0] });
@@ -93,8 +101,8 @@ async function lobbyOf(env, names, at = names.map((_, i) => i % 2)) {
   return { apps, code, ids: apps.map(a => a.state.you) };
 }
 
-Deno.test('Zwei Instanzen, eine Datenbank: Lobby, Reihenfolge und eine ganze Partie', async () => {
-  const env = await servers(2);
+test('Lobby, Reihenfolge und eine ganze Partie zu zweit', async () => {
+  const env = start();
   const { apps: [lena, tim], code, ids: [lenaId, timId] } = await lobbyOf(env, ['Lena', 'Tim']);
   assert.match(code, G.CODE_RE);
   assert.equal(lena.state.host, lenaId);
@@ -104,9 +112,9 @@ Deno.test('Zwei Instanzen, eine Datenbank: Lobby, Reihenfolge und eine ganze Par
   tim.send({ t: 'start' });
   assert.equal(await tim.error('start'), 'not-host');
   lena.send({ t: 'order', ids: [timId, lenaId] });
-  await tim.until(r => r.players[0].id === timId);   // kommt über die andere Instanz an
+  await tim.until(r => r.players[0].id === timId);
   lena.send({ t: 'start' });
-  await tim.until(r => r.status === 'playing');
+  await Promise.all([lena, tim].map(a => a.until(r => r.status === 'playing')));
 
   // Wer dran ist, würfelt einmal und trägt das erste freie Feld ein. Ein Countdown wird bis zum Ende gewürfelt.
   const byId = { [lenaId]: lena, [timId]: tim };
@@ -131,9 +139,9 @@ Deno.test('Zwei Instanzen, eine Datenbank: Lobby, Reihenfolge und eine ganze Par
   await env.stop(lena, tim);
 });
 
-Deno.test('Doppelter Tipp und falsche Züge werden abgelehnt', async () => {
-  const env = await servers(1);
-  const { apps: [lena, tim] } = await lobbyOf(env, ['Lena', 'Tim'], [0, 0]);
+test('Doppelter Tipp und falsche Züge werden abgelehnt', async () => {
+  const env = start();
+  const { apps: [lena, tim] } = await lobbyOf(env, ['Lena', 'Tim']);
   lena.send({ t: 'start' });
   await lena.until(r => r.status === 'playing');
   tim.send({ t: 'roll', n: 1 });
@@ -156,9 +164,9 @@ Deno.test('Doppelter Tipp und falsche Züge werden abgelehnt', async () => {
   await env.stop(lena, tim);
 });
 
-Deno.test('Zugzeit: Wer nichts tut, bekommt ein zufälliges Feld gestrichen', async () => {
-  const env = await servers(1, { turn: 300, cd: 300, grace: 50 });
-  const { apps: [lena] } = await lobbyOf(env, ['Lena'], [0]);
+test('Zugzeit: Wer nichts tut, bekommt ein zufälliges Feld gestrichen', async () => {
+  const env = start({ turn: 300, cd: 300, grace: 50 });
+  const { apps: [lena] } = await lobbyOf(env, ['Lena']);
   lena.send({ t: 'start' });
   const r = await lena.until(x => x.events.some(e => e.type === 'timeout'), 3000);
   const ev = r.events.find(e => e.type === 'timeout');
@@ -169,22 +177,22 @@ Deno.test('Zugzeit: Wer nichts tut, bekommt ein zufälliges Feld gestrichen', as
   await env.stop(lena);
 });
 
-Deno.test('Wiederverbinden: mit Geräteschlüssel und Code zurück, Fremde kommen nicht rein', async () => {
-  const env = await servers(2);
+test('Wiederverbinden: mit Geräteschlüssel und Code zurück, Fremde kommen nicht rein', async () => {
+  const env = start();
   const { apps: [lena, tim], code, ids: [lenaId] } = await lobbyOf(env, ['Lena', 'Tim']);
   lena.send({ t: 'start' });
   await tim.until(r => r.status === 'playing');
   await lena.close();
   await tim.until(r => r.players.find(p => p.id === lenaId).online === false);   // grauer Punkt
 
-  const again = app(env.ws(1));
+  const again = app(env.ws());
   await again.opened;
   assert.equal((await again.hello(KEY('Lena'), code.toLowerCase())).t, 'welcome');
   const back = await again.until(r => r.you === lenaId);
   assert.equal(back.status, 'playing');
   await tim.until(r => r.players.find(p => p.id === lenaId).online === true);
 
-  const stranger = app(env.ws(0));
+  const stranger = app(env.ws());
   await stranger.opened;
   await stranger.hello(KEY('Mallory'), code);
   assert.equal(await stranger.error('hello'), 'not-in-room');
@@ -193,9 +201,9 @@ Deno.test('Wiederverbinden: mit Geräteschlüssel und Code zurück, Fremde komme
   await env.stop(again, tim, stranger);
 });
 
-Deno.test('Entfernen, Verlassen, Zum Hauptmenü und leere Lobbys', async () => {
-  const env = await servers(2);
-  const { apps: [lena, tim, mia], code, ids: [, timId, miaId] } = await lobbyOf(env, ['Lena', 'Tim', 'Mia'], [0, 1, 1]);
+test('Entfernen, Verlassen, Zum Hauptmenü und leere Lobbys', async () => {
+  const env = start();
+  const { apps: [lena, tim, mia], code, ids: [, timId, miaId] } = await lobbyOf(env, ['Lena', 'Tim', 'Mia']);
   tim.send({ t: 'kick', id: miaId });
   assert.equal(await tim.error('kick'), 'not-host');
   lena.send({ t: 'kick', id: miaId });
@@ -221,9 +229,9 @@ Deno.test('Entfernen, Verlassen, Zum Hauptmenü und leere Lobbys', async () => {
   await env.stop(lena, tim, mia);
 });
 
-Deno.test('Kaputte und bösartige Nachrichten bringen den Server nicht aus dem Tritt', async () => {
-  const env = await servers(1);
-  const c = app(env.ws(0));
+test('Kaputte und bösartige Nachrichten bringen den Server nicht aus dem Tritt', async () => {
+  const env = start();
+  const c = app(env.ws());
   await c.opened;
   c.send('kaputt{');
   assert.equal(await c.error(), 'bad-message');
@@ -260,9 +268,9 @@ Deno.test('Kaputte und bösartige Nachrichten bringen den Server nicht aus dem T
   await env.stop(c);
 });
 
-Deno.test('Bremsen: nicht zu viele neue Lobbys, nicht zu viele Nachrichten', async () => {
-  const env = await servers(1);
-  const c = app(env.ws(0));
+test('Bremsen: nicht zu viele neue Lobbys, nicht zu viele Nachrichten', async () => {
+  const env = start();
+  const c = app(env.ws());
   await c.opened;
   await c.hello(KEY('Lena'));
   for (let i = 0; i < 6; i++) {
@@ -278,65 +286,70 @@ Deno.test('Bremsen: nicht zu viele neue Lobbys, nicht zu viele Nachrichten', asy
   await env.stop(c);
 });
 
-Deno.test('HTTP: Die App, der Status unter /health, sonst nur WebSocket', async () => {
-  const env = await servers(1);
-  const health = await fetch(env.http(0) + '/health');
+test('HTTP: Die App, der Status unter /health, sonst nur WebSocket', async () => {
+  const env = start();
+  const health = await fetch(env.http() + '/health');
   assert.deepEqual(await health.json(), { app: 'hexa', protocol: G.PROTOCOL, online: true, ok: true });
   assert.equal(health.headers.get('access-control-allow-origin'), '*');
-  const page = await fetch(env.http(0) + '/');
+  const page = await fetch(env.http() + '/');
   assert.equal(page.status, 200);
   assert.match(page.headers.get('content-type'), /text\/html/);
   assert.match(await page.text(), /<title>HEXA: Countdown<\/title>/);
   for (const [path, type] of [['/js/online.js', /javascript/], ['/css/hexa.css', /css/], ['/lang/de.js', /javascript/], ['/icons/icon-192.png', /png/], ['/manifest.webmanifest', /manifest/], ['/sw.js', /javascript/]]) {
-    const r = await fetch(env.http(0) + path);
+    const r = await fetch(env.http() + path);
     assert.equal(r.status, 200, path);
     assert.match(r.headers.get('content-type'), type, path);
     await r.body.cancel();
   }
   // Server-Code, Doku, Werkzeuge und Tricks mit Pfaden bleiben draußen
-  for (const path of ['/server/main.js', '/deno.json', '/docs/online-konzept.md', '/README.md', '/tools/bot-sim.js', '/tests/bot.test.js',
-    '/.git/config', '/js/../server/game.js', '/%2e%2e/deno.json', '/js/%2e%2e/deno.json', '/css/', '/js/app.js%3F', '/nichts.html']) {
-    const r = await fetch(env.http(0) + path);
+  for (const path of ['/server/main.js', '/package.json', '/Dockerfile', '/hexa.sqlite', '/docs/online-konzept.md', '/README.md', '/tools/bot-sim.js', '/tests/bot.test.js',
+    '/.git/config', '/js/../server/game.js', '/%2e%2e/package.json', '/js/%2e%2e/package.json', '/css/', '/js/app.js%3F', '/nichts.html']) {
+    const r = await fetch(env.http() + path);
     assert.equal(r.status, 404, path);
     await r.body.cancel();
   }
-  const plain = await fetch(env.http(0) + '/ws');
+  // HEAD: dieselben Kopfzeilen, kein Inhalt
+  const head = await fetch(env.http() + '/js/app.js', { method: 'HEAD' });
+  assert.equal(head.status, 200);
+  assert.match(head.headers.get('content-type'), /javascript/);
+  assert.equal(await head.text(), '');
+  const plain = await fetch(env.http() + '/ws');
   assert.equal(plain.status, 426);
   await plain.body.cancel();
   await env.stop();
 });
 
-Deno.test('HTTP: Der Service Worker kommt immer frisch', async () => {
-  const env = await servers(1);
-  const r = await fetch(env.http(0) + '/sw.js');
+test('HTTP: Der Service Worker kommt immer frisch', async () => {
+  const env = start();
+  const r = await fetch(env.http() + '/sw.js');
   assert.equal(r.status, 200);
   assert.equal(r.headers.get('cache-control'), 'no-cache');
   assert.match(await r.text(), /addEventListener\('fetch'/);
   await env.stop();
 });
 
-Deno.test('HTTP: Produktion leitet die Startseite zur App weiter, Server und Dateien bleiben', async () => {
-  const env = await servers(1, G.TIMES, { redirectHosts: ['127.0.0.1'], appUrl: 'https://hexa-countdown.app/' });
+test('HTTP: Produktion leitet die Startseite zur App weiter, Server und Dateien bleiben', async () => {
+  const env = start(G.TIMES, { redirectHosts: ['127.0.0.1'], appUrl: 'https://hexa-countdown.app/' });
   for (const path of ['/', '/index.html']) {
-    const r = await fetch(env.http(0) + path, { redirect: 'manual' });
+    const r = await fetch(env.http() + path, { redirect: 'manual' });
     assert.equal(r.status, 302, path);
     assert.equal(r.headers.get('location'), 'https://hexa-countdown.app/', path);
     await r.body?.cancel();
   }
-  const health = await fetch(env.http(0) + '/health');
+  const health = await fetch(env.http() + '/health');
   assert.equal((await health.json()).app, 'hexa');
-  const js = await fetch(env.http(0) + '/js/app.js');
+  const js = await fetch(env.http() + '/js/app.js');
   assert.equal(js.status, 200);
   await js.body.cancel();
-  const plain = await fetch(env.http(0) + '/ws');
+  const plain = await fetch(env.http() + '/ws');
   assert.equal(plain.status, 426);
   await plain.body.cancel();
   await env.stop();
 });
 
-Deno.test('Statistik: Online-Start zählt der Server, lokale Spiele kommen per POST /count', async () => {
-  const env = await servers(2);
-  const stats = async (i = 0) => (await fetch(env.http(i) + '/stats.json')).json();
+test('Statistik: Online-Start zählt der Server, lokale Spiele kommen per POST /count', async () => {
+  const env = start();
+  const stats = async () => (await fetch(env.http() + '/stats.json')).json();
   assert.deepEqual((await stats()).total, { all: 0, online: 0, local: 0, daily: 0 });
 
   const { apps: [lena, tim] } = await lobbyOf(env, ['Lena', 'Tim']);
@@ -346,17 +359,17 @@ Deno.test('Statistik: Online-Start zählt der Server, lokale Spiele kommen per P
   assert.equal(await lena.error('start'), 'game-running');   // zählt nicht doppelt
 
   for (let i = 0; i < 3; i++) {
-    const r = await fetch(env.http(1) + '/count', { method: 'POST' });
+    const r = await fetch(env.http() + '/count', { method: 'POST' });
     assert.equal(r.status, 204);
     assert.equal(r.headers.get('access-control-allow-origin'), '*');
   }
-  const s = await stats(1);
+  const s = await stats();
   assert.deepEqual(s.total, { all: 4, online: 1, local: 3, daily: 0 });
   assert.deepEqual(s.last24h, s.total);
   assert.deepEqual(s.last365d, s.total);
   assert.match(s.since, /^\d{4}-\d\d-\d\d$/);
 
-  const page = await fetch(env.http(0) + '/stats');
+  const page = await fetch(env.http() + '/stats');
   assert.match(page.headers.get('content-type'), /text\/html/);
   assert.equal(page.headers.get('cache-control'), 'no-store');
   const html = await page.text();
@@ -364,54 +377,29 @@ Deno.test('Statistik: Online-Start zählt der Server, lokale Spiele kommen per P
   assert.match(html, /Insgesamt<\/th><td class="all">4<\/td><td>1<\/td><td>3<\/td><td>0<\/td>/);
 
   // Tagesspiele mit ?kind=daily, andere Arten gibt es nicht
-  const daily = await fetch(env.http(0) + '/count?kind=daily', { method: 'POST' });
+  const daily = await fetch(env.http() + '/count?kind=daily', { method: 'POST' });
   assert.equal(daily.status, 204);
-  const odd = await fetch(env.http(0) + '/count?kind=online', { method: 'POST' });
+  const odd = await fetch(env.http() + '/count?kind=online', { method: 'POST' });
   assert.equal(odd.status, 400);
   await odd.body.cancel();
-  assert.deepEqual((await stats(0)).total, { all: 5, online: 1, local: 3, daily: 1 });
+  assert.deepEqual((await stats()).total, { all: 5, online: 1, local: 3, daily: 1 });
   // Nur POST, und nicht beliebig oft von derselben Verbindung
-  const get = await fetch(env.http(0) + '/count');
+  const get = await fetch(env.http() + '/count');
   assert.equal(get.status, 405);
   await get.body.cancel();
+  // Höchstens 10 Meldungen in 10 Minuten. 4 waren es schon (3 lokale, 1 Tagesspiel).
   const codes = [];
   for (let i = 0; i < 9; i++) {
-    const r = await fetch(env.http(1) + '/count', { method: 'POST' });
+    const r = await fetch(env.http() + '/count', { method: 'POST' });
     codes.push(r.status);
     await r.body?.cancel();
   }
-  assert.deepEqual(codes, [204, 204, 204, 204, 204, 204, 204, 429, 429]);
-  assert.equal((await stats(1)).total.local, 10);   // Instanz 0 zeigt bis zu 30 Sekunden den alten Stand
+  assert.deepEqual(codes, [204, 204, 204, 204, 204, 204, 429, 429, 429]);
+  assert.equal((await stats()).total.local, 9);
   await env.stop(lena, tim);
 });
 
-Deno.test('Gemerkter Stand: Aktionen lesen die Lobby nicht jedes Mal neu aus der Datenbank', async () => {
-  const base = await Deno.openKv(':memory:');
-  const n = { get: 0 };
-  const kv = new Proxy(base, {
-    get(target, prop) {
-      if (prop === 'get') return (...args) => { n.get++; return target.get(...args); };
-      const v = target[prop];
-      return typeof v === 'function' ? v.bind(target) : v;
-    },
-  });
-  const env = await servers(1, G.TIMES, { kv, poll: 0 });
-  const { apps: [lena] } = await lobbyOf(env, ['Lena'], [0]);
-  lena.send({ t: 'start' });
-  await lena.until(r => r.status === 'playing');
-  lena.send({ t: 'roll', n: 1 });
-  await lena.until(r => r.dice.rolls === 1);
-  const before = n.get;
-  for (let i = 0; i < 6; i++) {
-    lena.send({ t: 'hold', i, on: true });
-    await lena.until(r => r.dice.held[i]);
-  }
-  assert.ok(n.get - before <= 1, `${n.get - before} Lesezugriffe für 6 Aktionen`);
-  await env.stop(lena);
-  base.close();
-});
-
-Deno.test('Bremsen zählen pro Anschluss: IPv4 einzeln, IPv6 pro /64-Netz', () => {
+test('Bremsen zählen pro Anschluss: IPv4 einzeln, IPv6 pro /64-Netz', () => {
   assert.equal(ipKey('160.79.106.134'), '160.79.106.134');
   assert.equal(ipKey('::ffff:160.79.106.134'), '160.79.106.134');
   assert.equal(ipKey('2001:db8:1234:5678:abcd::1'), '2001:db8:1234:5678::/64');
@@ -422,12 +410,12 @@ Deno.test('Bremsen zählen pro Anschluss: IPv4 einzeln, IPv6 pro /64-Netz', () =
   assert.equal(ipKey(undefined), '?');
 });
 
-Deno.test('Bots: Der Host holt sie dazu, sie spielen auf zwei Instanzen genau einmal und alle sehen zu', async () => {
+test('Bots: Der Host holt sie dazu, sie spielen genau einmal und alle sehen zu', async () => {
   // Schnelleres Tempo nur für diesen Test. botDelays aus js/config.js ist dasselbe Objekt, das der Server nutzt.
-  const pace = globalThis.HexaConfig.botDelays;
+  const pace = Config.botDelays;
   const saved = Object.assign({}, pace);
   Object.keys(pace).forEach(k => { pace[k] = 30; });
-  const env = await servers(2);
+  const env = start();
   try {
     const { apps: [lena, tim], ids: [lenaId, timId] } = await lobbyOf(env, ['Lena', 'Tim']);
     tim.send({ t: 'addBot' });
@@ -435,7 +423,7 @@ Deno.test('Bots: Der Host holt sie dazu, sie spielen auf zwei Instanzen genau ei
     lena.send({ t: 'addBot', level: 'gottgleich' });
     assert.equal(await lena.error('addBot'), 'bad-message');
     lena.send({ t: 'addBot', level: 'easy' });
-    const withBot = await tim.until(r => r.players.length === 3);   // über die andere Instanz
+    const withBot = await tim.until(r => r.players.length === 3);
     const bot = withBot.players.find(p => p.bot);
     assert.ok(bot && G.onlineName(bot.name) === bot.name);
     assert.equal(bot.online, false);
@@ -450,7 +438,7 @@ Deno.test('Bots: Der Host holt sie dazu, sie spielen auf zwei Instanzen genau ei
     lena.send({ t: 'start' });
     // Der Bot spielt seinen Zug allein, danach ist Lena dran
     const after = await tim.until(r => r.status === 'playing' && r.turn.player === lenaId, 15000);
-    assert.equal(Object.keys(after.scores[bot.id]).length, 1, 'genau ein Feld: kein Schritt doppelt, obwohl zwei Instanzen zuschauen');
+    assert.equal(Object.keys(after.scores[bot.id]).length, 1, 'genau ein Feld: kein Schritt doppelt');
     const lenaView = await lena.until(r => r.seq === after.seq);
     assert.deepEqual(lenaView.scores, after.scores);
     // Beide Apps haben die Würfel des Bots gesehen
@@ -476,8 +464,8 @@ Deno.test('Bots: Der Host holt sie dazu, sie spielen auf zwei Instanzen genau ei
   }
 });
 
-Deno.test('Eigene Würfel über zwei Instanzen: Wahl in der Lobby, Wert eintragen, kein Zeitlimit, überspringen', async () => {
-  const env = await servers(2, { turn: 300, cd: 300, grace: 50 });
+test('Eigene Würfel: Wahl in der Lobby, Wert eintragen, kein Zeitlimit, überspringen', async () => {
+  const env = start({ turn: 300, cd: 300, grace: 50 });
   const { apps: [lena, tim], ids: [lenaId, timId] } = await lobbyOf(env, ['Lena', 'Tim']);
   tim.send({ t: 'via', via: 'own' });
   assert.equal(await tim.error('via'), 'not-host');
@@ -504,15 +492,90 @@ Deno.test('Eigene Würfel über zwei Instanzen: Wahl in der Lobby, Wert eintrage
   await env.stop(lena, tim);
 });
 
-Deno.test('Online aus (enableOnline: false): Der Server nimmt niemanden an', async () => {
-  const env = await servers(1, G.TIMES, { online: false });
-  const c = app(env.ws(0));
+test('Online aus (enableOnline: false): Der Server nimmt niemanden an', async () => {
+  const env = start(G.TIMES, { online: false });
+  const c = app(env.ws());
   await c.opened;
   c.send({ t: 'hello', v: G.PROTOCOL, key: KEY('Lena') });
   assert.equal(await c.error('hello'), 'online-off');
   c.send({ t: 'create', name: 'Lena' });
   assert.equal(await c.error('create'), 'no-hello');
-  const health = await fetch(env.http(0) + '/health');
+  const health = await fetch(env.http() + '/health');
   assert.deepEqual(await health.json(), { app: 'hexa', protocol: G.PROTOCOL, online: false, ok: true });
   await env.stop(c);
+});
+
+test('Bremsen hinter dem Proxy: zählt die echte Adresse aus X-Forwarded-For, aber nur vom Proxy', async () => {
+  // Der Proxy von Coolify hängt die echte Adresse als letzten Eintrag an
+  assert.equal(clientIp('172.18.0.5', '203.0.113.7'), '203.0.113.7');
+  assert.equal(clientIp('10.0.1.2', '1.1.1.1, 203.0.113.7'), '203.0.113.7');   // davor kann jeder etwas schreiben
+  assert.equal(clientIp('::ffff:172.18.0.5', ' 2001:db8::1 '), '2001:db8::1');
+  assert.equal(clientIp('172.18.0.5', null), '172.18.0.5');
+  // Direkt von außen: Der Header zählt nicht, sonst ließe sich die Bremse damit umgehen
+  assert.equal(clientIp('203.0.113.9', '1.2.3.4'), '203.0.113.9');
+  assert.equal(clientIp(undefined, '1.2.3.4'), undefined);
+  for (const host of ['127.0.0.1', '10.1.2.3', '172.16.0.1', '172.31.255.1', '192.168.178.20', '::ffff:10.0.0.1', '::1', 'fd12:3456::1', 'fe80::1%eth0']) assert.ok(isPrivate(host), host);
+  for (const host of ['8.8.8.8', '172.32.0.1', '172.15.0.1', '192.169.0.1', '2001:db8::1', 'fd', '', undefined]) assert.ok(!isPrivate(host), String(host));
+
+  // Die Tests verbinden sich von 127.0.0.1, gelten also als Proxy
+  const env = start();
+  const count = async ip => {
+    const r = await fetch(env.http() + '/count', { method: 'POST', headers: { 'x-forwarded-for': ip } });
+    await r.body?.cancel();
+    return r.status;
+  };
+  const first = [];
+  for (let i = 0; i < 11; i++) first.push(await count('203.0.113.1'));
+  assert.deepEqual(first.slice(-2), [204, 429]);
+  assert.equal(await count('203.0.113.2'), 204);              // ein anderer Anschluss
+  assert.equal(await count('198.51.100.1, 203.0.113.1'), 429);   // gefälschter Eintrag davor hilft nicht
+  // WebSocket genauso: höchstens 20 offene Verbindungen pro Anschluss
+  const many = Array.from({ length: 20 }, () => app(env.ws(), { 'x-forwarded-for': '203.0.113.3' }));
+  await Promise.all(many.map(c => c.opened));
+  const extra = app(env.ws(), { 'x-forwarded-for': '203.0.113.3' });
+  await assert.rejects(extra.opened);
+  const other = app(env.ws(), { 'x-forwarded-for': '203.0.113.4' });
+  await other.opened;
+  await env.stop(...many, other);
+});
+
+test('Anhalten und Neustart: Verbindungen gehen mit 1001 zu, das Spiel läuft auf dem neuen Server weiter', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'hexa-'));
+  const file = join(dir, 'hexa.sqlite');
+  try {
+    const old = start(G.TIMES, { db: openDb(file), instance: 'alt' });
+    const { apps: [lena, tim], code, ids: [lenaId, timId] } = await lobbyOf(old, ['Lena', 'Tim']);
+    lena.send({ t: 'start' });
+    const r0 = await tim.until(r => r.status === 'playing');
+    // Update: Der alte Server hält an und schließt alle Verbindungen mit 1001 „Server hält an“.
+    // Der WebSocket von Bun meldet 1001 als 1000. Browser und Node sehen 1001, darum zählt hier der Grund.
+    await old.halt();
+    for (const a of [lena, tim]) {
+      const e = await a.closed;
+      assert.equal(e.reason, 'Server hält an');
+      assert.ok([1000, 1001].includes(e.code), String(e.code));
+    }
+    const dead = app(old.ws());
+    await assert.rejects(dead.opened);   // der alte nimmt niemanden mehr an
+    old.db.close();
+
+    // Der neue Server nimmt dieselbe Datei. Lena und Tim verbinden sich neu und spielen weiter.
+    const env = start(G.TIMES, { db: openDb(file), instance: 'neu' });
+    const lena2 = app(env.ws());
+    const tim2 = app(env.ws());
+    await Promise.all([lena2.opened, tim2.opened]);
+    await lena2.hello(KEY('Lena'), code);
+    await tim2.hello(KEY('Tim'), code);
+    const back = await lena2.until(r => r.status === 'playing');
+    assert.equal(back.turn.no, r0.turn.no);
+    assert.deepEqual(back.players.map(p => p.id), [lenaId, timId]);
+    const who = back.turn.player === lenaId ? lena2 : tim2;
+    who.send({ t: 'roll', n: 1 });
+    await lena2.until(r => r.dice.rolls === 1 && r.dice.owner === back.turn.player);
+    assert.equal(env.hub.stats().rooms, 1);
+    await env.stop(lena2, tim2);
+    env.db.close();
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });

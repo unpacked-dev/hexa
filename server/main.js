@@ -1,14 +1,16 @@
 /* HEXA – Server für den Online-Modus.
-   Nur Deno, keine weiteren Pakete: Deno.serve für HTTP und WebSocket, Deno KV als Datenbank.
-   Lokal starten: deno task dev (http://localhost:8000, WebSocket unter /ws). Tests: deno task test
-   Auf Deno Deploy: Einstiegspunkt server/main.js und eine Deno-KV-Datenbank zuweisen, siehe server/README.md.
+   Nur Bun, keine weiteren Pakete: Bun.serve für HTTP und WebSocket, SQLite (bun:sqlite) als Datenbank.
+   Lokal starten: bun run dev (http://localhost:8000, WebSocket unter /ws). Tests: bun run test
+   Im Betrieb: Docker-Container mit Coolify auf dem eigenen Server, siehe Dockerfile und server/README.md.
 
    Jede App hat eine WebSocket-Verbindung. Darüber schickt sie Wünsche wie „würfeln“ oder „Große Straße
    eintragen“. Der Server prüft sie, würfelt selbst und schickt allen in der Lobby den ganzen neuen Stand.
-   Läuft der Server auf mehreren Instanzen, erfährt jede über kv.watch von den Änderungen der anderen. */
+   Es läuft immer nur ein Server. Alle Verbindungen einer Lobby hängen also an ihm. */
+import Config from '../js/config.js';
 import * as G from './game.js';
 import * as S from './store.js';
 import * as St from './stats.js';
+import { openDb } from './db.js';
 
 const MAX_MSG = 4096;                 // Zeichen pro Nachricht
 const MAX_CONNS_PER_IP = 20;
@@ -19,7 +21,8 @@ const STATS_FRESH = 30_000;           // so lange zeigt /stats denselben Stand, 
 const MSG_WINDOW = 10_000;
 const MSG_SOFT = 100;                 // mehr Nachrichten in 10 Sekunden werden abgelehnt
 const MSG_HARD = 300;                 // noch mehr: Verbindung zu
-const BEAT_MS = 10_000;
+const MAINTAIN_MS = 60_000;           // so oft vergessen die Bremsen alte Einträge
+const PURGE_MS = 60 * 60_000;         // so oft löscht der Server abgelaufene Lobbys und alte Stunden der Statistik
 const KEY_RE = /^[A-Za-z0-9_-]{16,128}$/;
 
 // Die App selbst liefert der Server auch aus. Dann reicht zum Testen eine Adresse für App und WebSocket.
@@ -31,7 +34,7 @@ const PUBLIC_DIRS = ['css/', 'js/', 'lang/', 'fonts/', 'icons/'];
 // Adresse, unter der man HEXA installiert (eigener Speicher pro Adresse). /ws, /health und die Dateien bleiben.
 // Testadressen der Branches und localhost liefern die App weiter selbst aus.
 const APP_URL = 'https://hexa-countdown.app/';
-const REDIRECT_HOSTS = ['backend.hexa-countdown.app', 'hexa.unpacked-dev.deno.net'];
+const REDIRECT_HOSTS = ['backend.hexa-countdown.app'];
 const TYPES = {
   html: 'text/html; charset=utf-8', css: 'text/css; charset=utf-8', js: 'text/javascript; charset=utf-8',
   svg: 'image/svg+xml', png: 'image/png', webp: 'image/webp', woff2: 'font/woff2',
@@ -45,16 +48,13 @@ async function appFile(pathname) {
   if (!PUBLIC_FILES.includes(p) && !PUBLIC_DIRS.some(d => p.startsWith(d))) return null;
   const type = TYPES[p.split('.').pop()];
   if (!type) return null;
-  try {
-    const body = await Deno.readFile(new URL(p, ROOT));
-    // Code immer frisch, damit nach einem neuen Build nicht noch alte Teile im Browser stecken. Schriften und Icons ändern sich kaum.
-    const still = p.startsWith('fonts/') || p.startsWith('icons/');
-    return new Response(body, {
-      headers: { 'content-type': type, 'cache-control': still ? 'public, max-age=86400' : 'no-cache', 'x-content-type-options': 'nosniff' },
-    });
-  } catch (e) {
-    return null;
-  }
+  const file = Bun.file(new URL(p, ROOT));
+  if (!(await file.exists())) return null;
+  // Code immer frisch, damit nach einem neuen Build nicht noch alte Teile im Browser stecken. Schriften und Icons ändern sich kaum.
+  const still = p.startsWith('fonts/') || p.startsWith('icons/');
+  return new Response(file, {
+    headers: { 'content-type': type, 'cache-control': still ? 'public, max-age=86400' : 'no-cache', 'x-content-type-options': 'nosniff' },
+  });
 }
 
 // Der Geräteschlüssel liegt nur als Hash auf dem Server.
@@ -68,7 +68,6 @@ const codeOf = raw => {
 };
 // Die Bremsen zählen pro Internetverbindung. Bei IPv6 hat ein Anschluss meist ein ganzes /64-Netz mit
 // unzähligen Adressen, darum zählt dort nur der vordere Teil. IPv4 kommt manchmal als ::ffff:1.2.3.4 an.
-// Den Header X-Forwarded-For nutzt der Server bewusst nicht: Deno Deploy reicht ihn ungeprüft durch.
 export function ipKey(host) {
   if (typeof host !== 'string' || !host) return '?';
   const h = host.toLowerCase().replace(/^\[|\]$/g, '').replace(/%.*$/, '');
@@ -81,28 +80,47 @@ export function ipKey(host) {
   const full = h.includes('::') ? a.concat(Array(Math.max(0, 8 - a.length - b.length)).fill('0'), b) : a;
   return full.slice(0, 4).map(x => x.replace(/^0+(?=.)/, '')).join(':') + '::/64';
 }
+// Adressen aus privaten Netzen: localhost, Docker, der Proxy von Coolify
+export function isPrivate(host) {
+  if (typeof host !== 'string') return false;
+  const h = host.toLowerCase().replace(/^\[|\]$/g, '').replace(/%.*$/, '');
+  const v4 = h.match(/^(?:::ffff:)?(\d{1,3})\.(\d{1,3})\.\d{1,3}\.\d{1,3}$/);
+  if (v4) {
+    const [a, b] = [Number(v4[1]), Number(v4[2])];
+    return a === 10 || a === 127 || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168);
+  }
+  return h === '::1' || /^f[cd][0-9a-f]{2}:/.test(h) || /^fe[89ab][0-9a-f]:/.test(h);
+}
+// Wer ist es wirklich? Hinter dem Proxy von Coolify kommt jede Verbindung vom Proxy. Die echte Adresse hängt er
+// als letzten Eintrag an X-Forwarded-For an. Davor kann jeder etwas hineinschreiben, darum zählt nur der letzte.
+// Und nur, wenn die Verbindung aus einem privaten Netz kommt. Direkt von außen ließe sich der Header sonst fälschen.
+export function clientIp(peer, forwarded) {
+  if (forwarded && isPrivate(peer)) {
+    const last = forwarded.split(',').pop().trim();
+    if (last) return last;
+  }
+  return peer;
+}
 const replace = (target, source) => {
   Object.keys(target).forEach(k => { delete target[k]; });
   Object.assign(target, source);
 };
 
-// Ein Hub ist eine Server-Instanz. Tests starten mehrere mit derselben Datenbank.
-// poll: Sicherheitsnetz. Zusätzlich zu kv.watch fragt die Instanz so oft nach dem Stand ihrer Lobbys (ms, 0 = aus).
-// Klappt kv.watch, merkt man davon nichts. Klappt es nicht, läuft das Spiel trotzdem, nur etwas verzögert.
+// Ein Hub ist der Server ohne HTTP-Port: Bun.serve({ fetch: hub.fetch, websocket: hub.websocket }).
+// db: Datenbank aus openDb (db.js). instance: Name dieses Laufs, steckt in den Verbindungen der Lobbys.
 // online: false nimmt keine Verbindungen an (enableOnline in js/config.js).
 // redirectHosts, appUrl: Unter diesen Adressen leitet die Startseite zur App weiter (Tests setzen eigene).
-export function createHub({ kv, instance = G.randomId(8), times = G.TIMES, rng = G.fairRandom, poll = 5000, online = globalThis.HexaConfig.enableOnline, log = console, redirectHosts = REDIRECT_HOSTS, appUrl = APP_URL } = {}) {
+export function createHub({ db, instance = G.randomId(8), times = G.TIMES, rng = G.fairRandom, online = Config.enableOnline, log = console, redirectHosts = REDIRECT_HOSTS, appUrl = APP_URL } = {}) {
   const conns = new Set();
-  const rooms = new Map();            // Code → { conns, stop, poll, timer, room, entry }: Lobbys mit Verbindungen hier
+  const rooms = new Map();            // Code → { conns, timer, room }: Lobbys mit Verbindungen
   const ips = new Map();              // Internetverbindung → { open, create: [Zeiten], join: [Zeiten] }
   let counter = 0;
-  let alive = null;                   // laufende Instanzen, null = noch nicht bekannt
-  let beat = 0;
   let closing = false;
   let shown = null;                   // zuletzt berechnete Statistik { at, data }
-  let pruned = 0;
+  let purged = 0;
 
-  const isAlive = inst => inst === instance || !alive || alive.has(inst);
+  // Es läuft nur dieser Server. Verbindungen von früheren Läufen (vor einem Update) fallen nach kurzer Zeit weg.
+  const isAlive = inst => inst === instance;
 
   function send(c, msg) {
     if (c.ws.readyState !== WebSocket.OPEN) return;
@@ -119,8 +137,7 @@ export function createHub({ kv, instance = G.randomId(8), times = G.TIMES, rng =
   async function change(code, action) {
     let error = null;
     const now = Date.now();
-    const L = rooms.get(code);
-    const out = await S.mutate(kv, code, room => {
+    const out = S.mutate(db, code, room => {
       const ctx = { now, rng, times };
       error = null;
       G.prune(room, isAlive, now);
@@ -136,21 +153,18 @@ export function createHub({ kv, instance = G.randomId(8), times = G.TIMES, rng =
         replace(room, before);
         return undefined;
       }
-    }, now, L ? L.entry : null);
+    }, now);
     if (out.missing) throw new G.GameError('room-not-found');
-    if (out.changed) deliver(code, out.room, out.entry && out.entry.versionstamp);
+    if (out.changed) deliver(code, out.room);
     if (error) throw error;
     return out;
   }
 
-  // Neuen Stand an alle Verbindungen dieser Instanz schicken, die in der Lobby sind.
-  // versionstamp: Version in der Datenbank, falls bekannt. Den neuesten Stand merkt sich die Instanz (L.entry),
-  // damit die nächste Änderung ihn nicht erst lesen muss.
-  function deliver(code, room, versionstamp) {
+  // Neuen Stand an alle Verbindungen schicken, die in der Lobby sind. Kommt ein älterer Stand als der
+  // zuletzt verteilte (zwei Aktionen kurz nacheinander), bekommt nur, wer noch gar nichts hat, den neueren.
+  function deliver(code, room) {
     const L = rooms.get(code);
     if (!L) return;
-    if (!room) L.entry = null;
-    else if (versionstamp && (!L.entry || versionstamp > L.entry.versionstamp)) L.entry = { value: room, versionstamp };
     if (!S.isLive(room, Date.now())) {
       for (const c of [...L.conns]) { send(c, { t: 'error', code: 'room-closed' }); unbindLocal(c); }
       return;
@@ -171,9 +185,8 @@ export function createHub({ kv, instance = G.randomId(8), times = G.TIMES, rng =
   }
 
   // Zugzeit und Bots im Blick behalten: Kurz nach Ablauf der Zugzeit oder wenn der nächste Bot-Schritt
-  // fällig ist, prüft die Instanz selbst. Hängen Leute derselben Lobby an mehreren Instanzen, versuchen
-  // es alle, gespeichert wird aber nur einmal. Ohne Verbindungen hier gibt es keinen Timer: Dann steht
-  // das Spiel, auch für die Bots, bis jemand zurückkommt.
+  // fällig ist, prüft der Server selbst. Ohne Verbindungen gibt es keinen Timer: Dann steht das Spiel,
+  // auch für die Bots, bis jemand zurückkommt.
   function schedule(code, pause = 0) {
     const L = rooms.get(code);
     if (!L) return;
@@ -185,14 +198,12 @@ export function createHub({ kv, instance = G.randomId(8), times = G.TIMES, rng =
     // Ohne Zeitlimit (eigene Würfel) gibt es für Menschen nichts zu prüfen
     if (!(bot && bot.bot) && room.turn.deadline == null) return;
     const due = bot && bot.bot ? room.turn.botAt : room.turn.deadline + times.grace;
-    const wait = Math.max(pause, due - Date.now()) + 20 + Math.floor(Math.random() * 150);
+    const wait = Math.max(pause, due - Date.now()) + 20;
     L.timer = setTimeout(async () => {
       L.timer = 0;
       let retry = 0;
       try {
-        const out = await change(code, () => {});
-        // Nichts zu tun: Dann war eine andere Instanz schneller. Ihren Stand übernehmen.
-        if (!out.changed) deliver(code, out.room, out.entry && out.entry.versionstamp);
+        await change(code, () => {});
       } catch (e) {
         if (!(e instanceof G.GameError)) { log.error('Zugzeit prüfen:', e); retry = 2000; }
         else if (e.code === 'room-not-found') deliver(code, null);   // Lobby ist weg
@@ -210,10 +221,8 @@ export function createHub({ kv, instance = G.randomId(8), times = G.TIMES, rng =
     c.sent = -1;
     let L = rooms.get(code);
     if (!L) {
-      L = { conns: new Set(), stop: null, poll: 0, timer: 0, room: null, entry: null };
+      L = { conns: new Set(), timer: 0, room: null };
       rooms.set(code, L);
-      L.stop = S.watchRoom(kv, code, (value, vs) => deliver(code, value, vs), err => log.warn('Beobachten von', code, 'unterbrochen:', String(err)));
-      if (poll) L.poll = setInterval(() => { kv.get(S.roomKey(code)).then(e => deliver(code, e.value, e.versionstamp), () => {}); }, poll);
     }
     L.conns.add(c);
   }
@@ -222,8 +231,6 @@ export function createHub({ kv, instance = G.randomId(8), times = G.TIMES, rng =
     if (L) {
       L.conns.delete(c);
       if (!L.conns.size) {
-        L.stop();
-        clearInterval(L.poll);
         clearTimeout(L.timer);
         rooms.delete(c.code);
       }
@@ -255,7 +262,7 @@ export function createHub({ kv, instance = G.randomId(8), times = G.TIMES, rng =
       return p.id;
     });
     bindLocal(c, code, out.result);
-    sendState(c, out.room);
+    deliver(code, out.room);
   }
   // Aktion in der eigenen Lobby
   function act(c, fn) {
@@ -326,7 +333,7 @@ export function createHub({ kv, instance = G.randomId(8), times = G.TIMES, rng =
       await goAway(c);
       const now = Date.now();
       const pid = G.randomId();
-      const room = await S.createRoom(kv, r => {
+      const room = S.createRoom(db, r => {
         G.join(r, { id: pid, name, key: c.key });
         G.attach(r, pid, c.id, now);
       }, now);
@@ -348,7 +355,7 @@ export function createHub({ kv, instance = G.randomId(8), times = G.TIMES, rng =
         return p.id;
       });
       bindLocal(c, code, out.result);
-      sendState(c, out.room);
+      deliver(code, out.room);
     },
     // Lobby oder Spiel verlassen: Die Person ist raus, ihre Punkte sind weg.
     async leave(c) {
@@ -433,47 +440,48 @@ export function createHub({ kv, instance = G.randomId(8), times = G.TIMES, rng =
     }
   }
 
-  /* ---------- Lebenszeichen ---------- */
-  async function beatOnce() {
+  /* ---------- Aufräumen ---------- */
+  // Jede Minute vergessen die Bremsen alte Einträge. Einmal pro Stunde verschwinden abgelaufene Lobbys
+  // und alte Stunden der Statistik aus der Datenbank.
+  function maintain() {
     const now = Date.now();
-    try {
-      await S.heartbeat(kv, instance, now);
-      alive = await S.liveInstances(kv, now);
-    } catch (e) {
-      log.warn('Lebenszeichen fehlgeschlagen:', String(e));
-    }
     sweep(now);
+    if (now - purged < PURGE_MS) return;
+    purged = now;
+    try {
+      S.purgeRooms(db, now);
+      St.pruneHours(db, now);
+    } catch (e) {
+      log.warn('Aufräumen:', String(e));
+    }
   }
-  function startBeat() {
-    beatOnce();
-    beat = setInterval(() => { if (conns.size) beatOnce(); }, BEAT_MS);
-  }
+  const maintenance = setInterval(maintain, MAINTAIN_MS);
+  if (maintenance.unref) maintenance.unref();
 
   /* ---------- Statistik ---------- */
   // Ein gestartetes Spiel zählen. Klappt das nicht, läuft trotzdem alles weiter.
   async function count(kind) {
     try {
-      await St.countGame(kv, kind, Date.now());
+      St.countGame(db, kind, Date.now());
       shown = null;
     } catch (e) {
       log.warn('Zählen fehlgeschlagen:', String(e));
     }
   }
-  async function readStats() {
+  function readStats() {
     const now = Date.now();
     if (shown && now - shown.at < STATS_FRESH) return shown.data;
-    if (now - pruned > 60 * 60_000) {
-      pruned = now;
-      try { await St.pruneHours(kv, now); } catch (e) { log.warn('Aufräumen der Statistik:', String(e)); }
-    }
-    const data = await St.readStats(kv, now);
+    const data = St.readStats(db, now);
     shown = { at: now, data };
     return data;
   }
 
   /* ---------- HTTP ---------- */
-  async function handle(req, info) {
+  // server: der laufende Bun-Server, für die Adresse der Verbindung und das Umschalten auf WebSocket
+  async function handle(req, server) {
     const url = new URL(req.url);
+    const peer = server.requestIP(req);
+    const ipOf = () => ipKey(clientIp(peer && peer.address, req.headers.get('x-forwarded-for')));
     const cors = { 'access-control-allow-origin': '*' };
     if (url.pathname === '/health') {
       return Response.json({ app: 'hexa', protocol: G.PROTOCOL, online, ok: true }, { headers: cors });
@@ -483,16 +491,15 @@ export function createHub({ kv, instance = G.randomId(8), times = G.TIMES, rng =
       if (req.method !== 'POST') return new Response('Nur POST', { status: 405, headers: Object.assign({ allow: 'POST' }, cors) });
       const kind = url.searchParams.get('kind') || 'local';
       if (kind !== 'local' && kind !== 'daily') return new Response('Unbekannte Art', { status: 400, headers: cors });
-      const ip = ipKey(info && info.remoteAddr && info.remoteAddr.hostname);
       if (ips.size > 5000) sweep(Date.now());
-      if (!limit(ip, 'count')) return new Response(null, { status: 429, headers: cors });
+      if (!limit(ipOf(), 'count')) return new Response(null, { status: 429, headers: cors });
       await count(kind);
       return new Response(null, { status: 204, headers: cors });
     }
     if (url.pathname === '/stats' || url.pathname === '/stats.json') {
       if (req.method !== 'GET' && req.method !== 'HEAD') return new Response('Nur GET', { status: 405, headers: { allow: 'GET, HEAD' } });
       let data;
-      try { data = await readStats(); } catch (e) {
+      try { data = readStats(); } catch (e) {
         log.error('Statistik:', e);
         return new Response('Statistik gerade nicht verfügbar', { status: 503 });
       }
@@ -510,53 +517,69 @@ export function createHub({ kv, instance = G.randomId(8), times = G.TIMES, rng =
     if ((req.headers.get('upgrade') || '').toLowerCase() !== 'websocket') {
       return new Response('Hier geht es nur per WebSocket.', { status: 426 });
     }
-    const ip = ipKey(info && info.remoteAddr && info.remoteAddr.hostname);
+    const ip = ipOf();
     const who = ipInfo(ip);
     if (who.open >= MAX_CONNS_PER_IP) return new Response('Zu viele Verbindungen', { status: 429 });
-    let upgraded;
-    try {
-      upgraded = Deno.upgradeWebSocket(req, { idleTimeout: 60 });
-    } catch (e) {
-      return new Response('WebSocket geht nicht', { status: 400 });
-    }
-    const { socket, response } = upgraded;
-    const c = { id: instance + '.' + (++counter), ws: socket, ip, key: null, code: null, pid: null, sent: -1, hits: [], queue: Promise.resolve() };
+    const c = { id: instance + '.' + (++counter), ws: null, who, ip, key: null, code: null, pid: null, sent: -1, hits: [], queue: Promise.resolve() };
+    if (closing || !server.upgrade(req, { data: c })) return new Response('WebSocket geht nicht', { status: 400 });
     who.open += 1;
-    conns.add(c);
-    if (!beat) startBeat();
-    // Nachrichten einer Verbindung werden nacheinander bearbeitet, in der Reihenfolge, in der sie kommen.
-    socket.onmessage = e => { c.queue = c.queue.then(() => onMessage(c, e.data)).catch(err => log.error('Nachricht:', err)); };
-    socket.onclose = () => {
-      who.open -= 1;
-      conns.delete(c);
-      c.queue = c.queue.then(() => goAway(c)).catch(err => log.error('Verbindung zu:', err));
-    };
-    socket.onerror = () => { /* onclose kommt danach */ };
-    return response;
+    return undefined;
   }
 
-  // Für Tests: alles anhalten und Verbindungen schließen
+  /* ---------- WebSocket ---------- */
+  const websocket = {
+    idleTimeout: 60,                  // Sekunden ohne Lebenszeichen, dann ist die Verbindung zu. Bun schickt selbst Pings.
+    maxPayloadLength: 16 * 1024,      // Bytes. Mehr als MAX_MSG Zeichen lehnt onMessage ohnehin ab.
+    open(ws) {
+      const c = ws.data;
+      c.ws = ws;
+      conns.add(c);
+    },
+    // Nachrichten einer Verbindung werden nacheinander bearbeitet, in der Reihenfolge, in der sie kommen.
+    message(ws, data) {
+      const c = ws.data;
+      c.queue = c.queue.then(() => onMessage(c, data)).catch(err => log.error('Nachricht:', err));
+    },
+    close(ws) {
+      const c = ws.data;
+      c.who.open -= 1;
+      conns.delete(c);
+      c.queue = c.queue.then(() => goAway(c)).catch(err => log.error('Verbindung zu:', err));
+    },
+  };
+
+  // Anhalten, beim Update und in Tests: keine neuen Verbindungen, alle offenen mit 1001 schließen.
+  // Die Leute bleiben in ihren Lobbys. Die Apps verbinden sich von selbst neu, mit dem neuen Server.
   async function close() {
     closing = true;
-    clearInterval(beat);
-    beat = 0;
-    for (const L of rooms.values()) { L.stop(); clearInterval(L.poll); clearTimeout(L.timer); }
+    clearInterval(maintenance);
+    for (const L of rooms.values()) clearTimeout(L.timer);
     rooms.clear();
     for (const c of conns) { try { c.ws.close(1001, 'Server hält an'); } catch (e) { /* schon zu */ } }
     await Promise.all([...conns].map(c => c.queue));
-    try { await S.forgetInstance(kv, instance); } catch (e) { /* egal */ }
   }
 
-  return { handle, close, instance, stats: () => ({ connections: conns.size, rooms: rooms.size }) };
+  return { fetch: handle, websocket, close, instance, stats: () => ({ connections: conns.size, rooms: rooms.size }) };
 }
 
 if (import.meta.main) {
-  // Auf Deno Deploy verbindet Deno.openKv() automatisch mit der zugewiesenen Datenbank.
-  // Lokal liegt sie in einer Datei, auf Wunsch unter HEXA_KV (z. B. HEXA_KV=./hexa.kv).
-  const kv = await Deno.openKv(Deno.env.get('HEXA_KV') || undefined);
-  const poll = Deno.env.get('HEXA_POLL_MS');
-  const hub = createHub({ kv, poll: poll ? Number(poll) : undefined });
-  const port = Deno.env.get('PORT');
-  if (port) Deno.serve({ port: Number(port) }, hub.handle);
-  else Deno.serve(hub.handle);
+  // Im Container liegt die Datenbank auf dem Volume (HEXA_DB=/data/hexa.sqlite), lokal neben dem Repo.
+  const db = openDb(process.env.HEXA_DB || 'hexa.sqlite');
+  const hub = createHub({ db });
+  const server = Bun.serve({ port: Number(process.env.PORT) || 8000, fetch: hub.fetch, websocket: hub.websocket });
+  console.log(`HEXA läuft auf http://localhost:${server.port}, Datenbank ${process.env.HEXA_DB || 'hexa.sqlite'}`);
+  // docker stop schickt SIGTERM. Ohne eigene Behandlung würde Bun erst nach 10 Sekunden hart beendet.
+  let stopping = false;
+  async function stop(signal) {
+    if (stopping) return;
+    stopping = true;
+    console.log(signal, '– halte an');
+    setTimeout(() => process.exit(0), 5000).unref();   // falls etwas hängt
+    server.stop();
+    await hub.close();
+    db.close();
+    process.exit(0);
+  }
+  process.on('SIGTERM', () => stop('SIGTERM'));
+  process.on('SIGINT', () => stop('SIGINT'));
 }
