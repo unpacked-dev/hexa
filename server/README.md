@@ -36,17 +36,17 @@ App und Server lesen dieselbe Datei. Nach einer Änderung auf `main` bringen, da
 Nötig ist nur [Bun](https://bun.sh/docs/installation) 1.3 oder neuer. Aus dem Hauptordner des Repos:
 
 ```bash
-bun run dev    # App und Server auf http://localhost:8000, WebSocket unter ws://localhost:8000/ws
+bun run dev    # App und Server auf http://localhost:3000, WebSocket unter ws://localhost:3000/ws
 bun run test   # alle Server-Tests
 ```
 
-`http://localhost:8000/` öffnet die App, `http://localhost:8000/health` zeigt `{"app":"hexa","protocol":3,"online":true,"ok":true}`. Mit zwei Browserfenstern (oder einem privaten Fenster) lässt sich so gegen sich selbst spielen. Die Datenbank liegt lokal in `hexa.sqlite` im Hauptordner (steht in der `.gitignore`). Mit `HEXA_DB=pfad/zur/datei.sqlite` bestimmst du den Ort selbst.
+`http://localhost:3000/` öffnet die App, `http://localhost:3000/health` zeigt `{"app":"hexa","protocol":3,"online":true,"ok":true}`. Mit zwei Browserfenstern (oder einem privaten Fenster) lässt sich so gegen sich selbst spielen. Die Datenbank liegt lokal in `hexa.sqlite` im Hauptordner (steht in der `.gitignore`). Mit `HEXA_DB=pfad/zur/datei.sqlite` bestimmst du den Ort selbst.
 
 So wie im Betrieb, im Container:
 
 ```bash
 docker build -t hexa .
-docker run --rm -p 8000:8000 -v hexa-data:/data hexa
+docker run --rm -p 3000:3000 -v hexa-data:/data hexa
 ```
 
 ## Betrieb mit Coolify
@@ -58,7 +58,7 @@ Der Server läuft als Anwendung in Coolify, gebaut aus dem `Dockerfile`. Wie man
 | Branch | `main` | Neben-Branch `claude/charming-maxwell-yrwmwc` |
 | Domain | `https://backend.hexa-countdown.app` | `https://hexa.unpacked.dev` |
 | Build Pack | Dockerfile | Dockerfile |
-| Ports Exposes | `8000` | `8000` |
+| Ports Exposes | `3000` (Standard in Coolify) | `3000` |
 | Port Mappings | leer | leer |
 | Persistent Storage | Volume `hexa-data` nach `/data` | Volume `hexa-test-data` nach `/data` |
 | Health Check | aus dem Dockerfile (`/health`) | aus dem Dockerfile |
@@ -82,7 +82,7 @@ Die App fragt beim Start `health` auf ihrer eigenen Adresse. Antwortet dort ein 
 | Variable | Wofür | Standard |
 |---|---|---|
 | `HEXA_DB` | Pfad der Datenbank-Datei | `hexa.sqlite`, im Container `/data/hexa.sqlite` |
-| `PORT` | Port | `8000` |
+| `PORT` | Port | `3000` |
 
 ## So arbeitet der Server
 

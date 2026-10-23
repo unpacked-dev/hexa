@@ -153,7 +153,7 @@ Wer lieber über einen lokalen Server testet (z. B. für das Web-App-Manifest):
 python3 -m http.server 8000   # dann http://localhost:8000 öffnen
 ```
 
-Auch so geöffnet spielt die App online über den Server unter backend.hexa-countdown.app. Wer den Server selbst laufen lassen möchte, braucht [Bun](https://bun.sh/docs/installation): `bun run dev` startet App und Server auf http://localhost:8000, mehr dazu in [server/README.md](server/README.md).
+Auch so geöffnet spielt die App online über den Server unter backend.hexa-countdown.app. Wer den Server selbst laufen lassen möchte, braucht [Bun](https://bun.sh/docs/installation): `bun run dev` startet App und Server auf http://localhost:3000, mehr dazu in [server/README.md](server/README.md).
 
 **Als App aufs Handy:** [hexa-countdown.app](https://hexa-countdown.app/) öffnen, dann im Hauptmenü auf *HEXA als App installieren* tippen oder in den Einstellungen auf *Als App installieren*.
 - **iPhone und iPad:** Im Browser auf *Teilen* tippen und *Zum Home-Bildschirm* wählen. Die App erklärt das in drei Schritten.

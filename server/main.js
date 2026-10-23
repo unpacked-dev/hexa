@@ -1,6 +1,6 @@
 /* HEXA – Server für den Online-Modus.
    Nur Bun, keine weiteren Pakete: Bun.serve für HTTP und WebSocket, SQLite (bun:sqlite) als Datenbank.
-   Lokal starten: bun run dev (http://localhost:8000, WebSocket unter /ws). Tests: bun run test
+   Lokal starten: bun run dev (http://localhost:3000, WebSocket unter /ws). Tests: bun run test
    Im Betrieb: Docker-Container mit Coolify auf dem eigenen Server, siehe Dockerfile und server/README.md.
 
    Jede App hat eine WebSocket-Verbindung. Darüber schickt sie Wünsche wie „würfeln“ oder „Große Straße
@@ -566,7 +566,8 @@ if (import.meta.main) {
   // Im Container liegt die Datenbank auf dem Volume (HEXA_DB=/data/hexa.sqlite), lokal neben dem Repo.
   const db = openDb(process.env.HEXA_DB || 'hexa.sqlite');
   const hub = createHub({ db });
-  const server = Bun.serve({ port: Number(process.env.PORT) || 8000, fetch: hub.fetch, websocket: hub.websocket });
+  // Port 3000 wie bei Bun und Coolify üblich
+  const server = Bun.serve({ port: Number(process.env.PORT) || 3000, fetch: hub.fetch, websocket: hub.websocket });
   console.log(`HEXA läuft auf http://localhost:${server.port}, Datenbank ${process.env.HEXA_DB || 'hexa.sqlite'}`);
   // docker stop schickt SIGTERM. Ohne eigene Behandlung würde Bun erst nach 10 Sekunden hart beendet.
   let stopping = false;

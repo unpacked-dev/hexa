@@ -22,6 +22,7 @@
 - Coolify läuft schon auf dem VPS, eingerichtet und abgesichert, zusammen mit anderen Projekten mit Bun. Für HEXA kommt nur ein neues Projekt dazu (23.10.2026).
 - Online ist ab sofort aus, bis der Server auf dem VPS läuft. Erledigt am 23.10.2026, siehe [Online deaktivieren](#online-deaktivieren-erledigt).
 - Testadresse ist `hexa.unpacked.dev`. `hexa-countdown.app` bleibt die reine Adresse für die Produktion. `unpacked.dev` zeigt mit allen Subdomains schon auf den VPS (23.10.2026).
+- Der Server hört auf Port 3000, dem Standard von Coolify und Bun (23.10.2026).
 
 ## Was anders ist als im Issue
 
@@ -126,7 +127,7 @@ Die Bremsen zählen pro Internetverbindung (höchstens 20 Verbindungen, 6 neue L
 
 - Kommt die Anfrage aus einem privaten Netz (also vom Proxy), nimmt der Server den **letzten** Eintrag von `X-Forwarded-For`. Den hängt der Proxy selbst an, fälschen lässt er sich nicht.
 - Kommt sie direkt, zählt die Adresse der Verbindung.
-- Port 8000 des Containers wird nicht nach außen freigegeben. So geht niemand am Proxy vorbei.
+- Port 3000 des Containers wird nicht nach außen freigegeben. So geht niemand am Proxy vorbei.
 - `ipKey` (IPv6 pro /64-Netz) bleibt, wie es ist. Dazu kommt ein Test für die neue Regel.
 
 ### Sauber anhalten
@@ -166,7 +167,7 @@ So steht es im Hauptordner:
 # Die Bun-Version zusammen mit .github/workflows/ci.yml ändern.
 FROM oven/bun:1.3.11-alpine
 WORKDIR /app
-ENV NODE_ENV=production PORT=8000 HEXA_DB=/data/hexa.sqlite
+ENV NODE_ENV=production PORT=3000 HEXA_DB=/data/hexa.sqlite
 
 # Keine Pakete, also kein bun install. Nur was der Server braucht und an die Apps ausliefert.
 COPY server/*.js server/
@@ -181,10 +182,10 @@ COPY index.html sw.js manifest.webmanifest favicon.svg ./
 RUN mkdir -p /data && chown bun:bun /data
 USER bun
 
-EXPOSE 8000
+EXPOSE 3000
 # wget gibt es im Alpine-Image. Coolify nimmt diesen Health Check von selbst.
 HEALTHCHECK --interval=10s --timeout=3s --start-period=5s --retries=3 \
-  CMD wget -q -O /dev/null http://127.0.0.1:8000/health || exit 1
+  CMD wget -q -O /dev/null http://127.0.0.1:3000/health || exit 1
 CMD ["bun", "server/main.js"]
 ```
 
@@ -227,7 +228,7 @@ Die Namen von Knöpfen und Feldern in Coolify und Deno Deploy stammen aus deren 
 | Branch | `claude/charming-maxwell-yrwmwc` (Neben-Branch) | `main` |
 | Domain | `https://hexa.unpacked.dev` | `https://backend.hexa-countdown.app` |
 | Build Pack | Dockerfile | Dockerfile |
-| Ports Exposes | `8000` | `8000` |
+| Ports Exposes | `3000` (Standard in Coolify) | `3000` |
 | Port Mappings | leer | leer |
 | Persistent Storage | Volume `hexa-test-data` nach `/data` | Volume `hexa-data` nach `/data` |
 | Umgebungsvariablen | keine | keine |
@@ -291,7 +292,7 @@ Die GitHub App von Coolify gibt es schon für deine anderen Projekte. Es fehlt h
 1. **DNS:** Nichts zu tun. `unpacked.dev` zeigt mit allen Subdomains schon auf den VPS. Kurz prüfen: `dig +short hexa.unpacked.dev` zeigt die IP des VPS.
 2. **Neues Projekt:** In Coolify *Projects → + Add*, Name `HEXA`. Die Umgebung `production` öffnen.
 3. *+ New* → *Private Repository (with GitHub App)* → derselbe Server wie bei deinen anderen Projekten → deine GitHub App → Repository `unpacked-dev/hexa` → *Load Repository*.
-4. Branch `claude/charming-maxwell-yrwmwc`, Build Pack *Dockerfile*, Base Directory `/`, Port `8000` → *Continue*.
+4. Branch `claude/charming-maxwell-yrwmwc`, Build Pack *Dockerfile*, Base Directory `/`, Port `3000` (steht schon so da) → *Continue*.
 5. Unter *Configuration* die Werte aus der Spalte „Test“ der Tabelle oben eintragen: Name, Domain, *Ports Exposes*, *Port Mappings* leer. Speichern. Die Domain steht je nach Version unter *General* oder auf einer eigenen Seite *Domains* (*Add domain*).
 6. *Persistent Storage* → *Add* → *Volume Mount*: Name `hexa-test-data`, *Destination Path* `/data`. Speichern.
 7. *Deploy* und in den *Deployment Logs* zuschauen. Der erste Build dauert ein bis zwei Minuten.
