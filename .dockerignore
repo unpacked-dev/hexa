@@ -2,6 +2,7 @@
 .git
 .github
 docs
+!docs/social-preview.png
 tools
 tests
 server/tests

@@ -12,6 +12,8 @@ COPY lang/ lang/
 COPY fonts/ fonts/
 COPY icons/ icons/
 COPY index.html sw.js manifest.webmanifest favicon.svg ./
+# Aus docs/ nur das Vorschaubild für geteilte Links
+COPY docs/social-preview.png docs/
 
 # Hier liegt die Datenbank. Das Volume übernimmt beim ersten Start den Besitzer dieses Ordners.
 RUN mkdir -p /data && chown bun:bun /data

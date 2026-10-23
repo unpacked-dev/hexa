@@ -295,7 +295,7 @@ test('HTTP: Die App, der Status unter /health, sonst nur WebSocket', async () =>
   assert.equal(page.status, 200);
   assert.match(page.headers.get('content-type'), /text\/html/);
   assert.match(await page.text(), /<title>HEXA: Countdown<\/title>/);
-  for (const [path, type] of [['/js/online.js', /javascript/], ['/css/hexa.css', /css/], ['/lang/de.js', /javascript/], ['/icons/icon-192.png', /png/], ['/manifest.webmanifest', /manifest/], ['/sw.js', /javascript/]]) {
+  for (const [path, type] of [['/js/online.js', /javascript/], ['/css/hexa.css', /css/], ['/lang/de.js', /javascript/], ['/icons/icon-192.png', /png/], ['/manifest.webmanifest', /manifest/], ['/sw.js', /javascript/], ['/docs/social-preview.png', /png/]]) {
     const r = await fetch(env.http() + path);
     assert.equal(r.status, 200, path);
     assert.match(r.headers.get('content-type'), type, path);
@@ -326,6 +326,45 @@ test('HTTP: Der Service Worker kommt immer frisch', async () => {
   assert.equal(r.headers.get('cache-control'), 'no-cache');
   assert.match(await r.text(), /addEventListener\('fetch'/);
   await env.stop();
+});
+
+test('HTTP: Unveränderte Dateien kommen nur als 304, dank ETag', async () => {
+  const env = start();
+  const first = await fetch(env.http() + '/js/app.js');
+  const etag = first.headers.get('etag');
+  assert.match(etag, /^"[0-9a-z]+"$/);
+  await first.body.cancel();
+  // Auch als schwacher ETag (W/), so kann ihn ein Proxy beim Komprimieren weitergeben, und in einer Liste
+  for (const tag of [etag, 'W/' + etag, '"anders", ' + etag]) {
+    const r = await fetch(env.http() + '/js/app.js', { headers: { 'if-none-match': tag } });
+    assert.equal(r.status, 304, tag);
+    assert.equal(r.headers.get('etag'), etag, tag);
+    assert.equal(r.headers.get('cache-control'), 'no-cache', tag);
+    assert.equal(await r.text(), '', tag);
+  }
+  const other = await fetch(env.http() + '/js/app.js', { headers: { 'if-none-match': '"anders"' } });
+  assert.equal(other.status, 200);
+  assert.ok((await other.text()).length > 1000);
+  // Jede Datei hat ihren eigenen
+  const css = await fetch(env.http() + '/css/hexa.css', { headers: { 'if-none-match': etag } });
+  assert.equal(css.status, 200);
+  assert.notEqual(css.headers.get('etag'), etag);
+  await css.body.cancel();
+  await env.stop();
+});
+
+test('HTTP: Das Vorschaubild für geteilte Links liefert der Server aus, auch im Docker-Image', async () => {
+  const read = f => Bun.file(new URL('../../' + f, import.meta.url)).text();
+  const image = new URL((await read('index.html')).match(/property="og:image" content="([^"]+)"/)[1]);
+  assert.equal(image.origin, 'https://hexa-countdown.app');
+  const env = start();
+  const r = await fetch(env.http() + image.pathname);
+  assert.equal(r.status, 200, image.pathname);
+  assert.equal(r.headers.get('content-type'), 'image/png');
+  await r.body.cancel();
+  await env.stop();
+  // Fehlt die Datei im Build, etwa wegen .dockerignore, scheitert schon der Build in der CI
+  assert.ok((await read('Dockerfile')).includes(`COPY ${image.pathname.slice(1)} `), 'Vorschaubild fehlt im Dockerfile');
 });
 
 test('HTTP: Produktion leitet die Startseite zur App weiter, Server und Dateien bleiben', async () => {

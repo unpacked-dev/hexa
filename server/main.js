@@ -28,7 +28,8 @@ const KEY_RE = /^[A-Za-z0-9_-]{16,128}$/;
 // Die App selbst liefert der Server auch aus. Dann reicht zum Testen eine Adresse für App und WebSocket.
 // Nur diese Dateien und Ordner, alles andere im Repo (Server-Code, Doku, Werkzeuge) bleibt verborgen.
 const ROOT = new URL('../', import.meta.url);
-const PUBLIC_FILES = ['index.html', 'favicon.svg', 'manifest.webmanifest', 'sw.js'];
+// docs/social-preview.png ist das Vorschaubild für geteilte Links (og:image in index.html).
+const PUBLIC_FILES = ['index.html', 'favicon.svg', 'manifest.webmanifest', 'sw.js', 'docs/social-preview.png'];
 const PUBLIC_DIRS = ['css/', 'js/', 'lang/', 'fonts/', 'icons/'];
 // Produktion: Wer den Server im Browser öffnet, landet bei der App unter der eigenen Domain. So gibt es nur eine
 // Adresse, unter der man HEXA installiert (eigener Speicher pro Adresse). /ws, /health und die Dateien bleiben.
@@ -40,7 +41,20 @@ const TYPES = {
   svg: 'image/svg+xml', png: 'image/png', webp: 'image/webp', woff2: 'font/woff2',
   webmanifest: 'application/manifest+json', txt: 'text/plain; charset=utf-8',
 };
-async function appFile(pathname) {
+// ETag: ein Fingerabdruck des Inhalts. Schickt der Browser ihn mit (If-None-Match) und die Datei ist gleich,
+// antwortet der Server nur mit 304 ohne Inhalt. Neu gerechnet wird nur, wenn sich die Datei geändert hat.
+const etags = new Map();              // Pfad → { at: Zeit der letzten Änderung, tag }
+async function etagOf(p, file) {
+  const known = etags.get(p);
+  if (known && known.at === file.lastModified) return known.tag;
+  const tag = '"' + Bun.hash(await file.arrayBuffer()).toString(36) + '"';
+  etags.set(p, { at: file.lastModified, tag });
+  return tag;
+}
+const sameTag = (header, tag) => !!header && header.split(',').some(t => t.trim().replace(/^W\//, '') === tag);
+
+// ifNoneMatch: die Kopfzeile If-None-Match der Anfrage
+async function appFile(pathname, ifNoneMatch) {
   let p;
   try { p = decodeURIComponent(pathname).replace(/^\/+/, ''); } catch (e) { return null; }
   if (p === '') p = 'index.html';
@@ -50,11 +64,14 @@ async function appFile(pathname) {
   if (!type) return null;
   const file = Bun.file(new URL(p, ROOT));
   if (!(await file.exists())) return null;
-  // Code immer frisch, damit nach einem neuen Build nicht noch alte Teile im Browser stecken. Schriften und Icons ändern sich kaum.
-  const still = p.startsWith('fonts/') || p.startsWith('icons/');
-  return new Response(file, {
-    headers: { 'content-type': type, 'cache-control': still ? 'public, max-age=86400' : 'no-cache', 'x-content-type-options': 'nosniff' },
-  });
+  // Code immer frisch, damit nach einem neuen Build nicht noch alte Teile im Browser stecken. Frisch heißt:
+  // Der Browser fragt jedes Mal nach, bekommt aber nur bei einer Änderung die ganze Datei.
+  // Schriften, Icons und das Vorschaubild ändern sich kaum.
+  const still = p.startsWith('fonts/') || p.startsWith('icons/') || p.startsWith('docs/');
+  const etag = await etagOf(p, file);
+  const headers = { 'content-type': type, 'cache-control': still ? 'public, max-age=86400' : 'no-cache', etag, 'x-content-type-options': 'nosniff' };
+  if (sameTag(ifNoneMatch, etag)) return new Response(null, { status: 304, headers });
+  return new Response(file, { headers });
 }
 
 // Der Geräteschlüssel liegt nur als Hash auf dem Server.
@@ -511,7 +528,7 @@ export function createHub({ db, instance = G.randomId(8), times = G.TIMES, rng =
       return new Response(null, { status: 302, headers: { location: appUrl } });
     }
     if (url.pathname !== '/ws') {
-      const file = req.method === 'GET' || req.method === 'HEAD' ? await appFile(url.pathname) : null;
+      const file = req.method === 'GET' || req.method === 'HEAD' ? await appFile(url.pathname, req.headers.get('if-none-match')) : null;
       return file || new Response('Nicht gefunden', { status: 404 });
     }
     if ((req.headers.get('upgrade') || '').toLowerCase() !== 'websocket') {
