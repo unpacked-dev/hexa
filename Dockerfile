@@ -1,6 +1,6 @@
 # HEXA – Online-Server. Läuft mit Coolify auf dem eigenen Server, siehe server/README.md.
 # Die Bun-Version nur nach Absprache ändern (CLAUDE.md), zusammen mit .github/workflows/ci.yml und versions.json.
-FROM oven/bun:1.3.11-alpine
+FROM oven/bun:1.4.4-alpine
 WORKDIR /app
 ENV NODE_ENV=production PORT=3000 HEXA_DB=/data/hexa.sqlite
 

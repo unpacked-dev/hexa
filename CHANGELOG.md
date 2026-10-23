@@ -5,6 +5,10 @@ Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), die V
 
 ## [Unreleased]
 
+### Sicherheit
+
+- **Bun 1.4.4 statt 1.3.11** für den Server und die Tests. Bun 1.4.4 behebt die Lücke im Brotli-Entpacker (CVE-2026-111497), die alle älteren Versionen haben. Der Server nutzt keinen der bekannten Wege dorthin (`fetch`, `node:zlib`, `DecompressionStream`), ausnutzbar war sie bei HEXA also nicht. Das Image bringt damit auch Alpine 3.24.3 statt 3.22.3 mit, mit neueren Paketen wie OpenSSL 3.5.9 und musl 1.2.6, und SQLite 3.53.4 statt 3.51.2.
+
 ### Neu
 
 - **Versionen für Sicherheitsprüfungen:** `versions.json` listet alles, worauf HEXA läuft: Bun, das Docker-Image, Node.js und die GitHub Actions für die Tests, die Schriften, dazu was von außen erreichbar ist. npm-Pakete gibt es keine. Beim Bauen kommt die Liste als `/versions.json` ins Image, ergänzt um das, was wirklich drinsteckt: Alpine, SQLite und alle Alpine-Pakete. Von außen ist sie nicht erreichbar. `tools/collect-versions.sh` sammelt auf dem Server die Listen aller Container für eine tägliche Prüfung ein. `node --test` prüft, dass die Liste zu Dockerfile und Workflows passt, und der Build bricht ab, wenn Bun nicht stimmt. In `CLAUDE.md` steht: Versionen nur nach Absprache ändern.
