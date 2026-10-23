@@ -104,14 +104,15 @@ Der Code ist dafür fertig. Wie GitHub Pages liefert der Server das Vorschaubild
 
 1. **TTL senken, am Tag vorher oder mindestens 30 Minuten vor Schritt 2:** Bei Spaceship die TTL der Einträge `@` (A und AAAA) und `www` von 30 auf 5 Minuten setzen. Dann sehen nach dem Wechsel alle und auch Let's Encrypt nach spätestens 5 Minuten die neuen Einträge, statt nach 30.
 2. **DNS bei Spaceship ändern:**
-   - Die 4 A-Einträge `@` zu GitHub (`185.199.108.153` bis `185.199.111.153`) löschen. Einen A-Eintrag `@` auf die IP des Servers anlegen, dieselbe wie bei `backend`.
-   - Die 4 AAAA-Einträge `@` zu GitHub (`2606:50c0:8000::153` bis `2606:50c0:8003::153`) löschen. **Wichtig:** Bleiben sie stehen, landen alle mit IPv6 (etwa viele Handys im Mobilnetz) weiter bei GitHub. Der Server hat keinen IPv6-Eintrag, also keinen neuen AAAA-Eintrag anlegen.
-   - Den CNAME `www` von `unpacked-dev.github.io` auf `hexa-countdown.app` ändern.
+   - Alle Einträge zu GitHub löschen: die 4 A-Einträge `@` (`185.199.108.153` bis `185.199.111.153`), die 4 AAAA-Einträge `@` (`2606:50c0:8000::153` bis `2606:50c0:8003::153`) und den CNAME `www` (`unpacked-dev.github.io`). **Wichtig:** Bleiben die AAAA-Einträge stehen, landen alle mit IPv6 (etwa viele Handys im Mobilnetz) weiter bei GitHub.
+   - Neu: A `@` und A `*` auf die IP des Servers, dieselbe wie bei `backend`. `*` deckt `www` und alle anderen Subdomains ab, neue Subdomains brauchen dann nur noch Coolify. Das klappt nur, wenn es für den Namen keinen eigenen Eintrag gibt, darum muss der CNAME `www` weg. Keinen AAAA-Eintrag anlegen, der Server hat keine IPv6-Adresse im DNS.
+   - Mail- oder TXT-Einträge gibt es bei `hexa-countdown.app` nicht (Stand 23.10.2026), der Wildcard stört also nichts. Ausgedachte Subdomains landen am Server, Coolify antwortet dort mit 404.
 3. **Kurz warten:** Bis `dig +short hexa-countdown.app A @8.8.8.8` und `@1.1.1.1` (Google und Cloudflare) nur noch die IP des Servers zeigen und `dig +short hexa-countdown.app AAAA @8.8.8.8` nichts mehr. Mit gesenkter TTL sind das etwa 5 Minuten. Erst dann weiter, sonst scheitert in Schritt 4 das Zertifikat.
 4. **In Coolify** bei `hexa` → *Configuration*:
    - *Domains*: `https://hexa-countdown.app,https://www.hexa-countdown.app,https://backend.hexa-countdown.app`
    - *Direction*: *Redirect to non-www.*, damit `www` auf die Adresse ohne `www` weiterleitet.
-   - Speichern, dann *Redeploy*. Coolify holt die Zertifikate. Ist nach ein paar Minuten noch keins da, noch einmal *Redeploy*.
+   - Speichern, dann *Redeploy*. Coolify holt die Zertifikate. Ist nach ein paar Minuten noch keins da, noch einmal *Redeploy*. Klappt es mehrmals nicht, eine Stunde warten: Nach mehreren Fehlversuchen blockt Let's Encrypt kurz.
+   - Standen die Domains schon vor dem DNS-Wechsel drin, reicht *Redeploy*. Erst jetzt kann Coolify die Zertifikate holen.
 5. **Prüfen:**
    - `curl -sI https://hexa-countdown.app/` zeigt kein `server: GitHub.com` mehr, und das Zertifikat stimmt.
    - https://hexa-countdown.app/health zeigt `{"app":"hexa",…}`. Unter GitHub Pages gab es die Adresse nicht.
