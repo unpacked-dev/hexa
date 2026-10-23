@@ -7,18 +7,20 @@
 - Der Online-Server zieht von **Deno Deploy mit Deno KV** auf **Bun in einem Docker-Container**. Betrieben wird er mit **Coolify** auf dem eigenen VPS bei **ZAP-Hosting** in Frankfurt. Die App auf GitHub Pages bleibt, wie sie ist.
 - Statt Deno KV speichert der Server alles in **einer SQLite-Datei** auf einem Volume. Laufende Spiele überstehen so jedes Update.
 - Es gibt nur noch **einen Server**. Damit fällt alles weg, was es nur für mehrere Instanzen gab: Beobachten, Nachfragen, Lebenszeichen, gemerkte Versionen und Wiederholen bei Konflikten. Der Server wird spürbar kürzer und einfacher.
-- **Kein Datenexport aus Deno KV.** Am Umzugstag geht Online kurz aus, der Server zieht um, dann geht Online wieder an. Die Statistik fängt auf dem neuen Server bei null an.
-- Das **Protokoll bleibt Version 3**. Die App braucht keine neue Version, sie spricht weiter mit `wss://backend.hexa-countdown.app/ws`.
-- Bis zum Umzugstag bleibt `main` auf Deno. Gearbeitet wird in einem eigenen Branch, denn Deno Deploy baut jeden Push auf `main`.
-- Die [Anleitung Schritt für Schritt](#anleitung-schritt-für-schritt) führt durch alles: VPS vorbereiten, Coolify einrichten, testen, Online aus, umziehen, Online an und Deno Deploy löschen.
+- **Online ist seit dem 23. Oktober 2026 aus** und bleibt es bis zum Umzug. Es gibt keinen Datenexport aus Deno KV. Die Statistik fängt auf dem neuen Server bei null an.
+- Der Umzug geht **zusammen mit #13 bis #15 als Version 1.17.0** live. Die Produktion spricht noch Protokoll 2. Protokoll 3 für die eigenen Würfel (#14) gibt es nur auf dem Neben-Branch, und der Deno-Server bekommt nichts Neues mehr. Die App spricht weiter mit `wss://backend.hexa-countdown.app/ws`.
+- Gearbeitet wird wie immer auf dem Neben-Branch. `main` bekommt den Bun-Server erst am Umzugstag.
+- Die [Anleitung Schritt für Schritt](#anleitung-schritt-für-schritt) führt durch alles: neues Projekt in Coolify anlegen, testen, umziehen, Online wieder an und Deno Deploy löschen.
 
 ## Entschieden
 
 - Bun im Docker-Container, Coolify, VPS bei ZAP-Hosting in Frankfurt am Main (14.10.2026).
 - Der Server liefert die App weiter selbst aus, jetzt über Bun (14.10.2026).
 - Für Deno wird nichts mehr entwickelt, auch keine neuen Funktionen am Server vor dem Umzug (23.10.2026).
-- Kein Export aus Deno KV. Online wird zum Umzug abgeschaltet, die KV kurz danach gelöscht. Laufende Spiele gibt es dann keine, die Zähler der Statistik dürfen verloren gehen. Konten gibt es ohnehin nicht (23.10.2026).
+- Kein Export aus Deno KV. Online wird abgeschaltet, die KV nach dem Umzug gelöscht. Laufende Spiele gibt es dann keine, die Zähler der Statistik dürfen verloren gehen. Konten gibt es ohnehin nicht (23.10.2026).
 - Die Online-Logik wird vereinfacht, weil alle Verbindungen über denselben Server laufen (23.10.2026).
+- Coolify läuft schon auf dem VPS, eingerichtet und abgesichert, zusammen mit anderen Projekten mit Bun. Für HEXA kommt nur ein neues Projekt dazu (23.10.2026).
+- Online ist ab sofort aus, bis der Server auf dem VPS läuft. Erledigt am 23.10.2026, siehe [Online deaktivieren](#online-deaktivieren-erledigt).
 
 ## Was anders ist als im Issue
 
@@ -29,7 +31,8 @@
 | `js/config.js`, `rules.js`, `bot.js` laufen in Bun unverändert | Laufen, aber der Server muss sie anders laden | Siehe [Vorab geprüft](#vorab-geprüft), Punkt 1 |
 | IP für die Bremsen: `X-Forwarded-For` prüfen | Letzter Eintrag von `X-Forwarded-For`, nur wenn die Anfrage vom Proxy kommt | Sonst teilen sich alle Leute eine Adresse, und die Bremsen greifen für alle |
 | Image `oven/bun` | `oven/bun:1.3.11-alpine` | Kleiner, und `wget` ist dabei. Den braucht der Health Check von Coolify. |
-| Fliegender Wechsel per DNS | Online kurz aus, umziehen, Online an | Einfacher und ohne Lobbys, die halb auf dem alten und halb auf dem neuen Server hängen |
+| Fliegender Wechsel per DNS | Online ist bis zum Umzug aus | Einfacher und ohne Lobbys, die halb auf dem alten und halb auf dem neuen Server hängen |
+| Umzug ohne neue App-Version | Umzug zusammen mit Version 1.17.0 | Die Produktion spricht noch Protokoll 2. #14 braucht Protokoll 3, und das bringt nur der neue Server. |
 
 ## Vorab geprüft
 
@@ -146,6 +149,7 @@ Die Bremsen zählen pro Internetverbindung (höchstens 20 Verbindungen, 6 neue L
 - `Deno.test(…)` wird zu `test(…)` aus `bun:test`. Die Prüfungen mit `node:assert` bleiben.
 - **Zeitlimit:** Bun bricht einen Test nach 5 Sekunden ab, Deno nicht. Ganze Partien über WebSocket dauern länger. Deshalb `bun test --timeout 30000 server/`.
 - Tests mit zwei Instanzen laufen künftig mit einem Server. Die Tests für Beobachten, Lebenszeichen und gemerkten Stand fallen weg.
+- Die Test-Server laufen immer mit `online: true`, egal was in `js/config.js` steht. Auf `main` ist das seit dem Abschalten schon so, sonst wären dort 11 Server-Tests gescheitert.
 - **Neu:**
   - Neustart: Ein zweiter Server an derselben Datei übernimmt eine laufende Lobby, die Leute verbinden neu und spielen weiter.
   - IP hinter dem Proxy: letzter Eintrag von `X-Forwarded-For`, aber nur aus einem privaten Netz.
@@ -186,39 +190,39 @@ CMD ["bun", "server/main.js"]
 - Coolify nimmt den `HEALTHCHECK` aus dem Dockerfile von selbst.
 - Lokal prüfen mit `docker build` und `docker run` samt Volume: App öffnen, Lobby erstellen, Container neu starten, Lobby ist noch da.
 
-## Branches: `main` bleibt bis zum Umzug auf Deno
+## Branches
 
-Deno Deploy baut jeden Push auf `main`. Käme der Bun-Code vorher auf `main`, wäre der Server in der Produktion kaputt.
-
-- Gearbeitet wird in einem Branch, Vorschlag `umzug-bun`, mit einem Entwurf-PR gegen `main`. Jeder Schritt wird ein eigener Commit, die CI läuft bei jedem Push.
-- App-Änderungen gehen weiter auf `main` (GitHub Pages). `main` wird regelmäßig in den Branch gemergt. Am Server auf `main` ändert sich nichts mehr.
-- Die Test-Anwendung in Coolify baut aus diesem Branch.
-- Gemergt wird erst am Umzugstag. Bis Ende Januar muss niemand warten: Sobald VPS, Testlauf und AVV fertig sind, kann umgezogen werden. Je kürzer der Branch lebt, desto weniger Merges.
+- **`main`** ist die Produktion: Version 1.16.0 mit Protokoll 2. GitHub Pages und Deno Deploy bauen jeden Push. Seit dem 23.10.2026 steht dort `enableOnline: false`. Sonst kommt bis zum Umzug nichts mehr auf `main`.
+- **Neben-Branch** `claude/charming-maxwell-yrwmwc`: Hier wird wie immer gearbeitet. Dort liegen schon #13 bis #15, jetzt kommt der Bun-Server dazu. Online bleibt hier an, damit die Testadresse online spielt.
+- `main` bis zum Umzug **nicht** in den Neben-Branch holen. Sonst wäre Online auch auf der Testadresse aus.
+- **Am Umzugstag** holt Claude `main` in den Neben-Branch. Die Zeile mit `enableOnline` hat nur `main` geändert, darum steht danach auch im Neben-Branch `false`. Gibt es in `js/config.js` einen Konflikt, etwa weil der Kommentar darüber geändert wurde, bleibt `enableOnline: false`. Danach wird `main` wie bei jedem Release auf den Neben-Branch nachgezogen.
+- Bis Ende Januar muss niemand warten. Sobald Testlauf und AVV fertig sind, kann umgezogen werden.
 
 ## Anleitung Schritt für Schritt
 
 | Phase | Was | Wer | Dauer, etwa |
 |---|---|---|---|
 | [A](#a-code-im-branch) | Code im Branch | Claude | |
-| [B](#b-vps-vorbereiten-und-coolify-installieren) | VPS vorbereiten und Coolify installieren | du | 1 Stunde |
-| [C](#c-coolify-mit-github-verbinden) | Coolify mit GitHub verbinden | du | 10 Minuten |
-| [D](#d-testadresse-einrichten) | Testadresse einrichten | du | 20 Minuten |
-| [E](#e-auf-echten-geräten-testen) | Auf echten Geräten testen | du | 1 Stunde |
-| [F](#f-avv-mit-zap-hosting) | AVV mit ZAP-Hosting | du | |
-| [G](#g-umzugstag) | Umzugstag: Online aus, umziehen, Online an | du, Claude für die Commits | 1 bis 2 Stunden |
-| [H](#h-deno-deploy-löschen) | Deno Deploy löschen | du | 10 Minuten |
-| [I](#i-nacharbeiten) | Nacharbeiten | du und Claude | |
+| [B](#b-repo-in-coolify-freigeben) | Repo in Coolify freigeben | du | 5 Minuten |
+| [C](#c-testadresse-einrichten) | Neues Projekt in Coolify, Testadresse einrichten | du | 20 Minuten |
+| [D](#d-auf-echten-geräten-testen) | Auf echten Geräten testen | du | 1 Stunde |
+| [E](#e-avv-mit-zap-hosting) | AVV mit ZAP-Hosting | du | |
+| [F](#f-umzugstag) | Umzugstag: umziehen, Online wieder an, Release 1.17.0 | du, Claude für die Commits | 1 bis 2 Stunden |
+| [G](#g-deno-deploy-löschen) | Deno Deploy löschen | du | 10 Minuten |
+| [H](#h-nacharbeiten) | Nacharbeiten | du und Claude | |
 
-A läuft gleichzeitig mit B bis D und F. Für E müssen A und D fertig sein, für G alles davor.
+Coolify läuft schon auf dem VPS, eingerichtet und abgesichert, zusammen mit anderen Projekten mit Bun. Für HEXA kommt nur ein neues Projekt dazu.
+
+A läuft gleichzeitig mit B, C und E. Für D müssen A und C fertig sein, für F alles davor.
 
 Die Namen von Knöpfen und Feldern in Coolify und Deno Deploy stammen aus deren Doku (Oktober 2026). Je nach Version können sie leicht abweichen.
 
-**Einstellungen auf einen Blick** (für D und G):
+**Einstellungen auf einen Blick** (für C und F):
 
 | | Test | Produktion |
 |---|---|---|
 | Name in Coolify | `hexa-test` | `hexa` |
-| Branch | `umzug-bun` | `main` |
+| Branch | `claude/charming-maxwell-yrwmwc` (Neben-Branch) | `main` |
 | Domain | `https://test.hexa-countdown.app` | `https://backend.hexa-countdown.app` |
 | Build Pack | Dockerfile | Dockerfile |
 | Ports Exposes | `8000` | `8000` |
@@ -229,76 +233,48 @@ Die Namen von Knöpfen und Feldern in Coolify und Deno Deploy stammen aus deren 
 
 Port Mappings bleiben leer, sonst klappen die Updates ohne Pause nicht, und man käme am Proxy vorbei.
 
+### Online deaktivieren (erledigt)
+
+Erledigt am 23.10.2026 mit Commit `c7b6848` auf `main`. So geht es, falls es noch einmal nötig ist:
+
+1. Auf GitHub `js/config.js` auf `main` öffnen, Stift (*Edit this file*).
+2. `enableOnline: true,` ändern in `enableOnline: false,`.
+3. *Commit changes…* → *Commit directly to the main branch*, eine kurze Nachricht → *Commit changes*. Oder Claude sagen: „Online aus“.
+4. Warten, bis unter *Actions* „pages build and deployment“ grün ist (1 bis 2 Minuten) und der Server neu gebaut ist.
+5. **Prüfen:** `https://backend.hexa-countdown.app/health` zeigt `"online":false`. Die App unter hexa-countdown.app zweimal neu laden. Ein Tipp auf „Online“ zeigt „Online spielen ist gerade pausiert.“
+
+Was dann passiert: In der App ist „Online“ ausgegraut. Wer gerade online spielt, landet mit einem Hinweis im Hauptmenü. Der Server nimmt keine Verbindungen mehr an. Lokale Spiele und das Tagesspiel laufen ganz normal weiter.
+
 ### A. Code im Branch
 
-1. Branch `umzug-bun` von `main` anlegen, Entwurf-PR gegen `main` öffnen.
-2. **Server auf Bun:** `server/db.js`, `store.js` und `stats.js` auf SQLite. `main.js` auf `Bun.serve`. Online-Logik vereinfachen, IP hinter dem Proxy, sauber anhalten, Imports aus `js/`. Dazu ein kleines `server/backup.js` für Phase I. Alle Tests auf `bun:test`.
+1. Auf dem Neben-Branch `claude/charming-maxwell-yrwmwc` arbeiten. Vor jedem Push laufen alle Tests (`bun run test`, `node --test`) und `docker build`. Die CI läuft nur auf `main` und in PRs.
+2. **Server auf Bun:** `server/db.js`, `store.js` und `stats.js` auf SQLite. `main.js` auf `Bun.serve`. Online-Logik vereinfachen, IP hinter dem Proxy, sauber anhalten, Imports aus `js/`. Dazu ein kleines `server/backup.js` für Phase H. Alle Tests auf `bun:test`.
 3. `package.json` mit `dev`, `start` und `test`. CI auf Bun, mit `docker build`. `deno.json` löschen.
 4. `Dockerfile` und `.dockerignore`. Lokal bauen und starten: App öffnen, Lobby erstellen, Container neu starten, die Lobby ist noch da.
-5. **Doku und Kommentare,** damit `main` nach dem Merge gleich stimmt:
+5. **Doku und Kommentare,** damit `main` nach dem Umzug gleich stimmt:
    - `server/README.md`: Einrichten mit Coolify statt Deno Deploy, Betrieb, Abschnitt zu mehreren Instanzen raus, Umgebungsvariablen, Tabellen.
    - `README.md`: Technik, Projektstruktur, lokal starten mit `bun run dev`, Tests mit `bun run test`.
    - `docs/online-konzept.md`: Hinweis zum Stand.
-   - `CHANGELOG.md`: Eintrag unter „Geändert“.
+   - `CHANGELOG.md`: Eintrag unter „Geändert“, im Abschnitt `[Unreleased]` neben #13 bis #15.
    - Kommentare, die Deno nennen: `js/config.js` (auch der Hinweis zum kostenlosen Tarif bei `enableOnline`), `js/online.js`, `js/bot.js`, `js/daily.js`.
 
-**Fertig, wenn** die CI im Entwurf-PR grün ist.
+**Fertig, wenn** alle Tests grün sind und der Container lokal läuft.
 
-### B. VPS vorbereiten und Coolify installieren
+### B. Repo in Coolify freigeben
 
-Alle Befehle per SSH als `root`. Mit einem anderen Nutzer jeweils `sudo` davor.
+Die GitHub App von Coolify gibt es schon für deine anderen Projekte. Es fehlt höchstens der Zugriff auf dieses Repo.
 
-1. **Betriebssystem:** Ubuntu 24.04 LTS oder Debian 12 (im Webinterface von ZAP-Hosting installierbar). Coolify braucht mindestens 2 Kerne, 2 GB Arbeitsspeicher und 10 GB freien Platz.
-2. **Anmelden und aktualisieren:**
-   ```bash
-   ssh root@<VPS-IP>
-   apt update && apt upgrade -y
-   ```
-3. **Anmelden nur mit Schlüssel.** Auf deinem Rechner, falls du noch keinen Schlüssel hast: `ssh-keygen -t ed25519`. Dann `ssh-copy-id root@<VPS-IP>`. In einem neuen Fenster prüfen, dass die Anmeldung ohne Passwort klappt. Erst dann in `/etc/ssh/sshd_config` setzen:
-   ```
-   PasswordAuthentication no
-   PermitRootLogin prohibit-password
-   ```
-   und `systemctl restart ssh`. **Nicht** `PermitRootLogin no`: Coolify verbindet sich per Schlüssel als `root` mit dem eigenen Server.
-4. **Automatische Sicherheitsupdates:**
-   ```bash
-   apt install -y unattended-upgrades
-   dpkg-reconfigure -plow unattended-upgrades   # „Ja“ wählen
-   ```
-5. **Firewall:** Offen bleiben nur 22, 80 und 443, dazu vorerst 8000, 6001 und 6002 für das Dashboard von Coolify. Docker umgeht `ufw` für die Ports seiner Container. Deshalb am besten die Firewall im Webinterface von ZAP-Hosting nutzen, falls es eine gibt (prüfen). Gibt es keine, das Dashboard mit starkem Passwort und Zwei-Faktor schützen (Schritt 9).
-6. **Coolify installieren:**
-   ```bash
-   curl -fsSL https://cdn.coollabs.io/coolify/install.sh | bash
-   ```
-7. **Sofort danach** `http://<VPS-IP>:8000` öffnen und das Admin-Konto anlegen. Wer sich zuerst registriert, wird Admin und hat damit Root-Zugriff auf den Server. Im Einrichtungsassistenten den Server `localhost` wählen.
-8. **Schlüssel von Coolify sichern:** Die Datei `/data/coolify/source/.env` an einen sicheren Ort kopieren, etwa in den Passwort-Manager. Ohne sie lässt sich Coolify nicht wiederherstellen.
-   ```bash
-   scp root@<VPS-IP>:/data/coolify/source/.env ./coolify.env
-   ```
-9. **Zwei-Faktor** im Profil von Coolify einschalten.
-10. **Eigene Adresse für das Dashboard:** Bei Spaceship einen A-Eintrag anlegen, Vorschlag `coolify` → IPv4 des VPS. Ein paar Minuten warten. Dann in Coolify unter *Settings → General* bei *URL* `https://coolify.hexa-countdown.app` eintragen und speichern. Ab jetzt läuft das Dashboard über HTTPS. Danach die Ports 8000, 6001 und 6002 in der Firewall schließen (falls es eine gibt).
-11. **Benachrichtigungen:** In Coolify unter *Notifications* E-Mail, Telegram oder Discord einrichten, eine Testnachricht schicken. Einschalten für fehlgeschlagene Deployments und wenn ein Container ausfällt.
+1. In Coolify unter *Sources* deine GitHub App öffnen und nachsehen, ob `unpacked-dev/hexa` bei den Repositories steht.
+2. Falls nicht: dort zu GitHub wechseln (*Repositories* bzw. *Update Repositories*), bei *Repository access* `unpacked-dev/hexa` hinzufügen und speichern. Zurück in Coolify die Liste neu laden.
 
-**Fertig, wenn** das Dashboard unter `https://coolify.hexa-countdown.app` läuft und die Testnachricht ankommt.
+**Fertig, wenn** `unpacked-dev/hexa` in der Liste steht.
 
-### C. Coolify mit GitHub verbinden
-
-Über eine GitHub App baut Coolify bei jedem Push von selbst neu.
-
-1. In Coolify *Sources → New source* (oder *+ Add*) → *GitHub App*.
-2. **Name:** `hexa`. **Organization** leer lassen, denn `unpacked-dev` ist ein persönliches Konto. Pull-Request-Vorschauen brauchen wir nicht.
-3. **Webhook endpoint:** die Adresse des Dashboards, `https://coolify.hexa-countdown.app`. Nicht die IP mit Port 8000, sonst kommen Pushes nach dem Schließen des Ports nicht mehr an.
-4. *Register now* (oder *Register with GitHub*). Auf GitHub einen Namen vergeben, etwa `hexa-coolify`, und *Create GitHub App* wählen.
-5. *Install* → *Only select repositories* → `unpacked-dev/hexa` → *Install*.
-
-**Fertig, wenn** die App unter *Sources* mit Installation erscheint.
-
-### D. Testadresse einrichten
+### C. Testadresse einrichten
 
 1. **DNS bei Spaceship:** A-Eintrag `test` → IPv4 des VPS, dazu AAAA, falls es IPv6 gibt. Prüfen mit `dig +short test.hexa-countdown.app`.
-2. In Coolify *Projects → + Add*, Name `HEXA`. Die Umgebung `production` öffnen.
-3. *+ New* → *Private Repository (with GitHub App)* → Server `localhost` → GitHub App `hexa` → Repository `unpacked-dev/hexa` → *Load Repository*.
-4. Branch `umzug-bun`, Build Pack *Dockerfile*, Base Directory `/`, Port `8000` → *Continue*.
+2. **Neues Projekt:** In Coolify *Projects → + Add*, Name `HEXA`. Die Umgebung `production` öffnen.
+3. *+ New* → *Private Repository (with GitHub App)* → derselbe Server wie bei deinen anderen Projekten → deine GitHub App → Repository `unpacked-dev/hexa` → *Load Repository*.
+4. Branch `claude/charming-maxwell-yrwmwc`, Build Pack *Dockerfile*, Base Directory `/`, Port `8000` → *Continue*.
 5. Unter *Configuration* die Werte aus der Spalte „Test“ der Tabelle oben eintragen: Name, Domain, *Ports Exposes*, *Port Mappings* leer. Speichern. Die Domain steht je nach Version unter *General* oder auf einer eigenen Seite *Domains* (*Add domain*).
 6. *Persistent Storage* → *Add* → *Volume Mount*: Name `hexa-test-data`, *Destination Path* `/data`. Speichern.
 7. *Deploy* und in den *Deployment Logs* zuschauen. Der erste Build dauert ein bis zwei Minuten.
@@ -307,11 +283,11 @@ Alle Befehle per SSH als `root`. Mit einem anderen Nutzer jeweils `sudo` davor.
    - Das Schloss im Browser ist da, das Zertifikat stimmt.
    - `https://test.hexa-countdown.app/` zeigt die App selbst. Sie spielt über den Server der Testadresse.
 
-Ab jetzt baut jeder Push auf `umzug-bun` die Testadresse neu.
+Ab jetzt baut jeder Push auf den Neben-Branch die Testadresse neu. Dort ist Online an. Die Testadresse spielt also online, obwohl Online in der Produktion aus ist.
 
 **Fertig, wenn** die App unter der Testadresse läuft.
 
-### E. Auf echten Geräten testen
+### D. Auf echten Geräten testen
 
 Zwei Geräte, eins im WLAN, eins mit Mobilfunk. Beide öffnen `https://test.hexa-countdown.app`.
 
@@ -324,64 +300,58 @@ Zwei Geräte, eins im WLAN, eins mit Mobilfunk. Beide öffnen `https://test.hexa
 - [ ] Beide Geräte erstellen kurz nacheinander je eine Lobby. Keins bekommt „Zu viele Versuche“. (Prüft die IP hinter dem Proxy.)
 - [ ] `https://test.hexa-countdown.app/stats` zählt die gestarteten Spiele.
 
-Klappt etwas nicht: Claude Bescheid geben. Die Korrektur kommt in den Branch, die Testadresse baut von selbst neu.
+Klappt etwas nicht: Claude Bescheid geben. Die Korrektur kommt in den Neben-Branch, die Testadresse baut von selbst neu.
 
 **Fertig, wenn** alle Haken gesetzt sind.
 
-### F. AVV mit ZAP-Hosting
+### E. AVV mit ZAP-Hosting
 
 1. Den Vertrag zur Auftragsverarbeitung mit ZAP-Hosting abschließen ([#7](https://github.com/unpacked-dev/hexa/issues/7)), meist im Kundenbereich oder über den Support.
 
 **Fertig, wenn** der AVV vorliegt. Vorher keine echten Spitznamen auf den VPS, also kein Umzugstag.
 
-### G. Umzugstag
+### F. Umzugstag
+
+Online ist schon aus. Laufende Spiele gibt es also keine, und nichts eilt.
 
 **Am Tag vorher**
 
-1. **TTL senken:** Bei Spaceship die TTL des Eintrags `backend` auf 5 Minuten (300 Sekunden) setzen.
-2. **Für den Rückweg notieren:** die heutigen Einträge `backend` (CNAME `alias.deno.net`) und `_acme-challenge.backend` (CNAME, Wert abschreiben).
-3. **Prüfen:**
+1. **TTL senken:** Bei Spaceship die TTL des Eintrags `backend` auf 5 Minuten (300 Sekunden) setzen. Dann wirkt der Wechsel in Schritt 5 schneller.
+2. **Prüfen:**
    - Hat der VPS eine IPv6-Adresse? Auf dem VPS `ip -6 addr`, gesucht ist eine Adresse mit `scope global`.
    - Gibt es CAA-Einträge? `dig CAA hexa-countdown.app`. Wenn ja, muss `letsencrypt.org` darin stehen.
 
-**Am Umzugstag**, zu einer ruhigen Zeit:
+**Am Umzugstag**
 
-4. **Online deaktivieren.**
-   - Auf GitHub `js/config.js` auf `main` öffnen, Stift (*Edit this file*).
-   - `enableOnline: true,` ändern in `enableOnline: false,`.
-   - *Commit changes…* → *Commit directly to the main branch*, Nachricht `Online vorübergehend aus: Umzug des Servers` → *Commit changes*.
-   - Oder Claude sagen: „Online aus“.
-   - Warten, bis unter *Actions* „pages build and deployment“ grün ist (1 bis 2 Minuten) und Deno Deploy den neuen Stand gebaut hat.
-   - **Prüfen:** `https://backend.hexa-countdown.app/health` zeigt `"online":false`. Die App unter hexa-countdown.app zweimal neu laden. Ein Tipp auf „Online“ zeigt „Online spielen ist gerade pausiert.“
-5. **Mergen.** Claude holt `main` in den Branch, dabei bleibt `enableOnline: false`. Ist die CI grün: im PR *Ready for review*, dann *Squash and merge*. Deno Deploy baut `main` noch einmal, der Bun-Code läuft dort nicht. Das ist egal, Online ist ja aus.
-6. **DNS umstellen** bei Spaceship:
+3. **Release vorbereiten** (Claude): `main` in den Neben-Branch holen, damit steht `enableOnline: false` auch dort. Abschnitt `## [1.17.0]` in `CHANGELOG.md` mit #13 bis #15 und dem Umzug. Alle Tests grün.
+4. **`main` nachziehen** (Claude), wie bei jedem Release. GitHub Pages bringt die App 1.17.0, noch mit Online aus. Deno Deploy baut `main` auch, der Bun-Code läuft dort aber nicht. Das ist egal, Online ist ja aus. Nur die Meldungen lokaler Spiele an die Statistik gehen bis Schritt 7 verloren.
+5. **DNS umstellen** bei Spaceship:
    - CNAME `backend` → `alias.deno.net` löschen.
    - Neu: A `backend` → IPv4 des VPS, TTL 5 Minuten. Mit IPv6 dazu AAAA `backend` → IPv6 des VPS.
    - CNAME `_acme-challenge.backend` löschen.
-7. **Warten,** bis `dig +short backend.hexa-countdown.app` die IP des VPS zeigt. Meist 5 bis 10 Minuten. Von außen prüfen geht auch mit [dnschecker.org](https://dnschecker.org).
-8. **Produktion in Coolify anlegen,** wie D2 bis D7, mit den Werten aus der Spalte „Produktion“: Name `hexa`, Branch `main`, Domain `https://backend.hexa-countdown.app`, Volume `hexa-data` nach `/data`. *Deploy*. Erst jetzt, weil Coolify sofort ein Zertifikat holt. Das klappt nur, wenn der DNS-Eintrag schon auf den VPS zeigt.
-9. **Prüfen:**
-   - `https://backend.hexa-countdown.app/health` zeigt `"online":false`, das Schloss ist da.
+6. **Warten,** bis `dig +short backend.hexa-countdown.app` die IP des VPS zeigt. Meist 5 bis 10 Minuten. Von außen prüfen geht auch mit [dnschecker.org](https://dnschecker.org).
+7. **Produktion in Coolify anlegen,** wie C2 bis C7, mit den Werten aus der Spalte „Produktion“: Name `hexa`, Branch `main`, Domain `https://backend.hexa-countdown.app`, Volume `hexa-data` nach `/data`. *Deploy*. Erst jetzt, weil Coolify sofort ein Zertifikat holt. Das klappt nur, wenn der DNS-Eintrag schon auf den VPS zeigt.
+8. **Prüfen:**
+   - `https://backend.hexa-countdown.app/health` zeigt `{"app":"hexa","protocol":3,"online":false,"ok":true}`, das Schloss ist da.
    - `https://backend.hexa-countdown.app/stats` lädt und zeigt Nullen.
    - `https://backend.hexa-countdown.app/` leitet weiter zu hexa-countdown.app.
-10. **Online aktivieren:** wie Schritt 4, nur `false` → `true`, Nachricht `Online wieder an: Server läuft auf eigenem VPS`. Oder Claude sagen: „Online an“. Coolify baut von selbst neu (1 bis 2 Minuten), GitHub Pages auch. Danach zeigt `/health` `"online":true`.
-11. **Prüfen:** Unter hexa-countdown.app mit zwei Geräten online spielen, mit Bot. `/stats` zählt das Online-Spiel. In Coolify bei `hexa` die *Logs* ansehen: keine Fehler.
+9. **Online aktivieren.**
+   - Am einfachsten: Claude sagen „Online an“. Claude setzt `enableOnline: true` auf dem Neben-Branch und zieht `main` nach.
+   - Oder selbst auf GitHub: `js/config.js` auf `main` öffnen, Stift (*Edit this file*), `enableOnline: false,` ändern in `enableOnline: true,` → *Commit changes…* → *Commit directly to the main branch*, Nachricht `Online wieder an: Server läuft auf eigenem VPS` → *Commit changes*. Danach holt Claude `main` in den Neben-Branch.
+   - Coolify baut von selbst neu (1 bis 2 Minuten), GitHub Pages auch.
+   - **Prüfen:** `/health` zeigt `"online":true`. Die App unter hexa-countdown.app zweimal neu laden, „Online“ ist wieder wählbar.
+10. **Prüfen:** Unter hexa-countdown.app mit zwei Geräten online spielen, mit Bot und einmal mit eigenen Würfeln. `/stats` zählt die Spiele. In Coolify bei `hexa` die *Logs* ansehen: keine Fehler.
+11. **Release:** Auf GitHub *Actions → Release → Run workflow*, Version `1.17.0`. Das Release bekommt die Notizen aus `CHANGELOG.md` und die ZIP-Datei.
 
-Online ist von Schritt 4 bis 10 aus, etwa eine Stunde. Lokale Spiele und das Tagesspiel laufen ganz normal weiter. Nur ihre Meldungen an die Statistik gehen in dieser Zeit verloren.
+Online ist bis Schritt 9 aus. Lokale Spiele und das Tagesspiel laufen die ganze Zeit normal.
 
-**Rückweg,** falls Schritt 8 bis 11 nicht klappt und sich nicht schnell lösen lässt:
+**Wenn etwas nicht klappt:** Online bleibt einfach aus, bis es läuft. Zurück auf Deno lohnt sich nicht, dort fehlt Protokoll 3.
 
-1. Im gemergten PR auf *Revert*, den neuen PR mergen. Deno Deploy baut wieder den Deno-Server.
-2. DNS zurück: A und AAAA `backend` löschen, CNAME `backend` → `alias.deno.net` und `_acme-challenge.backend` mit dem notierten Wert wieder anlegen.
-3. `enableOnline: true` auf `main`.
+**Fertig, wenn** online gespielt werden kann, `/stats` zählt und das Release 1.17.0 veröffentlicht ist.
 
-Das geht nur, solange die App auf Deno Deploy noch existiert. Darum kommt Phase H erst danach.
+### G. Deno Deploy löschen
 
-**Fertig, wenn** online gespielt werden kann und `/stats` zählt.
-
-### H. Deno Deploy löschen
-
-Ein bis zwei Tage nach dem Umzug, wenn alles läuft. Danach gibt es keinen Rückweg mehr.
+Direkt nach dem Umzug, sobald F10 geklappt hat. Einen Weg zurück zu Deno gibt es ohnehin nicht mehr.
 
 1. **App löschen:** Auf [console.deno.com](https://console.deno.com) in der Organisation die App `hexa` öffnen → *Settings* → App löschen und bestätigen. Alle Deployments hören sofort auf, die Verbindung zur eigenen Domain fällt weg. Wer sich vertan hat: Der Deno-Support kann eine App 30 Tage lang wiederherstellen.
 2. **Domain löschen:** Oben links auf die Organisation → Tab *Domains* → `backend.hexa-countdown.app` öffnen → *Delete* → bestätigen.
@@ -393,11 +363,11 @@ Ein bis zwei Tage nach dem Umzug, wenn alles läuft. Danach gibt es keinen Rück
 
 **Fertig, wenn** bei Deno nichts mehr von HEXA übrig ist.
 
-### I. Nacharbeiten
+### H. Nacharbeiten
 
 1. **Backup:** In Coolify bei `hexa` → *Scheduled Tasks* → *Add*: Name `backup`, Command `bun server/backup.js`, Frequency `0 4 * * *`. Speichern, *Execute Now*, unter *Recent executions* prüfen, dass es geklappt hat. Das Skript schreibt jede Nacht eine Kopie nach `/data/backup-<datum>.sqlite` und löscht Kopien, die älter als 7 Tage sind. Wichtig sind nur die Zähler der Statistik, Lobbys leben höchstens 24 Stunden. Eine Kopie außerhalb des VPS ist möglich, aber nicht nötig.
 2. **TTL zurück:** Bei Spaceship die TTL von `backend` wieder auf 1 Stunde.
-3. **Testadresse:** Der Branch `umzug-bun` ist nach dem Merge weg. Die App `hexa-test` in Coolify entweder auf künftige Arbeits-Branches umstellen oder löschen, samt Volume.
+3. **Testadresse behalten:** `hexa-test` baut weiter aus dem Neben-Branch und zeigt immer den nächsten Stand vor dem Release, wie früher die Testadressen von Deno Deploy.
 4. **Issues:** [#16](https://github.com/unpacked-dev/hexa/issues/16) und [#9](https://github.com/unpacked-dev/hexa/issues/9) (Grenzen des kostenlosen Tarifs) schließen. Im Datenschutztext ([#6](https://github.com/unpacked-dev/hexa/issues/6)) steht später ZAP-Hosting in Frankfurt als Hoster statt Deno in den USA.
 5. **Optional:** In Coolify *Watch Paths* setzen, damit reine Doku-Änderungen keinen neuen Build auslösen.
 6. **Einmal im Monat:** In Coolify oder per SSH (`df -h`, `free -h`) Arbeitsspeicher, CPU und Platz ansehen.
@@ -408,8 +378,7 @@ Ein bis zwei Tage nach dem Umzug, wenn alles läuft. Danach gibt es keinen Rück
 |---|---|---|
 | Beim Update laufen kurz zwei Server an derselben Datei | Ohne Sperre könnten Züge verloren gehen | Schreibsperre, alter Server schließt Verbindungen sofort, Test dafür |
 | Bremsen sehen nur die Adresse des Proxys | Alle werden gemeinsam gebremst | `X-Forwarded-For` wie oben, Test dafür, auf der Testadresse mit zwei Netzen (WLAN und Mobilfunk) ausprobieren |
-| Zertifikat klappt nach dem DNS-Wechsel nicht | Online bleibt länger aus | Port 80 offen, CAA prüfen, Produktion erst nach dem DNS-Wechsel anlegen (G8), sonst Rückweg (Phase G) |
-| Jemand registriert sich vor dir bei Coolify | Fremder hat Root-Zugriff auf den VPS | Konto direkt nach der Installation anlegen (B7) |
+| Zertifikat klappt nach dem DNS-Wechsel nicht | Online bleibt länger aus | Port 80 offen, CAA prüfen, Produktion erst nach dem DNS-Wechsel anlegen (F7). Online bleibt aus, bis es klappt. |
 | VPS fällt aus | Online geht nicht | Benachrichtigung von Coolify. Lokal spielen geht weiter. |
 | Platte voll | Server kann nicht schreiben | Lobbys räumen sich auf, die Statistik ist winzig. Einmal im Monat schauen. |
 | Neue Bun-Version verhält sich anders | Tests oder Server brechen | Version fest im Dockerfile und in der CI, nur bewusst und zusammen erhöhen |
@@ -417,13 +386,9 @@ Ein bis zwei Tage nach dem Umzug, wenn alles läuft. Danach gibt es keinen Rück
 ## Offen
 
 - Name der Testadresse: `test.hexa-countdown.app`?
-- Adresse für das Dashboard von Coolify: `coolify.hexa-countdown.app` oder lieber eine andere Domain?
-- Name des Branch: `umzug-bun`?
-- Läuft Coolify schon auf dem VPS? Dann fallen B6 und B7 weg, der Rest von B ist trotzdem einen Blick wert.
-- Hat das Webinterface von ZAP-Hosting eine Firewall (B5)?
-- Hat der VPS eine IPv6-Adresse (G3)?
-- Nutzen andere Apps der Organisation die Datenbank „unpacked“ auf Deno Deploy (H3)?
-- Reicht ein tägliches Backup auf dem VPS selbst (I1)?
+- Hat der VPS eine IPv6-Adresse (F2)?
+- Nutzen andere Apps der Organisation die Datenbank „unpacked“ auf Deno Deploy (G3)?
+- Reicht ein tägliches Backup auf dem VPS selbst (H1)?
 
 ## Quellen
 
@@ -431,10 +396,7 @@ Ein bis zwei Tage nach dem Umzug, wenn alles läuft. Danach gibt es keinen Rück
 - Kein Zugriff von außen auf die KV des neuen Deno Deploy: [docs.deno.com/deploy/kv/node](https://docs.deno.com/deploy/kv/node/)
 - Health Checks in Coolify brauchen `curl` oder `wget` im Image, `HEALTHCHECK` aus dem Dockerfile: [coolify.io/docs/applications/configuration/health-checks](https://coolify.io/docs/applications/configuration/health-checks)
 - Updates ohne Pause in Coolify, ohne Port-Mapping: [coolify.io/docs/applications/deployments/rolling-updates](https://coolify.io/docs/applications/deployments/rolling-updates)
-- Coolify installieren, erstes Konto: [coolify.io/docs/get-started/installation](https://coolify.io/docs/get-started/installation)
-- Ports und Firewall für Coolify: [coolify.io/docs/knowledge-base/server/firewall](https://coolify.io/docs/knowledge-base/server/firewall)
-- Adresse für das Dashboard (*Settings → General → URL*): [coolify.io/docs/core/instance-management/instance-settings](https://coolify.io/docs/core/instance-management/instance-settings)
-- GitHub App in Coolify: [coolify.io/docs/applications/ci-cd/github/setup-app](https://coolify.io/docs/applications/ci-cd/github/setup-app)
+- GitHub App in Coolify, Zugriff auf Repos: [coolify.io/docs/applications/ci-cd/github/setup-app](https://coolify.io/docs/applications/ci-cd/github/setup-app)
 - Anwendung mit Dockerfile, Server muss auf `0.0.0.0` hören: [coolify.io/docs/applications/builds/dockerfile](https://coolify.io/docs/applications/builds/dockerfile)
 - Persistent Storage: [coolify.io/docs/knowledge-base/persistent-storage](https://coolify.io/docs/knowledge-base/persistent-storage)
 - Scheduled Tasks: [coolify.io/docs/applications/operations/scheduled-tasks](https://coolify.io/docs/applications/operations/scheduled-tasks)
