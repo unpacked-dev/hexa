@@ -2,7 +2,7 @@
 
 Der Server würfelt, prüft jeden Zug und achtet auf die Zugzeit. Er läuft mit [Bun](https://bun.sh), ganz ohne weitere Pakete: `Bun.serve` für HTTP und WebSocket, SQLite (`bun:sqlite`) als Datenbank. Die Regeln kommen aus `../js/rules.js`, genau wie in der App. Betrieben wird er in einem Docker-Container mit [Coolify](https://coolify.io) auf einem eigenen Server bei ZAP-Hosting in Frankfurt.
 
-> **Stand:** Online seit Version 1.8.0, seit Version 1.13.0 unter der eigenen Adresse [backend.hexa-countdown.app](https://backend.hexa-countdown.app/): die App unter der Adresse selbst, der WebSocket unter `/ws`. Bis Version 1.16 lief der Server auf Deno Deploy mit Deno KV, seit Version 1.17.0 läuft er mit Bun auf dem eigenen Server ([#16](https://github.com/unpacked-dev/hexa/issues/16), Plan und Anleitung in [`docs/umzug-konzept.md`](../docs/umzug-konzept.md)). Das Konzept des Online-Modus steht in [`docs/online-konzept.md`](../docs/online-konzept.md).
+> **Stand:** Online seit Version 1.8.0, seit Version 1.13.0 unter der eigenen Adresse [backend.hexa-countdown.app](https://backend.hexa-countdown.app/): die App unter der Adresse selbst, der WebSocket unter `/ws`. Bis Version 1.16 lief der Server auf Deno Deploy mit Deno KV, seit Version 1.17.0 läuft er mit Bun auf dem eigenen Server ([#16](https://github.com/unpacked-dev/hexa/issues/16)). Das Konzept des Online-Modus steht in [`docs/online-konzept.md`](../docs/online-konzept.md).
 
 ## Dateien
 
@@ -51,22 +51,35 @@ docker run --rm -p 3000:3000 -v hexa-data:/data hexa
 
 ## Betrieb mit Coolify
 
-Der Server läuft als Anwendung in Coolify, gebaut aus dem `Dockerfile`. Wie man sie einrichtet, steht Schritt für Schritt in [`docs/umzug-konzept.md`](../docs/umzug-konzept.md#anleitung-schritt-für-schritt).
+Der Server läuft als Anwendung in Coolify, gebaut aus dem `Dockerfile`. Es gibt zwei im Projekt `HEXA`: die Produktion aus `main` und eine Testadresse aus dem Neben-Branch. Die Testadresse zeigt immer den nächsten Stand vor dem Release.
 
 | Einstellung | Produktion | Test |
 |---|---|---|
+| Name in Coolify | `hexa` | `hexa-test` |
 | Branch | `main` | Neben-Branch `claude/charming-maxwell-yrwmwc` |
 | Domain | `https://backend.hexa-countdown.app` | `https://hexa.unpacked.dev` |
 | Build Pack | Dockerfile | Dockerfile |
 | Ports Exposes | `3000` (Standard in Coolify) | `3000` |
 | Port Mappings | leer | leer |
 | Persistent Storage | Volume `hexa-data` nach `/data` | Volume `hexa-test-data` nach `/data` |
+| Umgebungsvariablen | keine | keine |
 | Health Check | aus dem Dockerfile (`/health`) | aus dem Dockerfile |
+
+**Neu einrichten.** Die GitHub App von Coolify braucht Zugriff auf `unpacked-dev/hexa` (in Coolify unter *Sources*).
+
+1. Bei einer neuen Domain zuerst den DNS-Eintrag anlegen (A auf die IP des Servers) und warten, bis er überall ankommt. Coolify holt das Zertifikat sofort, das klappt nur mit fertigem DNS.
+2. Im Projekt `HEXA` → *+ New* → *Private Repository (with GitHub App)* → Server → GitHub App → `unpacked-dev/hexa` → *Load Repository*.
+3. Branch aus der Tabelle, Build Pack *Dockerfile*, Base Directory `/`, Port `3000` → *Continue*.
+4. Unter *Configuration* Name, Domain und *Ports Exposes* aus der Tabelle eintragen, *Port Mappings* leer lassen. Speichern.
+5. *Persistent Storage* → *Add* → *Volume Mount*: Name aus der Tabelle, *Destination Path* `/data`. Speichern.
+6. *Deploy*. Danach zeigt `/health` `{"app":"hexa","protocol":3,"online":true,"ok":true}`, und das Zertifikat stimmt.
+7. Nur in der Produktion: die Sicherung einrichten (siehe unten).
 
 - **Port Mappings bleiben leer.** Sonst klappen die Updates ohne Pause nicht, und man käme am Proxy vorbei (siehe Bremsen unten).
 - **Jeder Push** auf den Branch baut neu, auch wenn sich nur die App ändert, denn der Server liefert sie mit aus. Coolify startet den neuen Container, wartet auf den Health Check und hält dann den alten an.
 - **Beim Anhalten** (`SIGTERM`) nimmt der Server keine neuen Verbindungen mehr an und schließt alle offenen mit `1001` („Server hält an“). Die Apps verbinden sich von selbst neu, mit dem neuen Container. Die Lobbys stehen in der Datei auf dem Volume, laufende Spiele gehen also weiter.
-- **Sicherung:** Eine geplante Aufgabe in Coolify (*Scheduled Tasks*) führt täglich `bun server/backup.js` aus. Das schreibt `/data/backup-<datum>.sqlite` und behält die letzten 7 Kopien.
+- **Sicherung:** Eine geplante Aufgabe in Coolify führt täglich `bun server/backup.js` aus. Das schreibt `/data/backup-<datum>.sqlite` und behält die letzten 7 Kopien. Wichtig sind nur die Zähler der Statistik, Lobbys leben höchstens 24 Stunden. Einrichten: bei `hexa` → *Scheduled Tasks* → *Add*, Name `backup`, Command `bun server/backup.js`, Frequency `0 4 * * *`. Speichern, einmal *Execute Now* und unter *Recent executions* prüfen, dass es geklappt hat.
+- **Einmal im Monat** in Coolify oder per SSH (`df -h`, `free -h`) Arbeitsspeicher, CPU und Platz ansehen.
 - Das Zertifikat für die Domain holt Coolify von selbst (Let's Encrypt). Bei Spaceship steht dafür ein A-Eintrag `backend` auf den Server. `unpacked.dev` zeigt mit allen Subdomains schon dorthin, für die Testadresse ist also nichts einzutragen.
 
 ### Die App gleich mit

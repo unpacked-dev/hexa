@@ -2,7 +2,7 @@
 
 > **Seit Version 1.8.0 ist der Online-Modus live:** Die App läuft unter [hexa-countdown.app](https://hexa-countdown.app/) (GitHub Pages), der Server unter [backend.hexa-countdown.app](https://backend.hexa-countdown.app/) (Deno Deploy, auch noch unter hexa.unpacked-dev.deno.net). Vorher auf echten Handys getestet. Offen aus Schritt 4 sind noch Impressum und Datenschutz ([#6](https://github.com/unpacked-dev/hexa/issues/6)), AVV ([#7](https://github.com/unpacked-dev/hexa/issues/7)) und ein Blick auf die Grenzen des kostenlosen Tarifs ([#9](https://github.com/unpacked-dev/hexa/issues/9)). Seit Version 1.12.0 spielen online auch Bots mit, der Server spielt sie selbst. Wie der Server arbeitet und welche Nachrichten es gibt, steht in [`server/README.md`](../server/README.md). Stand: 12. Oktober 2026.
 
-> **Seit Version 1.17.0** läuft der Server mit Bun und SQLite auf einem eigenen Server ([#16](https://github.com/unpacked-dev/hexa/issues/16)). Was hier über Deno Deploy, Deno KV und mehrere Instanzen steht, ist der Stand davor. Wie der Server heute arbeitet, steht in [`server/README.md`](../server/README.md), wie er umgezogen ist, in [`umzug-konzept.md`](umzug-konzept.md).
+> **Seit Version 1.17.0** läuft der Server mit Bun und SQLite auf einem eigenen Server ([#16](https://github.com/unpacked-dev/hexa/issues/16)). Was hier über Deno Deploy, Deno KV und mehrere Instanzen steht, ist der Stand davor. Wie der Server heute arbeitet und wie er in Coolify eingerichtet wird, steht in [`server/README.md`](../server/README.md).
 
 ## Kurz gesagt
 
