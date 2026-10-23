@@ -333,7 +333,7 @@ Online ist schon aus. Laufende Spiele gibt es also keine, und nichts eilt.
 
 **Am Tag vorher**
 
-1. **TTL senken:** Bei Spaceship die TTL des Eintrags `backend` von 30 Minuten (heute) auf 5 Minuten (300 Sekunden) setzen. Das wirkt nach spätestens 30 Minuten, danach greift der Wechsel in Schritt 5 schneller. Geht auch am selben Tag, mindestens 30 Minuten vorher.
+1. **TTL senken (optional):** Bei Spaceship die TTL des Eintrags `backend` von 30 Minuten (heute) auf 5 Minuten setzen, mindestens 30 Minuten vor Schritt 5. Ohne das dauert es nach Schritt 5 bis zu 30 Minuten, bis alle die neue Adresse sehen. Weil Online ohnehin aus ist, schadet das Warten niemandem.
 2. **Geprüft am 23.10.2026,** nichts mehr zu tun:
    - IPv4 des VPS: `185.249.198.192` (wie bei `unpacked.dev`).
    - Kein AAAA-Eintrag nötig, auch `unpacked.dev` hat keinen.
@@ -347,7 +347,7 @@ Online ist schon aus. Laufende Spiele gibt es also keine, und nichts eilt.
    - CNAME `backend` → `alias.deno.net` löschen.
    - Neu: A `backend` → `185.249.198.192`, TTL 5 Minuten.
    - CNAME `_acme-challenge.backend` löschen.
-6. **Warten,** bis `dig +short backend.hexa-countdown.app` die IP des VPS zeigt. Meist 5 bis 10 Minuten. Von außen prüfen geht auch mit [dnschecker.org](https://dnschecker.org).
+6. **Warten,** bis `dig +short backend.hexa-countdown.app` die IP des VPS zeigt, auch bei öffentlichen DNS-Servern (Google, Cloudflare). Mit gesenkter TTL meist 5 bis 10 Minuten, sonst bis zu 30. Von außen prüfen geht auch mit [dnschecker.org](https://dnschecker.org). Erst dann weiter, sonst scheitert in Schritt 7 das Zertifikat.
 7. **Produktion in Coolify anlegen,** wie C2 bis C7, mit den Werten aus der Spalte „Produktion“: Name `hexa`, Branch `main`, Domain `https://backend.hexa-countdown.app`, Volume `hexa-data` nach `/data`. *Deploy*. Erst jetzt, weil Coolify sofort ein Zertifikat holt. Das klappt nur, wenn der DNS-Eintrag schon auf den VPS zeigt.
 8. **Prüfen:**
    - `https://backend.hexa-countdown.app/health` zeigt `{"app":"hexa","protocol":3,"online":false,"ok":true}`, das Schloss ist da.
