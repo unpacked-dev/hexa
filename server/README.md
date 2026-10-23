@@ -2,7 +2,7 @@
 
 Der Server würfelt, prüft jeden Zug und achtet auf die Zugzeit. Er läuft mit [Bun](https://bun.sh), ganz ohne weitere Pakete: `Bun.serve` für HTTP und WebSocket, SQLite (`bun:sqlite`) als Datenbank. Die Regeln kommen aus `../js/rules.js`, genau wie in der App. Betrieben wird er in einem Docker-Container mit [Coolify](https://coolify.io) auf einem eigenen Server bei ZAP-Hosting in Frankfurt.
 
-> **Stand:** Online seit Version 1.8.0, seit Version 1.13.0 unter der eigenen Adresse [backend.hexa-countdown.app](https://backend.hexa-countdown.app/): die App unter der Adresse selbst, der WebSocket unter `/ws`. Bis Version 1.16 lief der Server auf Deno Deploy mit Deno KV, seit Version 1.17.0 läuft er mit Bun auf dem eigenen Server ([#16](https://github.com/unpacked-dev/hexa/issues/16)). Das Konzept des Online-Modus steht in [`docs/online-konzept.md`](../docs/online-konzept.md).
+> **Stand:** Online seit Version 1.8.0, seit Version 1.13.0 unter der eigenen Adresse [backend.hexa-countdown.app](https://backend.hexa-countdown.app/), der WebSocket unter `/ws`. Bis Version 1.16 lief der Server auf Deno Deploy mit Deno KV, seit Version 1.17.0 läuft er mit Bun auf dem eigenen Server ([#16](https://github.com/unpacked-dev/hexa/issues/16)). Seit dem 23. Oktober 2026 liefert er auch die App unter [hexa-countdown.app](https://hexa-countdown.app/) aus, vorher kam sie von GitHub Pages. Das Konzept des Online-Modus steht in [`docs/online-konzept.md`](../docs/online-konzept.md).
 
 ## Dateien
 
@@ -20,7 +20,7 @@ Im Hauptordner liegen dazu `package.json` (Befehle), `Dockerfile` und `.dockerig
 
 ## Einstellungen in `js/config.js`
 
-App und Server lesen dieselbe Datei. Nach einer Änderung auf `main` bringen, dann übernehmen GitHub Pages und Coolify sie von selbst. `node --test` prüft, ob die Werte gültig sind.
+App und Server lesen dieselbe Datei. Nach einer Änderung auf `main` bringen, dann übernimmt Coolify sie von selbst, für App und Server. `node --test` prüft, ob die Werte gültig sind.
 
 | Eintrag | Wofür | Standard |
 |---|---|---|
@@ -57,7 +57,8 @@ Der Server läuft als Anwendung in Coolify, gebaut aus dem `Dockerfile`. Es gibt
 |---|---|---|
 | Name in Coolify | `hexa` | `hexa-test` |
 | Branch | `main` | Neben-Branch `claude/charming-maxwell-yrwmwc` |
-| Domain | `https://backend.hexa-countdown.app` | `https://hexa.unpacked.dev` |
+| Domains | `https://hexa-countdown.app,https://www.hexa-countdown.app,https://backend.hexa-countdown.app` | `https://hexa.unpacked.dev` |
+| Direction | *Redirect to non-www.* | Standard |
 | Build Pack | Dockerfile | Dockerfile |
 | Ports Exposes | `3000` (Standard in Coolify) | `3000` |
 | Port Mappings | leer | leer |
@@ -70,7 +71,7 @@ Der Server läuft als Anwendung in Coolify, gebaut aus dem `Dockerfile`. Es gibt
 1. Bei einer neuen Domain zuerst den DNS-Eintrag anlegen (A auf die IP des Servers) und warten, bis er überall ankommt. Coolify holt das Zertifikat sofort, das klappt nur mit fertigem DNS.
 2. Im Projekt `HEXA` → *+ New* → *Private Repository (with GitHub App)* → Server → GitHub App → `unpacked-dev/hexa` → *Load Repository*.
 3. Branch aus der Tabelle, Build Pack *Dockerfile*, Base Directory `/`, Port `3000` → *Continue*.
-4. Unter *Configuration* Name, Domain und *Ports Exposes* aus der Tabelle eintragen, *Port Mappings* leer lassen. Speichern.
+4. Unter *Configuration* Name, Domains, *Direction* und *Ports Exposes* aus der Tabelle eintragen, *Port Mappings* leer lassen. Speichern.
 5. *Persistent Storage* → *Add* → *Volume Mount*: Name aus der Tabelle, *Destination Path* `/data`. Speichern.
 6. *Deploy*. Danach zeigt `/health` `{"app":"hexa","protocol":3,"online":true,"ok":true}`, und das Zertifikat stimmt.
 7. Nur in der Produktion: die Sicherung einrichten (siehe unten).
@@ -80,7 +81,8 @@ Der Server läuft als Anwendung in Coolify, gebaut aus dem `Dockerfile`. Es gibt
 - **Beim Anhalten** (`SIGTERM`) nimmt der Server keine neuen Verbindungen mehr an und schließt alle offenen mit `1001` („Server hält an“). Die Apps verbinden sich von selbst neu, mit dem neuen Container. Die Lobbys stehen in der Datei auf dem Volume, laufende Spiele gehen also weiter.
 - **Sicherung:** Eine geplante Aufgabe in Coolify führt täglich `bun server/backup.js` aus. Das schreibt `/data/backup-<datum>.sqlite` und behält die letzten 7 Kopien. Wichtig sind nur die Zähler der Statistik, Lobbys leben höchstens 24 Stunden. Einrichten: bei `hexa` → *Scheduled Tasks* → *Add*, Name `backup`, Command `bun server/backup.js`, Frequency `0 4 * * *`. Speichern, einmal *Execute Now* und unter *Recent executions* prüfen, dass es geklappt hat.
 - **Einmal im Monat** in Coolify oder per SSH (`df -h`, `free -h`) Arbeitsspeicher, CPU und Platz ansehen.
-- Das Zertifikat für die Domain holt Coolify von selbst (Let's Encrypt). Bei Spaceship steht dafür ein A-Eintrag `backend` auf den Server. `unpacked.dev` zeigt mit allen Subdomains schon dorthin, für die Testadresse ist also nichts einzutragen.
+- Die Zertifikate holt Coolify von selbst (Let's Encrypt). Bei Spaceship zeigen dafür die A-Einträge `@` und `*` auf den Server. `*` deckt `www`, `backend` und jede neue Subdomain ab, die braucht dann nur noch einen Eintrag in Coolify. AAAA-Einträge gibt es keine. `unpacked.dev` zeigt mit allen Subdomains schon dorthin, für die Testadresse ist also nichts einzutragen.
+- **Eine Adresse umziehen, die schon läuft:** vorher die TTL bei Spaceship auf 5 Minuten senken, dann DNS ändern und gleich *Redeploy*. Sonst sehen manche bis zu 30 Minuten einen Zertifikatsfehler, und bei `.app` lässt der sich nicht wegklicken.
 
 ### Die App gleich mit
 
@@ -88,42 +90,9 @@ Der Server liefert auch die App aus: `index.html`, `favicon.svg`, `manifest.webm
 
 Jede Datei hat einen ETag, einen Fingerabdruck ihres Inhalts. Der Browser fragt damit nach, ob sich etwas geändert hat. Ist die Datei gleich, antwortet der Server nur mit `304`, ohne Inhalt. Code (HTML, CSS, JS) fragt der Browser jedes Mal nach (`no-cache`), Schriften, Icons und das Vorschaubild erst nach einem Tag. Komprimieren (gzip) übernimmt der Proxy von Coolify.
 
-Nur in der Produktion (`backend.hexa-countdown.app`) leitet die Startseite auf https://hexa-countdown.app weiter. So gibt es nur eine Adresse, unter der man HEXA als App installiert, denn jede Adresse hat ihren eigenen Speicher. `/ws`, `/health` und die Dateien bleiben. Die Liste steht in `REDIRECT_HOSTS` in `server/main.js`.
+Unter `backend.hexa-countdown.app` leitet die Startseite auf https://hexa-countdown.app weiter. So gibt es nur eine Adresse, unter der man HEXA als App installiert, denn jede Adresse hat ihren eigenen Speicher. `/ws`, `/health` und die Dateien bleiben. Die Liste steht in `REDIRECT_HOSTS` in `server/main.js`. `www.hexa-countdown.app` leitet Coolify mit allen Pfaden weiter (*Direction*).
 
-Die App fragt beim Start `health` auf ihrer eigenen Adresse. Antwortet dort ein HEXA-Server, spielt sie über ihn. Sonst nimmt sie den festen Server `wss://backend.hexa-countdown.app/ws`, zum Beispiel unter hexa-countdown.app (GitHub Pages) oder aus der ZIP. Versionen vor 1.13.0 nutzten noch `wss://hexa.unpacked-dev.deno.net/ws`. Die Adresse gibt es seit dem Umzug nicht mehr.
-
-### Geplant: die Website von GitHub Pages hierher holen
-
-Im Moment liefert GitHub Pages die App unter hexa-countdown.app aus, nur der Online-Modus läuft hier. Künftig soll auch die Website von hier kommen. Dann gibt es nur noch einen Anbieter (ZAP-Hosting in Frankfurt, keine Übermittlung mehr in die USA), und App und Server kommen immer aus demselben Build.
-
-Der Code ist dafür fertig. Wie GitHub Pages liefert der Server das Vorschaubild aus und antwortet bei unveränderten Dateien mit `304`. Unter hexa-countdown.app findet die App den Server dann über `health` auf ihrer eigenen Adresse. Die Adresse bleibt gleich, Highscores, Einstellungen und installierte Apps bleiben also erhalten.
-
-**Was dabei passiert.** Solange der DNS-Eintrag nicht überall angekommen ist, landen manche bei GitHub Pages und manche schon hier. Das ist egal, beide liefern dieselbe App, und online spielen alle auf demselben Server. Heikel sind nur die Minuten zwischen der Änderung bei Spaceship und dem Zertifikat von Coolify. Wer in dieser Zeit schon hier landet, bekommt einen Zertifikatsfehler, der sich nicht wegklicken lässt (`.app` erlaubt nur HTTPS). Wer HEXA schon kennt, spielt dann aus der Kopie auf dem Gerät weiter. Darum vorher die TTL senken und die Schritte 2 bis 4 direkt nacheinander machen, zu einer ruhigen Zeit. Beim Umzug des Servers ([#16](https://github.com/unpacked-dev/hexa/issues/16)) war Online dabei aus, dort durfte es länger dauern.
-
-**Vorher** prüfen, dass der aktuelle Stand in der Produktion läuft: https://backend.hexa-countdown.app/docs/social-preview.png zeigt das Vorschaubild. CAA-Einträge gibt es bei `hexa-countdown.app` keine (Stand 23.10.2026), Let's Encrypt darf also ausstellen.
-
-1. **TTL senken, am Tag vorher oder mindestens 30 Minuten vor Schritt 2:** Bei Spaceship die TTL der Einträge `@` (A und AAAA) und `www` von 30 auf 5 Minuten setzen. Dann sehen nach dem Wechsel alle und auch Let's Encrypt nach spätestens 5 Minuten die neuen Einträge, statt nach 30.
-2. **DNS bei Spaceship ändern:**
-   - Alle Einträge zu GitHub löschen: die 4 A-Einträge `@` (`185.199.108.153` bis `185.199.111.153`), die 4 AAAA-Einträge `@` (`2606:50c0:8000::153` bis `2606:50c0:8003::153`) und den CNAME `www` (`unpacked-dev.github.io`). **Wichtig:** Bleiben die AAAA-Einträge stehen, landen alle mit IPv6 (etwa viele Handys im Mobilnetz) weiter bei GitHub.
-   - Neu: A `@` und A `*` auf die IP des Servers, dieselbe wie bei `backend`. `*` deckt `www` und alle anderen Subdomains ab, neue Subdomains brauchen dann nur noch Coolify. Das klappt nur, wenn es für den Namen keinen eigenen Eintrag gibt, darum muss der CNAME `www` weg. Keinen AAAA-Eintrag anlegen, der Server hat keine IPv6-Adresse im DNS.
-   - Mail- oder TXT-Einträge gibt es bei `hexa-countdown.app` nicht (Stand 23.10.2026), der Wildcard stört also nichts. Ausgedachte Subdomains landen am Server, Coolify antwortet dort mit 404.
-3. **Kurz warten:** Bis `dig +short hexa-countdown.app A @8.8.8.8` und `@1.1.1.1` (Google und Cloudflare) nur noch die IP des Servers zeigen und `dig +short hexa-countdown.app AAAA @8.8.8.8` nichts mehr. Mit gesenkter TTL sind das etwa 5 Minuten. Erst dann weiter, sonst scheitert in Schritt 4 das Zertifikat.
-4. **In Coolify** bei `hexa` → *Configuration*:
-   - *Domains*: `https://hexa-countdown.app,https://www.hexa-countdown.app,https://backend.hexa-countdown.app`
-   - *Direction*: *Redirect to non-www.*, damit `www` auf die Adresse ohne `www` weiterleitet.
-   - Speichern, dann *Redeploy*. Coolify holt die Zertifikate. Ist nach ein paar Minuten noch keins da, noch einmal *Redeploy*. Klappt es mehrmals nicht, eine Stunde warten: Nach mehreren Fehlversuchen blockt Let's Encrypt kurz.
-   - Standen die Domains schon vor dem DNS-Wechsel drin, reicht *Redeploy*. Erst jetzt kann Coolify die Zertifikate holen.
-5. **Prüfen:**
-   - `curl -sI https://hexa-countdown.app/` zeigt kein `server: GitHub.com` mehr, und das Zertifikat stimmt.
-   - https://hexa-countdown.app/health zeigt `{"app":"hexa",…}`. Unter GitHub Pages gab es die Adresse nicht.
-   - https://www.hexa-countdown.app leitet auf https://hexa-countdown.app weiter, https://backend.hexa-countdown.app weiterhin auch.
-   - Im Browser die App öffnen: Highscores sind noch da, ein Online-Spiel klappt.
-   - Mit [dnschecker.org](https://dnschecker.org/) für A und AAAA nachsehen, ob die Änderung überall angekommen ist.
-   - Danach bei Spaceship die TTL wieder auf 30 Minuten setzen.
-6. **GitHub Pages ausschalten, erst wenn kein Eintrag mehr auf GitHub zeigt:** im Repo unter *Settings* → *Pages* bei *Build and deployment* den Branch auf *None* stellen und speichern. In dieser Reihenfolge kann niemand anderes die Domain bei GitHub Pages für sich eintragen.
-7. **Aufräumen im Repo:** `CNAME` und `.nojekyll` löschen. Die Hinweise auf GitHub Pages in README, `server/README.md` (Tabelle oben, dieser Abschnitt), `js/config.js` und `docs/online-konzept.md` anpassen. Ein Eintrag im CHANGELOG, und in [#6](https://github.com/unpacked-dev/hexa/issues/6) und [#7](https://github.com/unpacked-dev/hexa/issues/7) fällt GitHub als Anbieter weg.
-
-Die alte Adresse `unpacked-dev.github.io/hexa` (bis Version 1.12) leitet danach nicht mehr weiter, sondern zeigt einen Fehler. Sie war nur bis zum 2. Oktober 2026 in Gebrauch.
+Die App fragt beim Start `health` auf ihrer eigenen Adresse. Antwortet dort ein HEXA-Server, spielt sie über ihn. Unter hexa-countdown.app ist das so, die App spielt dort über `wss://hexa-countdown.app/ws`. Sonst nimmt sie den festen Server `wss://backend.hexa-countdown.app/ws`, zum Beispiel aus der ZIP. Versionen vor 1.13.0 nutzten noch `wss://hexa.unpacked-dev.deno.net/ws`. Die Adresse gibt es seit Version 1.17.0 nicht mehr.
 
 ### Einstellungen über Umgebungsvariablen
 

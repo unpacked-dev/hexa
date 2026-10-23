@@ -1,6 +1,6 @@
 /* HEXA – Einstellungen. Hier lässt sich das Wichtigste ohne Programmieren anpassen.
    Gilt überall: für die App (lokal und online) und für den Server.
-   Nach einer Änderung: committen und auf main bringen. GitHub Pages und der Server (Coolify) übernehmen sie dann von selbst.
+   Nach einer Änderung: committen und auf main bringen. Der Server (Coolify) übernimmt sie dann von selbst, er liefert auch die App aus.
    Ein Test (tests/config.test.js) prüft, ob die Werte gültig sind: node --test
    Läuft im Browser (window.HexaConfig), in Node (Tests) und in Bun (Server). */
 (function (root) {

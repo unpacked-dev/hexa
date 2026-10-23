@@ -137,7 +137,7 @@ Die vollständigen Regeln mit Beispielen stehen in der App: im Hauptmenü unter 
 
 ## Loslegen
 
-**Im Browser:** [hexa-countdown.app](https://hexa-countdown.app/) öffnen und losspielen. Der Server für den Online-Modus läuft auf einem eigenen Server unter `backend.hexa-countdown.app`.
+**Im Browser:** [hexa-countdown.app](https://hexa-countdown.app/) öffnen und losspielen. App und Online-Modus kommen von einem eigenen Server in Frankfurt.
 
 **Lokal:** Repository klonen und `index.html` im Browser öffnen – fertig. Es gibt keinen Build-Schritt.
 
@@ -173,7 +173,7 @@ Das Wichtigste lässt sich ohne Programmieren in [`js/config.js`](js/config.js) 
 | `turnSeconds`, `countdownSeconds` | Online: Zeit pro Zug und für den Countdown |
 | `botDelays` | Tempo der Bots |
 
-Danach committen und auf `main` bringen. GitHub Pages und der Server (Coolify) übernehmen die Änderung von selbst. `node --test` prüft, ob die Werte gültig sind.
+Danach committen und auf `main` bringen. Der Server (Coolify) übernimmt die Änderung von selbst, er liefert auch die App aus. `node --test` prüft, ob die Werte gültig sind.
 
 ### Tastatur
 
@@ -223,7 +223,6 @@ hexa/
 ├── icons/                 # App-Icons für Home-Bildschirm
 ├── manifest.webmanifest   # macht HEXA installierbar
 ├── sw.js                  # Service Worker: HEXA startet auch ohne Internet
-├── CNAME                  # eigene Domain hexa-countdown.app für GitHub Pages, nicht löschen
 ├── tests/
 │   ├── rules.test.js      # Tests für die Wertung
 │   ├── lang.test.js       # prüft, dass beide Sprachen vollständig sind

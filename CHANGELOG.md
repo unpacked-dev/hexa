@@ -3,6 +3,16 @@
 Alle wichtigen Änderungen an HEXA: Countdown stehen hier.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), die Versionen folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [Unreleased]
+
+### Geändert
+
+- **App vom eigenen Server:** hexa-countdown.app kommt jetzt vom eigenen Server bei ZAP-Hosting in Frankfurt, nicht mehr von GitHub Pages. App und Online-Modus laufen damit beim selben Anbieter, ohne Umweg über die USA, und sind immer auf demselben Stand. Die Adresse bleibt gleich, Highscores, Einstellungen und installierte Apps bleiben also erhalten. Unveränderte Dateien lädt der Browser nicht neu, und das Vorschaubild für geteilte Links kommt mit. `www.hexa-countdown.app` leitet auf hexa-countdown.app weiter.
+
+### Entfernt
+
+- **Alte Adresse** `unpacked-dev.github.io/hexa`: Sie leitet nicht mehr auf hexa-countdown.app weiter, GitHub Pages ist abgeschaltet.
+
 ## [1.17.1] – 2026-10-23
 
 Neuer Tag, neues Spiel: Ein angefangenes Tagesspiel gilt nur an seinem Tag.

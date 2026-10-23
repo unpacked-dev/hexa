@@ -2,7 +2,7 @@
 
 > **Seit Version 1.8.0 ist der Online-Modus live:** Die App läuft unter [hexa-countdown.app](https://hexa-countdown.app/) (GitHub Pages), der Server unter [backend.hexa-countdown.app](https://backend.hexa-countdown.app/) (Deno Deploy, auch noch unter hexa.unpacked-dev.deno.net). Vorher auf echten Handys getestet. Offen aus Schritt 4 sind noch Impressum und Datenschutz ([#6](https://github.com/unpacked-dev/hexa/issues/6)), AVV ([#7](https://github.com/unpacked-dev/hexa/issues/7)) und ein Blick auf die Grenzen des kostenlosen Tarifs ([#9](https://github.com/unpacked-dev/hexa/issues/9)). Seit Version 1.12.0 spielen online auch Bots mit, der Server spielt sie selbst. Wie der Server arbeitet und welche Nachrichten es gibt, steht in [`server/README.md`](../server/README.md). Stand: 12. Oktober 2026.
 
-> **Seit Version 1.17.0** läuft der Server mit Bun und SQLite auf einem eigenen Server ([#16](https://github.com/unpacked-dev/hexa/issues/16)). Was hier über Deno Deploy, Deno KV und mehrere Instanzen steht, ist der Stand davor. Wie der Server heute arbeitet und wie er in Coolify eingerichtet wird, steht in [`server/README.md`](../server/README.md).
+> **Seit Version 1.17.0** läuft der Server mit Bun und SQLite auf einem eigenen Server ([#16](https://github.com/unpacked-dev/hexa/issues/16)). Seit dem 23. Oktober 2026 liefert er auch die App unter hexa-countdown.app aus, GitHub Pages ist abgeschaltet. Was hier über Deno Deploy, Deno KV, mehrere Instanzen und GitHub Pages steht, ist der Stand davor. Wie der Server heute arbeitet und wie er in Coolify eingerichtet wird, steht in [`server/README.md`](../server/README.md).
 
 ## Kurz gesagt
 
@@ -260,7 +260,7 @@ flowchart LR
   S2 <--> KV
 ```
 
-- **Eine WebSocket-Verbindung pro Gerät.** Alles läuft darüber: Lobby erstellen, beitreten, würfeln, eintragen. Es gibt keine Cookies und kein Login. Darum klappt es gleich von GitHub Pages, aus der ZIP-Version und aus der installierten App.
+- **Eine WebSocket-Verbindung pro Gerät.** Alles läuft darüber: Lobby erstellen, beitreten, würfeln, eintragen. Es gibt keine Cookies und kein Login. Darum klappt es von jeder Adresse, aus der ZIP-Version und aus der installierten App.
 - **Ein Eintrag pro Lobby in KV** mit dem ganzen Stand. Jede Änderung läuft so: lesen, prüfen, dann atomar schreiben (`atomic().check()`). Kommen zwei Aktionen gleichzeitig, gewinnt eine. Die andere wird neu geprüft. So kann niemand doppelt würfeln.
 - **Live über mehrere Instanzen:** Deno Deploy kann die Verbindungen auf mehrere Server-Instanzen verteilen. Lena und Tim hängen dann an verschiedenen. Jede Instanz beobachtet mit `kv.watch()` die Lobbys ihrer Verbindungen und schickt jede Änderung sofort weiter.
 - **Würfeln** mit derselben fairen Methode wie in der App (`crypto.getRandomValues`, ohne Verzerrung).
