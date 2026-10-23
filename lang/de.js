@@ -47,8 +47,7 @@
       rules: 'Regeln lesen',
       rulesSub: 'Ablauf, alle Felder und der Countdown, mit Beispielen',
       pip: 'Tutorial mit Pip',
-      pipSub: 'Eine geführte Runde zum Mitspielen',
-      pipSoon: 'Das Tutorial mit Pip kommt bald.',
+      pipSub: 'Eine geführte Runde zum Mitspielen, etwa 5 Minuten',
       back: 'Hauptmenü',
       backLabel: 'Zurück zum Hauptmenü',
     },
@@ -200,15 +199,16 @@
       u4: { name: 'Vierer', plural: 'Vieren' },
       u5: { name: 'Fünfer', plural: 'Fünfen' },
       u6: { name: 'Sechser', plural: 'Sechsen' },
-      pasch5: { name: 'Fünferpasch', req: 'mind. 5 gleiche' },
-      pasch6: { name: 'Sechserpasch', req: '6 gleiche' },
-      paare: { name: 'Drei Paare', req: '3 Paare' },
-      drillinge: { name: 'Zwei Drillinge', req: '2 Drillinge' },
-      kstrasse: { name: 'Kleine Straße', req: '5 in Folge' },
-      gstrasse: { name: 'Große Straße', req: '1 bis 6' },
-      tief: { name: 'Tiefflug', req: 'nur 1 bis 3' },
-      hoch: { name: 'Höhenflug', req: 'nur 4 bis 6' },
-      chance: { name: 'Chance', req: 'Augensumme' },
+      // req: kurz für den Block, long: ausführlich für die Infografik (Regeln und Tutorial)
+      pasch5: { name: 'Fünferpasch', req: 'mind. 5 gleiche', long: 'mindestens 5 gleiche' },
+      pasch6: { name: 'Sechserpasch', req: '6 gleiche', long: '6 gleiche' },
+      paare: { name: 'Drei Paare', req: '3 Paare', long: '3 Paare (je 2 gleiche)' },
+      drillinge: { name: 'Zwei Drillinge', req: '2 Drillinge', long: '2 Drillinge (je 3 gleiche)' },
+      kstrasse: { name: 'Kleine Straße', req: '5 in Folge', long: '5 in Folge: 1-2-3-4-5 oder 2-3-4-5-6' },
+      gstrasse: { name: 'Große Straße', req: '1 bis 6', long: '1-2-3-4-5-6' },
+      tief: { name: 'Tiefflug', req: 'nur 1 bis 3', long: 'jeder Würfel zeigt 1, 2 oder 3' },
+      hoch: { name: 'Höhenflug', req: 'nur 4 bis 6', long: 'jeder Würfel zeigt 4, 5 oder 6' },
+      chance: { name: 'Chance', req: 'Augensumme', long: 'keine Voraussetzung (im Beispiel 26)' },
     },
 
     quick: {
@@ -530,6 +530,82 @@
       },
     },
 
+    tut: {
+      title: 'Tutorial',
+      label: 'Pip erklärt das Spiel',
+      you: 'Du',
+      bar: 'Tutorial · Zug {n} von {total}',
+      barMid: 'Tutorial · {n}/{total}',
+      barShort: 'Zug {n}/{total}',
+      barDone: 'Tutorial geschafft',
+      step: 'Zug {n} von {total}',
+      yourTurn: 'Du bist dran',
+      entered: 'Eingetragen.',
+      forYou: 'für dich',
+      next: 'Weiter',
+      go: 'Los geht’s',
+      skip: 'Überspringen',
+      skipLabel: 'Tutorial beenden',
+      skipped: 'Tutorial beendet. Über „Spiel lernen“ startest du es jederzeit neu.',
+      notOnline: 'Während eines Online-Spiels geht das Tutorial nicht. Du findest es im Hauptmenü unter „Spiel lernen“.',
+      played: 'gespielt: {pts}',
+      hintTitle: 'Neu hier?',
+      hintSub: 'Ich bin Pip und zeig dir HEXA in 5 Minuten.',
+      hintHide: 'Hinweis ausblenden',
+      try: 'Lieber ausprobieren? Spiel eine Runde mit Pip.',
+      endLocal: 'Lokal spielen',
+      endOnline: 'Online spielen',
+      endAgain: 'Nochmal ansehen',
+      // Die Schritte stehen in js/tutorial.js, die Würfe dort sind fest. {up}, {left}, {low}, {cd} und {total} kommen aus dem Block.
+      s: {
+        hello: '<b>Hallo, ich bin Pip!</b> Ich zeig dir HEXA in einer kurzen Runde. Du würfelst mit 6 Würfeln und trägst in jedem Zug genau ein Feld im Block ein. Ein ganzes Spiel hat 15 Runden. Ziel: möglichst viele Punkte.',
+        roll1: 'Los geht’s mit dem ersten Zug. Tippe auf <b>Würfeln</b>.',
+        hold1: 'Drei Fünfen! Tippe sie an, dann bleiben sie liegen. Die anderen würfelst du gleich noch mal.',
+        roll1b: 'Pro Zug hast du bis zu <b>3 Würfe</b>. Würfle die anderen drei noch mal.',
+        hold1b: 'Noch eine Fünf! Leg sie auch zur Seite.',
+        roll1c: 'Jetzt der letzte Wurf.',
+        pick1: 'Vier Fünfen. Hier siehst du, was jedes freie Feld jetzt bringt. Tippe auf <b>Fünfer</b>: 4 × 5 = 20 Punkte.',
+        enter1: 'Tippe auf <b>Eintragen</b>. Pro Zug kommt genau ein Feld dran, und jedes Feld nur einmal im Spiel.',
+        toBlock: 'Eingetragen! Schau es dir im <b>Block</b> an.',
+        upper: 'Da steht deine 20. Im <b>oberen Block</b> zählen nur die passenden Augen. Einser, Zweier, Dreier, Vierer und Sechser gehen genauso.',
+        bonus: 'Hast du oben mindestens <b>70 Punkte</b>, gibt es <b>40 Bonus</b> dazu. Jede Zahl dreimal reicht nur für 63. Du brauchst also auch mal vier gleiche.',
+        toDice: 'Weiter mit Zug 2. Tippe auf <b>Würfel</b>.',
+        roll2: 'Zug 2. Würfle!',
+        hold2: 'Fast eine Straße, es fehlen nur 1 und 4. Leg 2, 3, 5 und 6 zur Seite.',
+        roll2b: 'Würfle die beiden anderen noch mal.',
+        straight: '1 bis 6, eine <b>Große Straße</b>! Den dritten Wurf brauchst du nicht. Früher aufhören ist erlaubt.',
+        pick2: 'Die Straße zählt auch als Kleine Straße, bringt dort aber nur 25. Tippe auf <b>Große Straße</b>: 40 Punkte.',
+        enter2: 'Und eintragen.',
+        lower: 'Im <b>unteren Block</b> brauchst du Kombinationen. Klappt eine, gibt es feste Punkte. Bei der Chance zählen alle Augen. Hier sind alle 9 Felder:',
+        roll3: 'Zug 3. Würfle!',
+        hold3: 'Lauter hohe Zahlen. Beim <b>Höhenflug</b> muss jeder Würfel 4, 5 oder 6 zeigen. Leg 4, 5, 6 und 6 zur Seite.',
+        roll3b: 'Würfle die 2 und die 1 noch mal.',
+        hold3b: 'Die 5 passt, leg sie dazu. Die 3 würfelst du noch mal.',
+        roll3c: 'Letzter Wurf. Du brauchst eine 4, 5 oder 6.',
+        miss: 'Eine 2, schade. Der Höhenflug klappt diesmal nicht.',
+        zeros: 'Tippe auf <b>Mit 0 Punkten streichen</b>. Da stehen die Felder, die dir jetzt nichts bringen.',
+        strike: 'Hier steht auch der Höhenflug mit 0. Tippst du so ein Feld an, ist es gestrichen und für den Rest des Spiels weg.',
+        pick3: 'Zum Glück gibt es die <b>Chance</b>. Sie nimmt jeden Wurf und zählt alle Augen: 28 Punkte. Tippe drauf.',
+        enter3: 'Tippe auf <b>Eintragen</b>.',
+        roll4: 'Zug 4, der letzte im Tutorial. Würfle!',
+        unlocked: '<b>Vier Vieren im ersten Wurf!</b> Damit ist der <b>Countdown</b> frei, ein Bonusspiel nach deinem Zug. Erst spielst du den Zug ganz normal zu Ende.',
+        hold4: 'Leg die Vieren zur Seite, vielleicht kommt noch eine.',
+        roll4b: 'Würfle die beiden anderen noch mal.',
+        pick4: 'Fünf Vieren, ein <b>Fünferpasch</b>! Der bringt 40 Punkte, bei den Vierern wären es nur 20.',
+        enter4: 'Eintragen, dann startet der Countdown.',
+        cd: 'Im <b>Countdown</b> zählst du von 6 bis 1 herunter. Pro Stufe hast du genau einen Wurf, mit so vielen Würfeln, wie die gesuchte Zahl zeigt.',
+        cd1: 'Stufe 1: Du brauchst eine 6 und würfelst mit 6 Würfeln.',
+        cd2: 'Treffer, 10 Punkte! Die 6 liegt zur Seite. Stufe 2: eine 5, mit 5 Würfeln.',
+        cd3: 'Wieder ein Treffer! Stufe 3: eine 4, mit 4 Würfeln.',
+        cdEnd: 'Keine 4 dabei, der Countdown ist vorbei. Zwei Stufen sind 20 Punkte. Tippe auf <b>Eintragen</b>.',
+        toBlock2: 'Das waren alle Züge. Zum Schluss ein Blick in den <b>Block</b>.',
+        sumUpper: 'Oben hast du {up} Punkte. Bis zum Bonus fehlen noch {left}, das zeigt die Zeile Bonus.',
+        sumLower: 'Unten sind es {low} Punkte. Der Countdown zählt extra, hier {cd} Punkte. Für den Bonus zählt er nicht.',
+        total: 'Alles zusammen ist dein <b>Endstand: {total} Punkte</b>. In einem ganzen Spiel mit 15 Runden sind rund 300 drin.',
+        done: '<b>Jetzt kannst du HEXA!</b> Spiel allein, mit anderen an einem Gerät oder online. Die Regeln findest du im Spiel jederzeit im Tab Regeln.',
+      },
+    },
+
     settings: {
       title: 'Einstellungen',
       design: 'Design',
@@ -655,17 +731,7 @@
 
           <h4>Unterer Block</h4>
           <p>Hier brauchst du bestimmte Kombinationen. Klappt es, gibt es feste Punkte – nur bei der Chance zählt die Augensumme.</p>
-          <div class="fields">
-            <div class="fitem"><span class="fn">Fünferpasch</span><span class="fp">40</span><span class="fr">mindestens 5 gleiche</span><span class="dice-row" data-dice="444442"></span></div>
-            <div class="fitem"><span class="fn">Sechserpasch</span><span class="fp">75</span><span class="fr">6 gleiche</span><span class="dice-row" data-dice="555555"></span></div>
-            <div class="fitem"><span class="fn">Drei Paare</span><span class="fp">30</span><span class="fr">3 Paare (je 2 gleiche)</span><span class="dice-row" data-dice="224455"></span></div>
-            <div class="fitem"><span class="fn">Zwei Drillinge</span><span class="fp">40</span><span class="fr">2 Drillinge (je 3 gleiche)</span><span class="dice-row" data-dice="333666"></span></div>
-            <div class="fitem"><span class="fn">Kleine Straße</span><span class="fp">25</span><span class="fr">5 in Folge: 1-2-3-4-5 oder 2-3-4-5-6</span><span class="dice-row" data-dice="123345"></span></div>
-            <div class="fitem"><span class="fn">Große Straße</span><span class="fp">40</span><span class="fr">1-2-3-4-5-6</span><span class="dice-row" data-dice="123456"></span></div>
-            <div class="fitem"><span class="fn">Tiefflug</span><span class="fp">25</span><span class="fr">jeder Würfel zeigt 1, 2 oder 3</span><span class="dice-row" data-dice="112333"></span></div>
-            <div class="fitem"><span class="fn">Höhenflug</span><span class="fp">25</span><span class="fr">jeder Würfel zeigt 4, 5 oder 6</span><span class="dice-row" data-dice="444566"></span></div>
-            <div class="fitem"><span class="fn">Chance</span><span class="fp">Augensumme</span><span class="fr">keine Voraussetzung (im Beispiel 26)</span><span class="dice-row" data-dice="234566"></span></div>
-          </div>
+          <div class="fields" data-fields></div>
           <h4>Gut zu wissen</h4>
           <ul>
             <li>Ein <b>Vierling</b> zählt bei den Drei Paaren als zwei Paare. 4-4-4-4-2-2 ist also gültig.</li>

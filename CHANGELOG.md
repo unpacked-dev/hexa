@@ -3,6 +3,19 @@
 Alle wichtigen Änderungen an HEXA: Countdown stehen hier.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), die Versionen folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [Unreleased]
+
+### Neu
+
+- **Tutorial „Spiel lernen“ mit Pip** ([#3](https://github.com/unpacked-dev/hexa/issues/3)): Eine geführte Runde mit 4 Zügen und festen Würfen, bei jedem Durchgang gleich, etwa 5 Minuten. Pip ist das Sechseck aus dem Logo mit Gesicht, die Augen sind zwei Würfelaugen. Pip erklärt alles an der echten Oberfläche und zeigt mit dem Arm aufs Ziel: würfeln und halten, bis zu 3 Würfe, eintragen bei den Fünfern, der Bonus ab 70, die Große Straße, alle 9 unteren Felder als Übersicht, „Mit 0 Punkten streichen“, die Chance als Rettung, ein Fünferpasch und zum Schluss der Countdown. Danach ein Rundgang durch den Block mit Summen, Bonus und Endstand. Der Rest ist abgedunkelt und gesperrt, auch für Leertaste und 1 bis 6. Überspringen geht jederzeit, oben steht „Tutorial · Zug 1 von 4“. Am Ende geht es weiter mit „Lokal spielen“, „Online spielen“ oder „Nochmal ansehen“. Das Tutorial hat einen eigenen Spielstand: Es wird nicht gespeichert, kommt nicht in die Highscores, und ein pausiertes Spiel bleibt unberührt. Deutsch und Englisch, hell und dunkel, mit Screenreader-Ansage und weniger Bewegung bei „Bewegung reduzieren“.
+- **Hinweis beim ersten Öffnen:** Im Hauptmenü steht „Neu hier? Ich bin Pip und zeig dir HEXA in 5 Minuten.“, solange noch kein Spiel lief. Mit ✕ ist er für immer weg, ebenso, sobald das Tutorial einmal lief. Der Hinweis zum Installieren kommt danach.
+- **Lieber ausprobieren?** Oben in den Regeln startet ein Knopf das Tutorial, im Spiel wie auf der Seite aus dem Hauptmenü.
+
+### Geändert
+
+- **Spiel lernen:** Das Tutorial mit Pip steht jetzt oben im Fenster, „Bald verfügbar“ ist weg.
+- **Regeln:** Die Übersicht der unteren Felder kommt aus einer Stelle (`lowerFieldsHTML` in `js/app.js`), das Tutorial zeigt dieselbe. Die ausführlichen Voraussetzungen stehen dafür als `fields.*.long` in den Sprachdateien.
+
 ## [1.17.2] – 2026-10-23
 
 HEXA kommt komplett vom eigenen Server in Frankfurt, GitHub Pages ist abgeschaltet.

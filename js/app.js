@@ -1,6 +1,7 @@
 /* HEXA – App: Startbildschirm, Spieler, Würfel, Spielblock, Countdown, Highscores, Bots.
    Braucht js/config.js (window.HexaConfig), js/i18n.js (window.HexaI18n, Texte aus lang/*.js),
-   js/rules.js (window.HexaRules), js/bot.js (window.HexaBot), js/daily.js (window.HexaDaily) und js/sound.js (window.HexaSound). */
+   js/rules.js (window.HexaRules), js/bot.js (window.HexaBot), js/daily.js (window.HexaDaily), js/sound.js (window.HexaSound)
+   und js/tutorial.js (window.HexaTutorial). */
 (() => {
   'use strict';
 
@@ -8,6 +9,7 @@
   const Sound = window.HexaSound;
   const Bot = window.HexaBot;
   const Daily = window.HexaDaily;
+  const Tut = window.HexaTutorial;
   const Config = window.HexaConfig;
   const I18n = window.HexaI18n;
   const tr = I18n.t;
@@ -52,10 +54,7 @@
     copy: svg('<rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>'),
     rules: svg('<path d="M5 4.5A1.5 1.5 0 0 1 6.5 3H19v15H6.5A1.5 1.5 0 0 0 5 19.5z"/><path d="M5 19.5A1.5 1.5 0 0 0 6.5 21H19"/><path d="M9 7.5h6"/><path d="M9 11h4"/>'),
     users: svg('<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><path d="M16 3.128a4 4 0 0 1 0 7.744"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><circle cx="9" cy="7" r="4"/>'),
-    pip: '<svg class="pip-face" viewBox="0 0 40 40" aria-hidden="true"><path class="pf-body" d="M20 3 34.7 11.5v17L20 37 5.3 28.5v-17z"/>'
-      + '<ellipse class="pf-eye" cx="14.3" cy="17.6" rx="3.8" ry="4.5"/><ellipse class="pf-eye" cx="25.7" cy="17.6" rx="3.8" ry="4.5"/>'
-      + '<circle class="pf-pupil" cx="14.3" cy="17.9" r="2.2"/><circle class="pf-pupil" cx="25.7" cy="17.9" r="2.2"/>'
-      + '<path class="pf-line" d="M16.7 24.5Q20 27.8 23.3 24.5"/></svg>',
+    pip: Tut.pip('face', 'pip-face', true),   // Pip aus js/tutorial.js, nur der Kopf
   };
   // Kleines Roboter-Zeichen vor Bot-Namen
   const botMark = ICON.bot.replace('<svg ', '<svg class="bot-ic" ');
@@ -96,8 +95,10 @@
     }
   }
 
-  // Tagesspiel: Würfel aus der Tabelle des Tages (js/daily.js) für diesen Zug, Wurf und Platz. Sonst fair zufällig.
+  // Tagesspiel: Würfel aus der Tabelle des Tages (js/daily.js) für diesen Zug, Wurf und Platz.
+  // Tutorial: die Zahlen, die der Schritt vorher festgelegt hat (js/tutorial.js). Sonst fair zufällig.
   function dieAt(slot, rollNo) {
+    if (isTut()) return tutDie();
     const t = state.dice.ownerFilled;
     return isDaily() && t < NF ? Daily.die(dailyMeta.day, t, rollNo, slot) : d6();
   }
@@ -159,8 +160,9 @@
       return freshState();
     }
   }
-  // Gespeichert wird nur das lokale Spiel. Online kommt der Stand vom Server.
+  // Gespeichert wird nur das lokale Spiel. Online kommt der Stand vom Server, das Tutorial wird nie gespeichert.
   function save() {
+    if (isTut()) return;
     if (isDaily()) { saveDaily(); return; }
     if (state !== local) return;
     syncHistory();
@@ -212,6 +214,18 @@
   }
   const expiredNote = day => tr('daily.expired', { date: fmtDay(day) });
   const droppedAtStart = dropExpiredDaily();   // Den Hinweis gibt es, sobald die App steht.
+
+  /* ---------- Tutorial (Zustand) ---------- */
+  // Eigener Spielstand wie beim Tagesspiel, nur im Speicher: Ein pausiertes Spiel bleibt unberührt,
+  // nichts wird gespeichert, nichts kommt in die Highscores. Die Person heißt „Du“.
+  let tutState = null;
+  let tutQueue = [];     // die nächsten Augenzahlen, festgelegt vom aktuellen Schritt
+  const isTut = () => !!tutState && state === tutState;
+  const tutDie = () => (tutQueue.length ? tutQueue.shift() : d6());
+  // Meldung an das Tutorial, etwa „gewürfelt“ oder „eingetragen“. Es entscheidet, ob der Schritt geschafft ist.
+  const tutEvent = (type, data) => { if (isTut()) Tut.event(type, data); };
+  // Im Tutorial ist nur das Gezeigte klickbar, auch über die Tastatur.
+  const tutAllows = target => !isTut() || Tut.allows(target);
   let atStart = true;   // Beim Öffnen kommt zuerst der Startbildschirm.
   let rulesOpen = false; // Regeln als eigene Seite, aus dem Hauptmenü über „Spiel lernen“
 
@@ -367,7 +381,8 @@
   // und die Ansicht eingeschaltet wurde.
   const wideMQ = window.matchMedia ? window.matchMedia(WIDE) : null;
   const canDuo = () => !!(wideMQ && wideMQ.matches);
-  const duoOn = () => canDuo() && !!state.duo && state.started && PAIR.indexOf(state.tab) >= 0;
+  // Im Tutorial immer ein Tab nach dem anderen, Pip zeigt dabei auf die Tabs.
+  const duoOn = () => canDuo() && !!state.duo && state.started && PAIR.indexOf(state.tab) >= 0 && !isTut();
   let shownDuo = false;
 
   // Startbildschirm, Spieler-Auswahl oder laufendes Spiel mit Leiste unten
@@ -406,12 +421,18 @@
     const fit = (l, m, s) => `<span class="st-l">${l}</span><span class="st-m">${m}</span><span class="st-s">${s}</span>`;
     const v = { r: roundNo(), total: NF };
     if (!state.players.length || !state.started) el.innerHTML = '';
-    else if (isOver()) el.innerHTML = fit(tr('top.overLong'), tr('top.overMid'), tr('top.overShort'));
+    else if (isTut()) {
+      // „Tutorial · Zug 1 von 4“, vorher nur „Tutorial“, beim Rundgang am Ende „Geschafft“
+      const n = Tut.turn();
+      const t = { n, total: Tut.TURNS };
+      el.innerHTML = n >= 1 && n <= Tut.TURNS ? fit(tr('tut.bar', t), tr('tut.barMid', t), tr('tut.barShort', t))
+        : fit(tr(n ? 'tut.barDone' : 'tut.title'), tr(n ? 'tut.barDone' : 'tut.title'), tr('tut.title'));
+    } else if (isOver()) el.innerHTML = fit(tr('top.overLong'), tr('top.overMid'), tr('top.overShort'));
     else el.innerHTML = fit(tr('top.roundLong', v), tr('top.roundMid', v), tr('top.roundShort', v));
     // Online zeigt der Punkt nur den eigenen Countdown an, wenn sein Fenster zu ist.
     $('#cdBadge').hidden = online() ? !(myTurn() && cdPending() && $('#cd').hidden) : !cdPending();
     // Breite Bildschirme: Im aktiven Tab (Würfel oder Block) holt ein Knopf die andere Ansicht dazu.
-    const wide = canDuo();
+    const wide = canDuo() && !isTut();
     const duo = duoOn();
     $$('.tab-split').forEach(b => {
       const show = wide && b.dataset.for === state.tab;
@@ -506,7 +527,7 @@
     if (b) return { label: tr('bot.button', { name: b.name }), sub: botWaitText(b), off: true };
     if (turnDone()) {
       const cp = currentPlayer();
-      return { label: tr('dice.roll'), sub: cp ? tr('dice.nextTurn', { name: cp.name }) : tr('dice.newTurn'), off: false };
+      return { label: tr('dice.roll'), sub: cp && !isTut() ? tr('dice.nextTurn', { name: cp.name }) : tr('dice.newTurn'), off: false };
     }
     if (!d.vals || !d.rolls) return { label: tr('dice.roll'), sub: tr('dice.allSix'), off: false };
     if (d.rolls >= 3) {
@@ -557,6 +578,8 @@
     else who = tr('dice.turn', { name: cur.name });
 
     if (isDaily() && cur) who = tr(dailyMeta.practice ? 'daily.practiceBar' : 'daily.bar', { date: fmtDay(dailyMeta.day) });
+    // Im Tutorial heißt die Person „Du“: „Du bist dran“ statt „Du ist dran“
+    if (isTut() && cur) { who = tr('tut.yourTurn'); sub = done ? tr('tut.entered') : ''; }
 
     // Im Nebeneinander steht der Kasten zum Spielende nur über dem Block.
     const endHTML = gameDone() && !duoOn() ? endCard(tr('end.noteDice')) : '';
@@ -623,7 +646,7 @@
       const zero = opts.filter(o => o.p === 0);
       const btn = o => `<button type="button" class="opt${o.f.type === 'fixed' && o.p > 0 ? ' hit' : ''}" data-act="quick" data-key="${o.f.key}"><span>${fieldName(o.f.key)}</span><b>${o.p}</b></button>`;
       entryHTML = `<section class="entry" aria-label="${esc(tr('dice.entryLabel'))}">
-          <h2>${esc(tr('dice.entryTitle', { name: owner.name }))}</h2>
+          <h2>${esc(isTut() ? tr('dice.entryLabel') : tr('dice.entryTitle', { name: owner.name }))}</h2>
           ${good.length ? `<div class="opts">${good.map(btn).join('')}</div>` : `<p class="muted">${tr('dice.noPoints')}</p>`}
           ${zero.length ? `<details class="zeros"${good.length ? '' : ' open'}><summary>${ICON.chev}${tr('dice.zeros', { n: zero.length })}</summary><div class="opts">${zero.map(btn).join('')}</div></details>` : ''}
         </section>`;
@@ -676,7 +699,7 @@
     }
     const endHTML = gameDone() ? endCard(tr('end.noteBlock')) : '';
     root.innerHTML = `${endHTML}${ownSkipHTML()}${padHTML()}
-      <p class="pad-hint">${tr(ownDice() ? 'online.ownHint' : online() ? 'online.blockHint' : 'block.hint')}</p>`;
+      ${isTut() ? '' : `<p class="pad-hint">${tr(ownDice() ? 'online.ownHint' : online() ? 'online.blockHint' : 'block.hint')}</p>`}`;
     padSync(root, true);
   }
 
@@ -705,7 +728,7 @@
     const val = (p, html, extra) => `<div class="p-val${turn(p)}${extra ? ' ' + extra : ''}">${html}</div>`;
     // Online: Punkt für verbunden oder nicht, und „du“ an der eigenen Spalte
     const padName = p => {
-      if (ro) return `<div class="pad-name${turn(p)}" title="${esc(p.name)}">${p.bot ? botMark : ''}${esc(p.name)}</div>`;
+      if (ro || isTut()) return `<div class="pad-name${turn(p)}" title="${esc(p.name)}">${p.bot ? botMark : ''}${esc(p.name)}</div>`;
       const o = online() ? onlinePlayer(p.id) : null;
       if (!o) return `<button type="button" class="pad-name${turn(p)}" data-act="player" data-pid="${p.id}" title="${esc(p.name)}" aria-label="${esc(tr(p.bot ? 'block.botName' : 'block.editName', { name: p.name }))}">${p.bot ? botMark : ''}${esc(p.name)}</button>`;
       const me = p.id === room.you;
@@ -715,18 +738,19 @@
     };
 
     let rows = `<div class="p-sec"><span>${tr('block.upper')}</span></div>`;
-    UPPER.forEach(f => { rows += `<div class="p-row">${lab(fieldName(f.key), '', miniDie(f.n))}${P.map(p => cell(p, f)).join('')}</div>`; });
-    rows += `<div class="p-row sum">${lab(tr('block.sumUpper'))}${P.map(p => val(p, T[p.id].upper)).join('')}</div>`;
-    rows += `<div class="p-row sum">${lab(tr('block.bonus'), tr('block.bonusReq'))}${P.map(p => {
+    // data-row: damit das Tutorial auf einzelne Zeilen zeigen kann
+    UPPER.forEach(f => { rows += `<div class="p-row" data-row="${f.key}">${lab(fieldName(f.key), '', miniDie(f.n))}${P.map(p => cell(p, f)).join('')}</div>`; });
+    rows += `<div class="p-row sum" data-row="sumUpper">${lab(tr('block.sumUpper'))}${P.map(p => val(p, T[p.id].upper)).join('')}</div>`;
+    rows += `<div class="p-row sum" data-row="bonus">${lab(tr('block.bonus'), tr('block.bonusReq'))}${P.map(p => {
       const t = T[p.id];
       if (t.bonus) return val(p, '<span class="mk">+' + BONUS_PTS + '</span>');
       if (t.upperCount < UPPER.length) return val(p, '<span class="p-note">' + tr('block.bonusLeft', { n: BONUS_MIN - t.upper }) + '</span>');
       return val(p, '0', 'muted');
     }).join('')}</div>`;
     rows += `<div class="p-sec"><span>${tr('block.lower')}</span></div>`;
-    LOWER.forEach(f => { rows += `<div class="p-row">${lab(fieldName(f.key), tr('fields.' + f.key + '.req'))}${P.map(p => cell(p, f)).join('')}</div>`; });
-    rows += `<div class="p-row sum">${lab(tr('block.sumLower'))}${P.map(p => val(p, T[p.id].lower)).join('')}</div>`;
-    rows += `<div class="p-row">${lab(tr('block.countdown'), tr('block.countdownReq'))}${P.map(p => {
+    LOWER.forEach(f => { rows += `<div class="p-row" data-row="${f.key}">${lab(fieldName(f.key), tr('fields.' + f.key + '.req'))}${P.map(p => cell(p, f)).join('')}</div>`; });
+    rows += `<div class="p-row sum" data-row="sumLower">${lab(tr('block.sumLower'))}${P.map(p => val(p, T[p.id].lower)).join('')}</div>`;
+    rows += `<div class="p-row" data-row="cd">${lab(tr('block.countdown'), tr('block.countdownReq'))}${P.map(p => {
       const t = T[p.id];
       const has = t.list.length > 0;
       const label = tr('block.cellValue', { name: p.name, field: tr('block.countdown'), pts: trPts(t.cd) });
@@ -735,7 +759,7 @@
       if (ro) return `<div class="${cls}" role="img" aria-label="${esc(label)}">${inner}</div>`;
       return `<button type="button" class="${cls}" data-act="cd-cell" data-pid="${p.id}" aria-label="${esc(label)}">${inner}</button>`;
     }).join('')}</div>`;
-    rows += `<div class="p-row total">${lab(tr('block.total'))}${P.map(p => val(p, T[p.id].total, started && best > 0 && T[p.id].total === best ? 'is-lead' : '')).join('')}</div>`;
+    rows += `<div class="p-row total" data-row="total">${lab(tr('block.total'))}${P.map(p => val(p, T[p.id].total, started && best > 0 && T[p.id].total === best ? 'is-lead' : '')).join('')}</div>`;
 
     return `
       <div class="pad${ro ? ' pad-ro' : ''}" style="--n:${P.length};--pcols:repeat(${P.length}, minmax(var(--cw), 1fr))">
@@ -817,7 +841,7 @@
       foot = `<button type="button" class="btn btn-marker btn-roll" data-act="cd-roll"><span class="rl">${tr('cd.roll')}</span><small>${tr('cd.rollSub', { n: target })}</small></button>`;
     } else if (g.pts > 0 && owner) {
       // Die Punkte gehören der Person, die den Countdown gewürfelt hat. Eine Auswahl gibt es nicht.
-      foot = `<div class="cd-res"><div class="cd-big">${g.pts}</div><p>${esc(tr('cd.resultFor', { name: owner.name }))}</p></div>
+      foot = `<div class="cd-res"><div class="cd-big">${g.pts}</div><p>${esc(isTut() ? tr('cd.result') : tr('cd.resultFor', { name: owner.name }))}</p></div>
         <button type="button" class="btn btn-marker" data-act="cd-save">${tr('cd.enter')}</button>`;
     } else {
       // Nichts geschafft, oder ohne Person gewürfelt (etwa nach dem Spielende): nur das Ergebnis
@@ -827,7 +851,7 @@
 
     box.innerHTML = `
       <div class="cd-head"><h2 class="cd-title">${tr('cd.title')}</h2><button type="button" class="cd-x" data-act="cd-close" aria-label="${esc(tr('cd.close'))}">${ICON.x}</button></div>
-      <div class="cd-sub"><span>${owner ? esc(tr('cd.for', { name: owner.name })) : tr('cd.intro')}</span><span>${tr('cd.pts', { n: g.pts })}${online() && g.status === 'play' && !(owner && owner.bot) ? ' · <span class="cd-time" role="timer"></span>' : ''}</span></div>
+      <div class="cd-sub"><span>${owner ? esc(isTut() ? tr('tut.forYou') : tr('cd.for', { name: owner.name })) : tr('cd.intro')}</span><span>${tr('cd.pts', { n: g.pts })}${online() && g.status === 'play' && !(owner && owner.bot) ? ' · <span class="cd-time" role="timer"></span>' : ''}</span></div>
       <div class="hexes" role="list" aria-label="${esc(tr('cd.stages'))}">${hexes}</div>
       <div class="cd-msg" aria-live="polite">${msg}</div>
       <div class="cd-stage">
@@ -918,9 +942,11 @@
   let toastTimer = 0;
   let undoSnap = null;
   // Im Tagesspiel gibt es kein Rückgängig: Sonst ließe sich ein Zug mit Blick auf die nächsten Würfe neu wählen.
-  const snapshot = () => (isDaily() ? null : JSON.stringify(state));
+  // Im Tutorial auch nicht, da sagt Pip, wie es weitergeht.
+  const snapshot = () => (isDaily() || isTut() ? null : JSON.stringify(state));
 
   function toast(msg, snap) {
+    if (isTut()) return;   // Im Tutorial spricht Pip, Meldungen lägen nur über der Blase.
     const el = $('#toast');
     $('.t-msg', el).textContent = msg;
     undoSnap = snap || null;
@@ -1029,7 +1055,7 @@
     sh.addEventListener('touchstart', e => {
       swipe = null;
       if (e.touches.length !== 1 || wrap.classList.contains('closing')) return;
-      if (getComputedStyle(grab).display === 'none') return;
+      if (getComputedStyle(grab).display === 'none' || isTut()) return;
       if (e.target.closest('input, textarea, select')) return;
       const t = e.touches[0];
       swipe = { x0: t.clientX, y0: t.clientY, dy: 0, on: false, y: t.clientY, t: e.timeStamp, v: 0 };
@@ -1200,6 +1226,7 @@
       renderDice();
       renderTop();
       landed(next, before, wasStraight, first && !!d.cd);
+      tutEvent('rolled');
     }, kind, dice.map(x => x.v));
   }
 
@@ -1234,6 +1261,7 @@
     patchRoll();
     vibrate(6);
     Sound.hold(d.held[i]);
+    tutEvent('held');
   }
 
   function askCountdown() {
@@ -1278,7 +1306,7 @@
     const name = fieldName(key);
     openSheet(`
       <h3 class="s-title">${name}</h3>
-      <p class="s-who">${esc(tr('quick.for', { name: owner.name }))}</p>
+      <p class="s-who">${esc(isTut() ? tr('tut.forYou') : tr('quick.for', { name: owner.name }))}</p>
       <div class="bigpts${pts ? '' : ' zero'}"><span class="hand">${pts}</span><span>${pts ? tr('quick.pts', { n: pts }) : tr('quick.zero')}</span></div>
       <div class="s-acts split">
         <button type="button" class="btn btn-line" data-act="sheet-close">${tr('common.cancel')}</button>
@@ -1302,8 +1330,10 @@
         if (!wasOver && isOver()) Sound.fanfare(0.35);
         toast(pts ? tr('quick.entered', { field: name, n: pts }) : tr('quick.struck', { field: name }), snap);
         if (cdPending()) autoCountdown();
+        tutEvent('entered', key);
       },
     }, name);
+    tutEvent('quick', key);
   }
 
   // Die Werte zum Antippen für ein Feld, wie auf dem Papierblock: oben die Würfel, sonst geschafft oder gestrichen,
@@ -1480,7 +1510,7 @@
     if (!g || g.status !== 'play' || rolling || (!byBot && isBot(g.owner))) return;
     const n = 6 - g.stage;
     const t = state.dice.ownerFilled;
-    const vals = Array.from({ length: n }, (_, i) => (isDaily() && t < NF ? Daily.cd(dailyMeta.day, t, g.stage, i) : d6()));
+    const vals = Array.from({ length: n }, (_, i) => (isTut() ? tutDie() : isDaily() && t < NF ? Daily.cd(dailyMeta.day, t, g.stage, i) : d6()));
     const hit = vals.indexOf(n);
     g.last = vals;
     g.hit = hit;
@@ -1513,6 +1543,7 @@
         confetti($('#cd .cd-dice'));
       } else if (hit >= 0) Sound.cdHit(g.stage);
       else Sound.cdMiss();
+      tutEvent('cdRolled');
     }, kind, vals);
   }
 
@@ -1533,6 +1564,7 @@
     if (pid) Sound.score(g.pts);
     if (pid) toast(tr('cd.saved', { pts: trPts(g.pts), name: playerById(pid).name }), snap);
     else toast(tr('cd.ended'));
+    tutEvent('cdSaved');
   }
 
   /* ---------- Bots ---------- */
@@ -2506,6 +2538,7 @@
 
   function showStart() {
     if (isDaily()) leaveDaily();
+    if (tutState) leaveTutorial();
     closeSheet(true);
     hideCountdown();
     atStart = true;
@@ -2515,27 +2548,127 @@
     syncSky();
     rollStartDice();
     syncTheme();
+    syncInstall();
     const b = $('#start [data-act="play"]');
     try { b.focus({ preventScroll: true }); } catch (e) { /* egal */ }
   }
 
-  // Spiel lernen: Regeln lesen oder (bald) eine geführte Runde mit Pip, siehe Issue #3
+  // Spiel lernen: eine geführte Runde mit Pip oder die Regeln lesen
   function openLearn() {
-    const choice = (act, cls, icon, title, sub, chip) => `
-          <button type="button" class="choice${cls}" data-act="sheet-do" data-do="${act}"${chip ? ' aria-disabled="true"' : ''}>
+    const choice = (act, icon, title, sub) => `
+          <button type="button" class="choice" data-act="sheet-do" data-do="${act}">
             <span class="choice-ic">${ICON[icon]}</span>
-            <span class="choice-tx"><span class="choice-t">${title}${chip ? ` <span class="chip">${chip}</span>` : ''}</span><span class="choice-s">${sub}</span></span>
+            <span class="choice-tx"><span class="choice-t">${title}</span><span class="choice-s">${sub}</span></span>
           </button>`;
     openSheet(`
       <h3 class="s-title">${tr('learn.title')}</h3>
       <div class="choices">
-        ${choice('rules', '', 'rules', tr('learn.rules'), tr('learn.rulesSub'))}
-        ${choice('pip', ' choice-soon', 'pip', tr('learn.pip'), tr('learn.pipSub'), tr('common.soon'))}
+        ${choice('pip', 'pip', tr('learn.pip'), tr('learn.pipSub'))}
+        ${choice('rules', 'rules', tr('learn.rules'), tr('learn.rulesSub'))}
       </div>
       <div class="s-acts"><button type="button" class="btn btn-quiet" data-act="sheet-close">${tr('common.close')}</button></div>`, {
       rules: () => { closeSheet(true); openRulesPage(); },
-      pip: () => toast(tr('learn.pipSoon')),
+      pip: () => startTutorial(),
     }, tr('learn.title'));
+  }
+
+  /* ---------- Tutorial ---------- */
+  // Eine Runde mit 4 Zügen und festen Würfen. Pip erklärt an der echten Oberfläche, die Schritte
+  // stehen in js/tutorial.js. Hier: der eigene Spielstand und was die Schritte von der App brauchen.
+  const tutAdapter = {
+    tr,
+    reduced,
+    held: () => state.dice.held.slice(),
+    // Noch nicht weiter, solange Würfel rollen oder ein Fenster zugeht
+    busy: () => rolling || $('#sheet').classList.contains('closing'),
+    queue: vals => { tutQueue = vals.slice(); },
+    openCd: () => { if (isTut() && $('#cd').hidden && $('#sheet').hidden && cdPending()) startCountdown(); },
+    vars: () => {
+      const t = totals('me');
+      return { up: t.upper, left: Math.max(0, BONUS_MIN - t.upper), low: t.lower, cd: t.cd, total: t.total };
+    },
+    lower: () => lowerFieldsHTML(state.scores.me),
+    step: () => renderTop(),
+    online: () => Config.enableOnline && navigator.onLine !== false,
+    end: how => endTutorial(how),
+  };
+
+  function startTutorial() {
+    if (online()) { toast(tr('tut.notOnline')); return; }
+    setPipHint(false);
+    closeSheet(true);
+    hideCountdown();
+    if (isDaily()) leaveDaily();
+    if (tutState) leaveTutorial();
+    const s = freshState();
+    s.players = [{ id: 'me', name: tr('tut.you') }];
+    s.started = true;
+    tutState = s;
+    tutQueue = [];
+    state = s;
+    atStart = false;
+    rulesOpen = false;
+    syncSky();
+    render();
+    syncTheme();
+    try { window.scrollTo(0, 0); } catch (e) { /* egal */ }
+    Tut.start(tutAdapter);
+  }
+
+  // Zurück zum lokalen Spielstand. Ein pausiertes Spiel ist unverändert da.
+  function leaveTutorial() {
+    Tut.stop();
+    tutState = null;
+    tutQueue = [];
+    state = local;
+  }
+
+  // how: local, online, again, menu oder skip (Überspringen)
+  function endTutorial(how) {
+    closeSheet(true);
+    hideCountdown();
+    leaveTutorial();
+    if (how === 'again') { startTutorial(); return; }
+    if (how === 'local') { enterLocal(); return; }
+    if (how === 'online' && tutAdapter.online()) { enterOnline(); return; }
+    showStart();
+    if (how === 'skip') toast(tr('tut.skipped'));
+  }
+
+  // Hinweis im Hauptmenü beim allerersten Öffnen: noch kein Spiel, keine Highscores. Mit ✕ weg für immer,
+  // ebenso, sobald das Tutorial einmal lief. Solange er da ist, wartet der Hinweis zum Installieren.
+  const PIP_HINT_KEY = 'hexa-pip-hint';
+  let pipHintOff = false;
+  try { pipHintOff = localStorage.getItem(PIP_HINT_KEY) === 'off'; } catch (e) { /* Speicher gesperrt */ }
+  const pipHintOn = () => !pipHintOff && !local.started && !local.players.length && !Object.keys(local.history).length
+    && !Object.keys(dailyStore.done).length && !dailyStore.cur && !Online.code();
+  function setPipHint(on) {
+    if (!on && !pipHintOff) {
+      pipHintOff = true;
+      try { localStorage.setItem(PIP_HINT_KEY, 'off'); } catch (e) { /* Speicher gesperrt */ }
+    }
+    syncInstall();
+  }
+  function hidePipHint() {
+    setPipHint(false);
+    const b = $('#start [data-act="play"]');
+    if (atStart && b) { try { b.focus({ preventScroll: true }); } catch (e) { /* egal */ } }
+  }
+
+  // Die unteren Felder als Infografik: Name, Punkte, Voraussetzung, Beispielwurf. Für den Regeln-Tab und
+  // das Tutorial, dort sind die schon gespielten Felder markiert (played: Punkte je Feld).
+  const LOWER_EG = { pasch5: '444442', pasch6: '555555', paare: '224455', drillinge: '333666', kstrasse: '123345', gstrasse: '123456', tief: '112333', hoch: '444566', chance: '234566' };
+  function diceRow(digits) {
+    const d = digits.split('').map(Number);
+    return `<span class="dice-row" role="img" aria-label="${esc(tr('common.diceRow', { list: d.join('-') }))}">${d.map(miniDie).join('')}</span>`;
+  }
+  function lowerFieldsHTML(played) {
+    return `<div class="fields">${LOWER.map(f => {
+      const v = isObj(played) && typeof played[f.key] === 'number' ? played[f.key] : null;
+      const pts = f.type === 'chance' ? tr('fields.chance.req') : f.pts;
+      const mark = v === null ? '' : `<span class="fdone">${ICON.check}${esc(tr('tut.played', { pts: trPts(v) }))}</span>`;
+      return `<div class="fitem${v === null ? '' : ' played'}"><span class="fn">${fieldName(f.key)}</span><span class="fp">${pts}</span><span class="fr">${tr('fields.' + f.key + '.long')}</span>${diceRow(LOWER_EG[f.key])}${mark}</div>`;
+    }).join('')}</div>`;
   }
 
   function openRulesPage() {
@@ -2579,12 +2712,14 @@
       if (tab === 'dice' && duoOn()) {
         try { $('#view-dice').scrollTo({ top: 0, behavior }); } catch (e) { /* egal */ }
       }
+      tutEvent('tab', tab);
       return;
     }
     state.tab = tab;
     save();
     render();
     try { window.scrollTo(0, 0); } catch (e) { /* egal */ }
+    tutEvent('tab', tab);
   }
 
   function toggleDuo() {
@@ -3506,6 +3641,18 @@
   });
 
   /* ---------- Ereignisse ---------- */
+  // Im Tutorial geht nur ein Klick aufs Gezeigte durch (und alles in Pips Blase). Läuft vor allen anderen.
+  document.addEventListener('click', e => {
+    if (tutAllows(e.target)) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+  }, true);
+  // „Mit 0 Punkten streichen“ aufgeklappt: Das Tutorial wartet an einer Stelle darauf.
+  document.addEventListener('toggle', e => {
+    const d = e.target;
+    if (d && d.classList && d.classList.contains('zeros') && d.open) tutEvent('zeros');
+  }, true);
+
   document.addEventListener('click', e => {
     const t = e.target.closest('[data-act]');
     if (!t || t.disabled) return;
@@ -3531,6 +3678,8 @@
       case 'rec-block': openRecordBlock(Number(t.dataset.i)); break;
       case 'settings': openSettings(); break;
       case 'learn': openLearn(); break;
+      case 'tut-start': startTutorial(); break;
+      case 'tut-hint-hide': hidePipHint(); break;
       case 'install': installApp(); break;
       case 'install-hide': hideInstallHint(); break;
       case 'rules-close': closeRulesPage(); break;
@@ -3592,9 +3741,12 @@
       return true;
     }
     if (atStart) return false;
+    // In Pips Blase gelten Leertaste und Ziffern für die Knöpfe dort.
+    if (isTut() && t && t.closest && t.closest('#tut')) return false;
     if (!$('#cd').hidden) {
       const g = state.cdGame;
       if (!isSpace(e) || !g || g.status !== 'play') return false;
+      if (!tutAllows($('#cd [data-act="cd-roll"]'))) { e.preventDefault(); return true; }
       e.preventDefault();
       spaceTaken = true;
       if (!e.repeat) cdRoll();
@@ -3605,13 +3757,13 @@
       e.preventDefault();
       spaceTaken = true;
       const b = $('#view-dice [data-act="roll"]');
-      if (!e.repeat && b && !b.disabled) roll();
+      if (!e.repeat && b && !b.disabled && tutAllows(b)) roll();
       return true;
     }
     if (e.key.length === 1 && e.key >= '1' && e.key <= '6') {
       const i = Number(e.key) - 1;
       const el = $('#view-dice .die[data-i="' + i + '"]');
-      if (!el || el.disabled) return false;
+      if (!el || el.disabled || !tutAllows(el)) return false;
       e.preventDefault();
       if (!e.repeat) toggleHold(i);
       return true;
@@ -3622,6 +3774,8 @@
   document.addEventListener('keydown', e => {
     const t = e.target;
     if (e.key === 'Escape') {
+      // Im Tutorial schließt Esc nichts, sonst ginge ein Schritt verloren. Aufhören geht mit „Überspringen“.
+      if (isTut()) { e.preventDefault(); return; }
       if (!$('#sheet').hidden) { closeSheet(); e.preventDefault(); }
       else if (!$('#cd').hidden) { closeCountdown(); e.preventDefault(); }
       else if (rulesOpen) { closeRulesPage(); e.preventDefault(); }
@@ -3698,12 +3852,15 @@
       <header class="rules-hero">
         <h1 class="claim">${tr('rules.claim').map(c => `<span>${c}</span>`).join('')}</h1>
         <p class="facts">${tr('rules.facts')}</p>
+        <button type="button" class="try-pip" data-act="tut-start">${ICON.pip}<span>${tr('tut.try')}</span>${ICON.chev}</button>
       </header>
       ${tr('rules.sections').map((sec, i) => `
       <details class="acc"${(open.length ? open[i] : i === 0) ? ' open' : ''}>
         <summary>${sec.title}${chev}</summary>
         <div class="body">${sec.html}</div>
       </details>`).join('')}`;
+    // Die unteren Felder als Infografik, dieselbe wie im Tutorial
+    $$('[data-fields]', root).forEach(el => { el.outerHTML = lowerFieldsHTML(); });
     // Würfelbilder in den Beispielen
     $$('[data-dice]', root).forEach(el => {
       const digits = el.dataset.dice.split('').map(Number);
@@ -3741,8 +3898,11 @@
       </section>`;
   }
 
+  // Neu hier? Dann kommt zuerst Pips Hinweis aufs Tutorial, der zum Installieren danach.
   function syncInstall() {
-    $('#installHint').hidden = hintOff || !canInstall();
+    const pip = pipHintOn();
+    $('#pipHint').hidden = !pip;
+    $('#installHint').hidden = hintOff || !canInstall() || pip;
   }
   function hideInstallHint() {
     hintOff = true;
@@ -3853,6 +4013,7 @@
   });
 
   I18n.apply();
+  $('#pipHint .hint-ic').innerHTML = Tut.pip('face', '', true);
   renderRules();
   render();
   renderStart();

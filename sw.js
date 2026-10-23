@@ -11,7 +11,7 @@ const CACHE = 'hexa-app';
 const FILES = [
   'index.html', 'favicon.svg', 'manifest.webmanifest',
   'css/hexa.css',
-  'js/theme-init.js', 'js/config.js', 'js/i18n.js', 'js/rules.js', 'js/bot.js', 'js/daily.js', 'js/sound.js', 'js/online.js', 'js/app.js',
+  'js/theme-init.js', 'js/config.js', 'js/i18n.js', 'js/rules.js', 'js/bot.js', 'js/daily.js', 'js/sound.js', 'js/online.js', 'js/tutorial.js', 'js/app.js',
   'lang/de.js', 'lang/en.js',
   'fonts/archivo/archivo-latin.woff2', 'fonts/archivo/archivo-latin-ext.woff2', 'fonts/archivo/archivo-vietnamese.woff2',
   'fonts/kalam/kalam-700-latin.woff2',

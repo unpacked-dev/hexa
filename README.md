@@ -48,6 +48,21 @@ Die App ersetzt Würfel, Becher, Block und Stift. Ihr gebt einfach das Handy rei
 </picture>
 </div>
 
+## Spiel lernen mit Pip
+
+Neu bei HEXA? Im Hauptmenü unter **Spiel lernen** zeigt dir Pip das Spiel in einer kurzen Runde. Pip ist das Sechseck aus dem Logo, die Augen sind zwei Würfelaugen.
+
+Du spielst allein 4 Züge mit festen Würfen, bei jedem Durchgang gleich. Pip zeigt dabei direkt auf Knöpfe, Würfel und Felder: würfeln und halten, eintragen, der Bonus oben, die Felder unten, die Chance als Rettung und zum Schluss der Countdown. Antippen kannst du immer nur, was Pip gerade zeigt, auch über die Tastatur. Nach etwa 5 Minuten geht es weiter mit **Lokal spielen**, **Online spielen** oder **Nochmal ansehen**.
+
+Beim allerersten Öffnen bietet Pip das Tutorial im Hauptmenü an. Im Regeln-Tab steht **Lieber ausprobieren?**. Überspringen geht jederzeit. Das Tutorial wird nicht gespeichert und kommt nicht in die Highscores, ein pausiertes Spiel bleibt, wie es war.
+
+<div align="center">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/tutorial-dark.webp">
+  <img src="docs/screenshots/tutorial-light.webp" width="880" alt="Das Tutorial mit Pip auf dem Handy: Pip zeigt auf die Fünfen zum Halten, auf die 20 im Block und auf die Würfel im Countdown">
+</picture>
+</div>
+
 ## Online spielen
 
 Jede Person spielt am eigenen Handy, egal wo. Es gibt keine Konten, nur Spitznamen.
@@ -81,6 +96,7 @@ Der Server würfelt und prüft jeden Zug. Ist die Zeit um, streicht er ein zufä
 - **Online spielen** – jede Person am eigenen Gerät. Eine Person erstellt eine Lobby und bekommt einen Code aus 4 Buchstaben, die anderen treten damit bei. Allein geht auch, Bots können mitspielen. Der Server würfelt, jeder Zug hat 60 Sekunden, und alle sehen die Würfel live mitrollen. Was du selbst tust, zeigt die App sofort, auch bei langsamem Netz. Sitzt ihr am selben Tisch, kann der Host auch **Mit eigenen Würfeln** wählen: Ihr würfelt mit echten Würfeln, jede Person trägt am eigenen Handy ein, ohne Zeitlimit. Die App kann dabei nicht prüfen, was gewürfelt wurde, also nur mit Leuten, denen ihr vertraut. Kein Konto, nur ein Spitzname.
 - **Spielende und Highscores** – das Ergebnis zeigt alle Platzierungen und neue Rekorde. Die zehn besten Ergebnisse bleiben auf dem Gerät gespeichert, bei Online-Spielen dein eigenes. Ein Tipp auf ein Ergebnis zeigt den Block des Spiels.
 - **Nichts geht verloren** – Spiele lassen sich pausieren und bleiben auch nach dem Schließen erhalten. Einträge, entfernte Personen oder ein abgebrochenes Spiel lassen sich mit einem Tipp rückgängig machen.
+- **Tutorial mit Pip** – eine geführte Runde mit festen Würfen, etwa 5 Minuten. Pip erklärt alles direkt an Würfeln und Block und zeigt auf das, was du antippen sollst. Startet über **Spiel lernen** im Hauptmenü, beim ersten Öffnen mit einem Hinweis, und aus den Regeln. Zählt nicht für die Highscores.
 - **Regeln eingebaut** – Kurzübersicht, Beispiele und Wahrscheinlichkeiten für Neugierige. Schon vor dem ersten Spiel lesbar, über **Spiel lernen** im Hauptmenü.
 - **Einstellungen** – Design hell, dunkel oder automatisch. Musik und Spielsounds lassen sich getrennt an- und ausschalten und leiser stellen.
 - **Ton** – Effekte und entspannte Lo-Fi-Musik, live im Browser erzeugt.
@@ -215,6 +231,7 @@ hexa/
 │   ├── sound.js           # Effekte und Lo-Fi-Musik (Web Audio)
 │   ├── i18n.js            # wählt die Sprache und liefert die Texte
 │   ├── online.js          # Verbindung zum Online-Server, verbindet von selbst neu
+│   ├── tutorial.js        # Tutorial „Spiel lernen“: Pip, die Schritte mit festen Würfen und die Schicht darüber
 │   └── app.js             # Spielablauf, Darstellung, Eingaben, auch online
 ├── lang/
 │   ├── de.js              # alle Texte auf Deutsch (Hauptsprache), auch die Regeln
@@ -229,6 +246,7 @@ hexa/
 │   ├── config.test.js     # prüft die Werte in js/config.js
 │   ├── sw.test.js         # prüft, dass sw.js jede Datei der App kennt
 │   ├── daily.test.js      # Tests für das Tagesspiel
+│   ├── tutorial.test.js   # spielt die festen Würfe des Tutorials mit der echten Wertung nach
 │   └── bot.test.js        # Tests für die Bots
 ├── tools/
 │   ├── bot-optimal.js     # rechnet das perfekte Spiel für alle Spielstände aus
@@ -243,7 +261,7 @@ hexa/
 
 ### Tests
 
-Wertung, Sprachen, Einstellungen und Bots sind mit dem eingebauten Test-Runner von Node.js abgedeckt (Node 18 oder neuer, keine Installation nötig):
+Wertung, Sprachen, Einstellungen, Bots und das Tutorial sind mit dem eingebauten Test-Runner von Node.js abgedeckt (Node 18 oder neuer, keine Installation nötig):
 
 ```bash
 node --test

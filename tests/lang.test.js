@@ -1,5 +1,5 @@
 // Tests für die Sprachdateien: gleiche Einträge, gleiche Platzhalter, und jeder Text,
-// den index.html oder app.js benutzt, ist vorhanden.
+// den index.html, app.js oder tutorial.js benutzt, ist vorhanden.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -39,17 +39,18 @@ test('Platzhalter stimmen in beiden Sprachen überein', () => {
   }
 });
 
-test('Jedes Feld hat Namen, oben die Mehrzahl, unten die Voraussetzung', () => {
+test('Jedes Feld hat Namen, oben die Mehrzahl, unten die Voraussetzung kurz und ausführlich', () => {
   for (const [lang, t] of Object.entries(LANGS)) {
     for (const f of FIELDS) assert.ok(t.fields[f.key] && t.fields[f.key].name, lang + ': ' + f.key);
     for (const f of UPPER) assert.ok(t.fields[f.key].plural, lang + ': ' + f.key + '.plural');
     for (const f of LOWER) assert.ok(t.fields[f.key].req, lang + ': ' + f.key + '.req');
+    for (const f of LOWER) assert.ok(t.fields[f.key].long, lang + ': ' + f.key + '.long');
   }
 });
 
-test('Alle Texte aus index.html und app.js gibt es', () => {
+test('Alle Texte aus index.html, app.js und tutorial.js gibt es', () => {
   const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
-  const js = fs.readFileSync(path.join(root, 'js/app.js'), 'utf8');
+  const js = ['js/app.js', 'js/tutorial.js'].map(f => fs.readFileSync(path.join(root, f), 'utf8')).join('\n');
   const sections = Object.keys(de).filter(k => de[k] && typeof de[k] === 'object').join('|');
   const keys = new Set([
     ...[...html.matchAll(/data-i18n(?:-label|-title)?="([^"]+)"/g)].map(m => m[1]),

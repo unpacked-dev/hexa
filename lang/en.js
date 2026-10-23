@@ -45,8 +45,7 @@
       rules: 'Read the rules',
       rulesSub: 'How it works, every box and the Countdown, with examples',
       pip: 'Tutorial with Pip',
-      pipSub: 'A guided round to play along',
-      pipSoon: 'The tutorial with Pip is coming soon.',
+      pipSub: 'A guided round to play along, about 5 minutes',
       back: 'Main menu',
       backLabel: 'Back to the main menu',
     },
@@ -198,15 +197,16 @@
       u4: { name: 'Fours', plural: 'fours' },
       u5: { name: 'Fives', plural: 'fives' },
       u6: { name: 'Sixes', plural: 'sixes' },
-      pasch5: { name: 'Five of a Kind', req: '5+ alike' },
-      pasch6: { name: 'Six of a Kind', req: '6 alike' },
-      paare: { name: 'Three Pairs', req: '3 pairs' },
-      drillinge: { name: 'Two Triples', req: '2 triples' },
-      kstrasse: { name: 'Small Straight', req: '5 in a row' },
-      gstrasse: { name: 'Large Straight', req: '1 to 6' },
-      tief: { name: 'Low Roll', req: 'only 1 to 3' },
-      hoch: { name: 'High Roll', req: 'only 4 to 6' },
-      chance: { name: 'Chance', req: 'dice total' },
+      // req: short for the scorecard, long: in full for the overview (rules and tutorial)
+      pasch5: { name: 'Five of a Kind', req: '5+ alike', long: 'at least 5 alike' },
+      pasch6: { name: 'Six of a Kind', req: '6 alike', long: '6 alike' },
+      paare: { name: 'Three Pairs', req: '3 pairs', long: '3 pairs (2 alike each)' },
+      drillinge: { name: 'Two Triples', req: '2 triples', long: '2 triples (3 alike each)' },
+      kstrasse: { name: 'Small Straight', req: '5 in a row', long: '5 in a row: 1-2-3-4-5 or 2-3-4-5-6' },
+      gstrasse: { name: 'Large Straight', req: '1 to 6', long: '1-2-3-4-5-6' },
+      tief: { name: 'Low Roll', req: 'only 1 to 3', long: 'every die shows 1, 2 or 3' },
+      hoch: { name: 'High Roll', req: 'only 4 to 6', long: 'every die shows 4, 5 or 6' },
+      chance: { name: 'Chance', req: 'dice total', long: 'no requirement (26 in the example)' },
     },
 
     quick: {
@@ -528,6 +528,82 @@
       },
     },
 
+    tut: {
+      title: 'Tutorial',
+      label: 'Pip explains the game',
+      you: 'You',
+      bar: 'Tutorial · Turn {n} of {total}',
+      barMid: 'Tutorial · {n}/{total}',
+      barShort: 'Turn {n}/{total}',
+      barDone: 'Tutorial done',
+      step: 'Turn {n} of {total}',
+      yourTurn: 'Your turn',
+      entered: 'Scored.',
+      forYou: 'for you',
+      next: 'Next',
+      go: 'Let’s go',
+      skip: 'Skip',
+      skipLabel: 'End the tutorial',
+      skipped: 'Tutorial ended. You can start it again anytime under “Learn to Play”.',
+      notOnline: 'The tutorial doesn’t work during an online game. You’ll find it in the main menu under “Learn to Play”.',
+      played: 'played: {pts}',
+      hintTitle: 'New here?',
+      hintSub: 'I’m Pip, and I’ll show you HEXA in 5 minutes.',
+      hintHide: 'Hide this hint',
+      try: 'Rather try it out? Play a round with Pip.',
+      endLocal: 'Play locally',
+      endOnline: 'Play online',
+      endAgain: 'Watch again',
+      // The steps live in js/tutorial.js, the rolls there are fixed. {up}, {left}, {low}, {cd} and {total} come from the scorecard.
+      s: {
+        hello: '<b>Hi, I’m Pip!</b> I’ll show you HEXA in a short round. You roll 6 dice and fill exactly one box on your scorecard each turn. A full game has 15 rounds. The goal: as many points as you can.',
+        roll1: 'Let’s start with your first turn. Tap <b>Roll</b>.',
+        hold1: 'Three fives! Tap them to keep them. You’ll roll the others again in a moment.',
+        roll1b: 'You get up to <b>3 rolls</b> per turn. Roll the other three again.',
+        hold1b: 'Another five! Keep it too.',
+        roll1c: 'Now for the last roll.',
+        pick1: 'Four fives. Here you can see what every open box would score right now. Tap <b>Fives</b>: 4 × 5 = 20 points.',
+        enter1: 'Tap <b>Score</b>. You fill exactly one box per turn, and each box only once per game.',
+        toBlock: 'Scored! Take a look at it on the <b>Scorecard</b>.',
+        upper: 'There’s your 20. In the <b>upper section</b>, only the matching dice count. Ones, Twos, Threes, Fours and Sixes work the same way.',
+        bonus: 'Score at least <b>70 points</b> up here and you get a <b>40 point bonus</b>. Three of each number only adds up to 63, so you’ll need four of a kind now and then.',
+        toDice: 'On to turn 2. Tap <b>Dice</b>.',
+        roll2: 'Turn 2. Roll!',
+        hold2: 'Almost a straight, you’re only missing 1 and 4. Keep 2, 3, 5 and 6.',
+        roll2b: 'Roll the other two again.',
+        straight: '1 to 6, a <b>Large Straight</b>! You don’t need your third roll. Stopping early is allowed.',
+        pick2: 'A straight also counts as a Small Straight, but only scores 25 there. Tap <b>Large Straight</b>: 40 points.',
+        enter2: 'And score it.',
+        lower: 'The <b>lower section</b> is all about combinations. Make one and you get fixed points. For the Chance, all the dice count. Here are all 9 boxes:',
+        roll3: 'Turn 3. Roll!',
+        hold3: 'Lots of high numbers. For a <b>High Roll</b>, every die has to show 4, 5 or 6. Keep 4, 5, 6 and 6.',
+        roll3b: 'Roll the 2 and the 1 again.',
+        hold3b: 'The 5 fits, keep it too. You’ll roll the 3 again.',
+        roll3c: 'Last roll. You need a 4, 5 or 6.',
+        miss: 'A 2, too bad. No High Roll this time.',
+        zeros: 'Tap <b>Cross out with 0 points</b>. That’s where the boxes go that wouldn’t score anything right now.',
+        strike: 'The High Roll is in here too, with 0. Tap a box like this and it’s crossed out for the rest of the game.',
+        pick3: 'Luckily there’s the <b>Chance</b>. It takes any roll and adds up all the dice: 28 points. Tap it.',
+        enter3: 'Tap <b>Score</b>.',
+        roll4: 'Turn 4, the last one in the tutorial. Roll!',
+        unlocked: '<b>Four fours on the first roll!</b> That unlocks the <b>Countdown</b>, a bonus game after your turn. First you finish your turn as usual.',
+        hold4: 'Keep the fours, maybe another one comes up.',
+        roll4b: 'Roll the other two again.',
+        pick4: 'Five fours, that’s <b>Five of a Kind</b>! It scores 40 points, the Fours would only give you 20.',
+        enter4: 'Score it, then the Countdown starts.',
+        cd: 'In the <b>Countdown</b> you count down from 6 to 1. Each stage gives you exactly one roll, with as many dice as the number you need.',
+        cd1: 'Stage 1: You need a 6 and roll with 6 dice.',
+        cd2: 'Hit, 10 points! The 6 goes aside. Stage 2: a 5, with 5 dice.',
+        cd3: 'Another hit! Stage 3: a 4, with 4 dice.',
+        cdEnd: 'No 4, the Countdown is over. Two stages make 20 points. Tap <b>Score</b>.',
+        toBlock2: 'That was every turn. Finally, a look at the <b>Scorecard</b>.',
+        sumUpper: 'You have {up} points up top. You’re still {left} short of the bonus, the Bonus row shows you.',
+        sumLower: 'Down below it’s {low} points. The Countdown counts on its own, {cd} points here. It doesn’t count towards the bonus.',
+        total: 'Add it all up and you get your <b>final score: {total} points</b>. A full game of 15 rounds can get you around 300.',
+        done: '<b>Now you know HEXA!</b> Play on your own, with others on one device or online. In a game, the rules are always in the Rules tab.',
+      },
+    },
+
     settings: {
       title: 'Settings',
       design: 'Appearance',
@@ -653,17 +729,7 @@
 
           <h4>Lower section</h4>
           <p>Here you need certain combinations. If you make one, you get fixed points – only Chance counts the dice total.</p>
-          <div class="fields">
-            <div class="fitem"><span class="fn">Five of a Kind</span><span class="fp">40</span><span class="fr">at least 5 alike</span><span class="dice-row" data-dice="444442"></span></div>
-            <div class="fitem"><span class="fn">Six of a Kind</span><span class="fp">75</span><span class="fr">6 alike</span><span class="dice-row" data-dice="555555"></span></div>
-            <div class="fitem"><span class="fn">Three Pairs</span><span class="fp">30</span><span class="fr">3 pairs (2 alike each)</span><span class="dice-row" data-dice="224455"></span></div>
-            <div class="fitem"><span class="fn">Two Triples</span><span class="fp">40</span><span class="fr">2 triples (3 alike each)</span><span class="dice-row" data-dice="333666"></span></div>
-            <div class="fitem"><span class="fn">Small Straight</span><span class="fp">25</span><span class="fr">5 in a row: 1-2-3-4-5 or 2-3-4-5-6</span><span class="dice-row" data-dice="123345"></span></div>
-            <div class="fitem"><span class="fn">Large Straight</span><span class="fp">40</span><span class="fr">1-2-3-4-5-6</span><span class="dice-row" data-dice="123456"></span></div>
-            <div class="fitem"><span class="fn">Low Roll</span><span class="fp">25</span><span class="fr">every die shows 1, 2 or 3</span><span class="dice-row" data-dice="112333"></span></div>
-            <div class="fitem"><span class="fn">High Roll</span><span class="fp">25</span><span class="fr">every die shows 4, 5 or 6</span><span class="dice-row" data-dice="444566"></span></div>
-            <div class="fitem"><span class="fn">Chance</span><span class="fp">dice total</span><span class="fr">no requirement (26 in the example)</span><span class="dice-row" data-dice="234566"></span></div>
-          </div>
+          <div class="fields" data-fields></div>
           <h4>Good to know</h4>
           <ul>
             <li><b>Four of a kind</b> counts as two pairs for Three Pairs. So 4-4-4-4-2-2 is valid.</li>

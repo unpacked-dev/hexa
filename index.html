@@ -35,6 +35,7 @@
 <script src="js/daily.js" defer></script>
 <script src="js/sound.js" defer></script>
 <script src="js/online.js" defer></script>
+<script src="js/tutorial.js" defer></script>
 <script src="js/app.js" defer></script>
 </head>
 <body>
@@ -58,6 +59,14 @@
     <div class="start-links">
       <button type="button" class="start-set" data-act="learn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z"/><path d="M22 10v6"/><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"/></svg><span data-i18n="start.learn"></span></button>
       <button type="button" class="start-set" data-act="scores"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg><span data-i18n="start.scores"></span></button>
+    </div>
+    <!-- Beim allerersten Öffnen: Pip bietet das Tutorial an. Pip selbst kommt aus js/tutorial.js. -->
+    <div class="start-hint" id="pipHint" hidden>
+      <button type="button" class="hint-main" data-act="tut-start">
+        <span class="hint-ic hint-pip"></span>
+        <span class="hint-tx"><span class="hint-t" data-i18n="tut.hintTitle"></span><span class="hint-s" data-i18n="tut.hintSub"></span></span>
+      </button>
+      <button type="button" class="hint-x" data-act="tut-hint-hide" data-i18n-label="tut.hintHide" data-i18n-title="tut.hintHide"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
     </div>
     <div class="start-hint" id="installHint" hidden>
       <button type="button" class="hint-main" data-act="install">
@@ -141,6 +150,21 @@
 
 <div class="cd" id="cd" role="dialog" aria-modal="true" data-i18n-label="cd.title" tabindex="-1" hidden>
   <div class="cd-in"></div>
+</div>
+
+<!-- Tutorial: abgedunkelt bis auf das Ziel, dazu Pips Sprechblase. Gefüllt von js/tutorial.js. -->
+<div class="tut" id="tut" hidden>
+  <svg class="tut-dim" aria-hidden="true"><path class="tut-shade" fill-rule="evenodd"/><path class="tut-ring"/></svg>
+  <div class="tut-bub off pip-top" role="dialog" aria-modal="false" data-i18n-label="tut.label">
+    <div class="tut-pip" aria-hidden="true"></div>
+    <p class="tut-st"></p>
+    <div class="tut-tx" aria-live="polite"></div>
+    <div class="tut-x" hidden></div>
+    <div class="tut-foot">
+      <button type="button" class="tut-skip" data-tut="skip" data-i18n="tut.skip" data-i18n-title="tut.skipLabel"></button>
+      <button type="button" class="btn btn-pen tut-next" data-tut="next"></button>
+    </div>
+  </div>
 </div>
 
 <div class="toast" id="toast" role="status" aria-live="polite">
