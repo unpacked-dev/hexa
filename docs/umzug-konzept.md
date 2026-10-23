@@ -1,5 +1,7 @@
 # Umzug auf Bun und eigenen Server – Konzept
 
+> **Umgezogen am 23. Oktober 2026.** Der Server läuft mit Bun auf dem VPS unter `backend.hexa-countdown.app`, Version 1.17.0 ist [veröffentlicht](https://github.com/unpacked-dev/hexa/releases/tag/v1.17.0), Deno Deploy ist gelöscht. Offen ist nur noch das tägliche Backup (H1).
+
 > Gehört zu [#16](https://github.com/unpacked-dev/hexa/issues/16). Stand: 23. Oktober 2026. Die Annahmen unter [Vorab geprüft](#vorab-geprüft) sind mit Bun 1.3.11 und Docker ausprobiert, nicht nur nachgelesen.
 
 ## Kurz gesagt
@@ -211,8 +213,8 @@ CMD ["bun", "server/main.js"]
 | [C](#c-testadresse-einrichten) | Neues Projekt in Coolify, Testadresse einrichten ✅ | du | 15 Minuten |
 | [D](#d-auf-echten-geräten-testen) | Auf echten Geräten testen ✅ | du | 1 Stunde |
 | [E](#e-avv-mit-zap-hosting) | AVV mit ZAP-Hosting: getrennt in #7 | du | |
-| [F](#f-umzugstag) | Umzugstag: umziehen, Online wieder an, Release 1.17.0 | du, Claude für die Commits | 1 bis 2 Stunden |
-| [G](#g-deno-deploy-löschen) | Deno Deploy löschen | du | 10 Minuten |
+| [F](#f-umzugstag) | Umzugstag: umziehen, Online wieder an, Release 1.17.0 ✅ | du, Claude für die Commits | 1 bis 2 Stunden |
+| [G](#g-deno-deploy-löschen) | Deno Deploy löschen ✅ | du | 10 Minuten |
 | [H](#h-nacharbeiten) | Nacharbeiten | du und Claude | |
 
 Coolify läuft schon auf dem VPS, eingerichtet und abgesichert, zusammen mit anderen Projekten mit Bun. Für HEXA kommt nur ein neues Projekt dazu.
@@ -367,6 +369,13 @@ Online ist bis Schritt 9 aus. Lokale Spiele und das Tagesspiel laufen die ganze 
 
 **Fertig, wenn** online gespielt werden kann, `/stats` zählt und das Release 1.17.0 veröffentlicht ist.
 
+**Erledigt am 23.10.2026.** So lief es:
+- Der DNS-Eintrag kam zuerst, ohne gesenkte TTL. Nach gut 20 Minuten lieferten Google und Cloudflare nur noch den VPS.
+- Dann wurde `main` auf das Release 1.17.0 nachgezogen. Die CI mit Bun und Docker-Build lief dabei zum ersten Mal und war grün.
+- Danach kam die Produktion in Coolify. Das Zertifikat von Let's Encrypt kam sofort.
+- Geprüft: `/health`, die Weiterleitung, gesperrte Pfade, `online-off` vor dem Einschalten, danach Lobby mit Bot.
+- Das Release lief über *Run workflow*. Tags lassen sich aus der Sitzung von Claude nicht pushen.
+
 ### G. Deno Deploy löschen
 
 Direkt nach dem Umzug, sobald F10 geklappt hat. Einen Weg zurück zu Deno gibt es ohnehin nicht mehr.
@@ -379,7 +388,7 @@ Direkt nach dem Umzug, sobald F10 geklappt hat. Einen Weg zurück zu Deno gibt e
 4. **GitHub aufräumen:** Auf GitHub *Settings → Applications → Installed GitHub Apps* → Deno Deploy → den Zugriff auf `unpacked-dev/hexa` entfernen. Nutzt sie sonst nichts, die App ganz deinstallieren.
 5. **DNS prüfen:** Kein Eintrag zeigt mehr auf Deno. `backend` zeigt auf den VPS, `_acme-challenge.backend` gibt es nicht mehr.
 
-**Fertig, wenn** bei Deno nichts mehr von HEXA übrig ist.
+**Fertig, wenn** bei Deno nichts mehr von HEXA übrig ist. **Erledigt am 23.10.2026.**
 
 ### H. Nacharbeiten
 
