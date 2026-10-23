@@ -10,7 +10,7 @@
     // Online spielen an (true) oder aus (false).
     // Aus: Im Hauptmenü ist „Online“ ausgegraut, und der Server nimmt keine Verbindungen mehr an.
     // Gedacht zum schnellen Abschalten, etwa bei Problemen mit dem Server oder während eines Umzugs.
-    enableOnline: false,
+    enableOnline: true,
 
     // Höchstens so viele Personen in einem Spiel, Menschen und Bots zusammen. Lokal wie online.
     maxPlayers: 50,
