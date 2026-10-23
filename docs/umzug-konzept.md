@@ -23,6 +23,7 @@
 - Online ist ab sofort aus, bis der Server auf dem VPS läuft. Erledigt am 23.10.2026, siehe [Online deaktivieren](#online-deaktivieren-erledigt).
 - Testadresse ist `hexa.unpacked.dev`. `hexa-countdown.app` bleibt die reine Adresse für die Produktion. `unpacked.dev` zeigt mit allen Subdomains schon auf den VPS (23.10.2026).
 - Der Server hört auf Port 3000, dem Standard von Coolify und Bun (23.10.2026).
+- Der AVV mit ZAP-Hosting läuft getrennt in [#7](https://github.com/unpacked-dev/hexa/issues/7) und hält den Umzug nicht auf (23.10.2026).
 
 ## Was anders ist als im Issue
 
@@ -205,11 +206,11 @@ CMD ["bun", "server/main.js"]
 
 | Phase | Was | Wer | Dauer, etwa |
 |---|---|---|---|
-| [A](#a-code-im-branch) | Code im Branch | Claude | |
-| [B](#b-repo-in-coolify-freigeben) | Repo in Coolify freigeben | du | 5 Minuten |
-| [C](#c-testadresse-einrichten) | Neues Projekt in Coolify, Testadresse einrichten | du | 15 Minuten |
-| [D](#d-auf-echten-geräten-testen) | Auf echten Geräten testen | du | 1 Stunde |
-| [E](#e-avv-mit-zap-hosting) | AVV mit ZAP-Hosting | du | |
+| [A](#a-code-im-branch) | Code im Branch ✅ | Claude | |
+| [B](#b-repo-in-coolify-freigeben) | Repo in Coolify freigeben ✅ | du | 5 Minuten |
+| [C](#c-testadresse-einrichten) | Neues Projekt in Coolify, Testadresse einrichten ✅ | du | 15 Minuten |
+| [D](#d-auf-echten-geräten-testen) | Auf echten Geräten testen ✅ | du | 1 Stunde |
+| [E](#e-avv-mit-zap-hosting) | AVV mit ZAP-Hosting: getrennt in #7 | du | |
 | [F](#f-umzugstag) | Umzugstag: umziehen, Online wieder an, Release 1.17.0 | du, Claude für die Commits | 1 bis 2 Stunden |
 | [G](#g-deno-deploy-löschen) | Deno Deploy löschen | du | 10 Minuten |
 | [H](#h-nacharbeiten) | Nacharbeiten | du und Claude | |
@@ -285,7 +286,7 @@ Die GitHub App von Coolify gibt es schon für deine anderen Projekte. Es fehlt h
 1. In Coolify unter *Sources* deine GitHub App öffnen und nachsehen, ob `unpacked-dev/hexa` bei den Repositories steht.
 2. Falls nicht: dort zu GitHub wechseln (*Repositories* bzw. *Update Repositories*), bei *Repository access* `unpacked-dev/hexa` hinzufügen und speichern. Zurück in Coolify die Liste neu laden.
 
-**Fertig, wenn** `unpacked-dev/hexa` in der Liste steht.
+**Fertig, wenn** `unpacked-dev/hexa` in der Liste steht. **Erledigt am 23.10.2026.**
 
 ### C. Testadresse einrichten
 
@@ -303,7 +304,7 @@ Die GitHub App von Coolify gibt es schon für deine anderen Projekte. Es fehlt h
 
 Ab jetzt baut jeder Push auf den Neben-Branch die Testadresse neu. Dort ist Online an. Die Testadresse spielt also online, obwohl Online in der Produktion aus ist.
 
-**Fertig, wenn** die App unter der Testadresse läuft.
+**Fertig, wenn** die App unter der Testadresse läuft. **Erledigt am 23.10.2026:** `hexa.unpacked.dev` läuft mit Zertifikat von Let's Encrypt. Von außen geprüft: `/health`, App-Dateien, gesperrte Pfade, ein Online-Spiel mit zwei Personen und Bot. Auf dem Server vergehen pro Aktion etwa 2 ms.
 
 ### D. Auf echten Geräten testen
 
@@ -320,13 +321,11 @@ Zwei Geräte, eins im WLAN, eins mit Mobilfunk. Beide öffnen `https://hexa.unpa
 
 Klappt etwas nicht: Claude Bescheid geben. Die Korrektur kommt in den Neben-Branch, die Testadresse baut von selbst neu.
 
-**Fertig, wenn** alle Haken gesetzt sind.
+**Fertig, wenn** alle Haken gesetzt sind. **Erledigt am 23.10.2026,** auf echten Geräten getestet.
 
 ### E. AVV mit ZAP-Hosting
 
-1. Den Vertrag zur Auftragsverarbeitung mit ZAP-Hosting abschließen ([#7](https://github.com/unpacked-dev/hexa/issues/7)), meist im Kundenbereich oder über den Support.
-
-**Fertig, wenn** der AVV vorliegt. Vorher keine echten Spitznamen auf den VPS, also kein Umzugstag.
+Läuft getrennt in [#7](https://github.com/unpacked-dev/hexa/issues/7) und hält den Umzug nicht auf (entschieden am 23.10.2026).
 
 ### F. Umzugstag
 
@@ -334,10 +333,11 @@ Online ist schon aus. Laufende Spiele gibt es also keine, und nichts eilt.
 
 **Am Tag vorher**
 
-1. **TTL senken:** Bei Spaceship die TTL des Eintrags `backend` auf 5 Minuten (300 Sekunden) setzen. Dann wirkt der Wechsel in Schritt 5 schneller.
-2. **Prüfen:**
-   - Hat der VPS eine IPv6-Adresse? Auf dem VPS `ip -6 addr`, gesucht ist eine Adresse mit `scope global`.
-   - Gibt es CAA-Einträge? `dig CAA hexa-countdown.app`. Wenn ja, muss `letsencrypt.org` darin stehen.
+1. **TTL senken:** Bei Spaceship die TTL des Eintrags `backend` von 30 Minuten (heute) auf 5 Minuten (300 Sekunden) setzen. Das wirkt nach spätestens 30 Minuten, danach greift der Wechsel in Schritt 5 schneller. Geht auch am selben Tag, mindestens 30 Minuten vorher.
+2. **Geprüft am 23.10.2026,** nichts mehr zu tun:
+   - IPv4 des VPS: `185.249.198.192` (wie bei `unpacked.dev`).
+   - Kein AAAA-Eintrag nötig, auch `unpacked.dev` hat keinen.
+   - Keine CAA-Einträge bei `hexa-countdown.app`, Let's Encrypt darf also ausstellen.
 
 **Am Umzugstag**
 
@@ -345,7 +345,7 @@ Online ist schon aus. Laufende Spiele gibt es also keine, und nichts eilt.
 4. **`main` nachziehen** (Claude), wie bei jedem Release. GitHub Pages bringt die App 1.17.0, noch mit Online aus. Deno Deploy baut `main` auch, der Bun-Code läuft dort aber nicht. Das ist egal, Online ist ja aus. Nur die Meldungen lokaler Spiele an die Statistik gehen bis Schritt 7 verloren.
 5. **DNS umstellen** bei Spaceship:
    - CNAME `backend` → `alias.deno.net` löschen.
-   - Neu: A `backend` → IPv4 des VPS, TTL 5 Minuten. Mit IPv6 dazu AAAA `backend` → IPv6 des VPS.
+   - Neu: A `backend` → `185.249.198.192`, TTL 5 Minuten.
    - CNAME `_acme-challenge.backend` löschen.
 6. **Warten,** bis `dig +short backend.hexa-countdown.app` die IP des VPS zeigt. Meist 5 bis 10 Minuten. Von außen prüfen geht auch mit [dnschecker.org](https://dnschecker.org).
 7. **Produktion in Coolify anlegen,** wie C2 bis C7, mit den Werten aus der Spalte „Produktion“: Name `hexa`, Branch `main`, Domain `https://backend.hexa-countdown.app`, Volume `hexa-data` nach `/data`. *Deploy*. Erst jetzt, weil Coolify sofort ein Zertifikat holt. Das klappt nur, wenn der DNS-Eintrag schon auf den VPS zeigt.
@@ -403,7 +403,6 @@ Direkt nach dem Umzug, sobald F10 geklappt hat. Einen Weg zurück zu Deno gibt e
 
 ## Offen
 
-- Hat der VPS eine IPv6-Adresse (F2)?
 - Nutzen andere Apps der Organisation die Datenbank „unpacked“ auf Deno Deploy (G3)?
 - Reicht ein tägliches Backup auf dem VPS selbst (H1)?
 
