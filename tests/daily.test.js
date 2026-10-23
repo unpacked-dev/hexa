@@ -12,6 +12,15 @@ test('Tag nach deutscher Zeit, Wechsel um Mitternacht', () => {
   assert.equal(Daily.addDays('2026-03-01', -1), '2026-02-28');
 });
 
+test('Ein Tagesspiel gilt nur an seinem Tag', () => {
+  assert.equal(Daily.expired('2026-10-22', Date.UTC(2026, 9, 22, 21, 59)), false);   // 23:59 deutscher Zeit
+  assert.equal(Daily.expired('2026-10-22', Date.UTC(2026, 9, 22, 22, 0)), true);     // Mitternacht
+  assert.equal(Daily.expired('2026-10-22', Date.UTC(2026, 9, 25, 12, 0)), true);
+  assert.equal(Daily.expired('2026-12-31', Date.UTC(2026, 11, 31, 23, 0)), true);    // Jahreswechsel, Winterzeit
+  assert.equal(Daily.expired('2026-10-23', Date.UTC(2026, 9, 22, 12, 0)), false);    // Tag in der Zukunft: nicht vorbei
+  assert.equal(Daily.expired(Daily.dayKey()), false);
+});
+
 test('Gleiches Datum, gleiche Würfe. Ein anderer Tag hat andere', () => {
   const table = day => {
     const out = [];

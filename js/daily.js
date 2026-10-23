@@ -46,6 +46,8 @@
     DAY_RE,
     dayKey,
     addDays,
+    // Ist der Tag day vorbei (deutsche Zeit)? Ein angefangenes Tagesspiel gilt nur an seinem Tag.
+    expired: (day, now) => day < dayKey(now),
     // Augenzahl für Zug turn (0–14), Wurf roll (1–3) und Platz slot (0–5)
     die: (day, turn, roll, slot) => face(day, 1, turn, roll, slot),
     // Augenzahl im Countdown für Zug turn, Stufe stage (0–5) und Würfel slot

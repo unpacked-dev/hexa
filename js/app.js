@@ -201,6 +201,17 @@
     if (dailyState && dailyMeta) dailyStore.cur = dailyMeta.over ? null : { day: dailyMeta.day, practice: dailyMeta.practice, game: dailyState };
     try { localStorage.setItem(DAILY_KEY, JSON.stringify(dailyStore)); } catch (e) { /* Speicher voll oder gesperrt */ }
   }
+  // Ein Tagesspiel gilt nur an seinem Tag. Ist er vorbei, wird ein angefangenes verworfen, auch eine Übungsrunde.
+  // Es zählt nicht, und war der Tag nicht fertig gespielt, reißt die Serie. Gibt den Tag des Spiels zurück, sonst null.
+  function dropExpiredDaily() {
+    const cur = dailyStore.cur;
+    if (!cur || !Daily.expired(cur.day)) return null;
+    dailyStore.cur = null;
+    saveDaily();
+    return cur.day;
+  }
+  const expiredNote = day => tr('daily.expired', { date: fmtDay(day) });
+  const droppedAtStart = dropExpiredDaily();   // Den Hinweis gibt es, sobald die App steht.
   let atStart = true;   // Beim Öffnen kommt zuerst der Startbildschirm.
   let rulesOpen = false; // Regeln als eigene Seite, aus dem Hauptmenü über „Spiel lernen“
 
@@ -2325,9 +2336,12 @@
   }
 
   /* ---------- Tagesspiel ---------- */
-  // Allein, mit App-Würfeln aus der Tabelle des Tages. Ein angefangenes Tagesspiel (auch von gestern) geht weiter.
+  // Allein, mit App-Würfeln aus der Tabelle des Tages. Ein angefangenes Tagesspiel von heute geht weiter,
+  // eins von einem vergangenen Tag wird verworfen, mit Hinweis. Dann kommt gleich das heutige.
   // Ist das heutige schon gespielt, gibt es das Ergebnis, Teilen und eine Übungsrunde, die nicht zählt.
   function openDaily() {
+    const gone = dropExpiredDaily();
+    if (gone) toast(expiredNote(gone));
     const cur = dailyStore.cur;
     if (cur) { enterDaily(cur.day, cur.practice, normalize(cur.game)); return; }
     const today = Daily.dayKey();
@@ -2360,6 +2374,17 @@
     dailyMeta = null;
     state = local;
   }
+  // Zurück aus dem Hintergrund, und offen ist ein Tagesspiel von einem vergangenen Tag: verwerfen, mit Hinweis ins Hauptmenü.
+  // Wer die App über Mitternacht offen lässt, spielt zu Ende. Ein fertig gespieltes zählt dann für seinen Tag.
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden || !isDaily() || dailyMeta.over || gameDone() || !Daily.expired(dailyMeta.day)) return;
+    dailyState = null;
+    dailyMeta = null;
+    state = local;
+    const gone = dropExpiredDaily();
+    showStart();
+    if (gone) toast(expiredNote(gone));
+  });
   // Im Tagesspiel trägt man nur den aktuellen Wurf ein, wie online. Freie Werte oder Löschen gibt es nicht.
   function dailyCell(pid, key) {
     const d = state.dice;
@@ -2378,11 +2403,11 @@
   }
   const streakText = n => tr(n === 1 ? 'daily.streakOne' : 'daily.streakMany', { n });
   function dailySub() {
-    const cur = dailyStore.cur;
     const today = Daily.dayKey();
+    // Eins von einem vergangenen Tag geht nicht weiter (siehe openDaily), dann steht hier schon das heutige.
+    const cur = dailyStore.cur && !Daily.expired(dailyStore.cur.day) ? dailyStore.cur : null;
     if (cur) {
       if (cur.practice) return tr('daily.subPractice');
-      if (cur.day !== today) return tr('daily.subOld', { date: fmtDay(cur.day) });
       const sc = isObj(cur.game.scores) && isObj(cur.game.scores.me) ? Object.keys(cur.game.scores.me).length : 0;
       return tr('daily.subResume', { r: Math.min(NF, sc + 1), total: NF });
     }
@@ -3834,6 +3859,7 @@
   syncInstall();
   syncSky();
   rollStartDice();
+  if (droppedAtStart) toast(expiredNote(droppedAtStart));
   if (document.readyState === 'complete') registerSW();
   else window.addEventListener('load', registerSW);
   // Erst jetzt stehen alle Texte in der richtigen Sprache da.

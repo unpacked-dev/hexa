@@ -3,6 +3,12 @@
 Alle wichtigen Änderungen an HEXA: Countdown stehen hier.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), die Versionen folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [Unreleased]
+
+### Geändert
+
+- **Tagesspiel: neuer Tag, neues Spiel** ([#17](https://github.com/unpacked-dev/hexa/issues/17)): Ein angefangenes Tagesspiel gilt nur an seinem Tag, deutscher Zeit. Ist der Tag vorbei, wird es verworfen, ebenso eine Übungsrunde. Es zählt nicht für Rekord, Serie und „Gespielt“, die Serie reißt dann. Im Menü steht gleich das heutige Tagesspiel, ein kurzer Hinweis sagt einmal Bescheid. Geprüft wird beim Start der App, beim Öffnen des Tagesspiels und wenn die App aus dem Hintergrund zurückkommt. Wer die App über Mitternacht offen lässt, spielt das Spiel zu Ende, es zählt dann für seinen Tag. „Das vom … weiterspielen“ gibt es nicht mehr. Beim Pausieren steht jetzt, dass das Tagesspiel bis Mitternacht gespeichert bleibt.
+
 ## [1.17.0] – 2026-10-23
 
 Online mit eigenen Würfeln, der Block eines Spiels in den Highscores und ein eigener Server in Frankfurt für den Online-Modus.
