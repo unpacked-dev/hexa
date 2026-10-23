@@ -11,7 +11,8 @@ async function servers(n, times = G.TIMES, opts = {}) {
   const hubs = [];
   const running = [];
   for (let i = 0; i < n; i++) {
-    const hub = createHub(Object.assign({ kv, instance: 'inst' + i, times, log: quiet }, opts));
+    // Online an, egal was in js/config.js steht. Online aus prüft ein eigener Test.
+    const hub = createHub(Object.assign({ kv, instance: 'inst' + i, times, log: quiet, online: true }, opts));
     hubs.push(hub);
     running.push(Deno.serve({ port: 0, hostname: '127.0.0.1', onListen() {} }, hub.handle));
   }

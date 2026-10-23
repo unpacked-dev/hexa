@@ -10,7 +10,7 @@
     // Online spielen an (true) oder aus (false).
     // Aus: Im Hauptmenü ist „Online“ ausgegraut, und der Server nimmt keine Verbindungen mehr an.
     // Gedacht zum schnellen Abschalten, etwa wenn der kostenlose Tarif von Deno Deploy knapp wird.
-    enableOnline: true,
+    enableOnline: false,
 
     // Höchstens so viele Personen in einem Spiel, Menschen und Bots zusammen. Lokal wie online.
     maxPlayers: 50,
