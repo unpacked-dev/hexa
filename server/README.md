@@ -14,9 +14,10 @@ Der Server würfelt, prüft jeden Zug und achtet auf die Zugzeit. Er läuft mit 
 | `store.js` | Lobbys anlegen und in einem Schritt ändern |
 | `stats.js` | Spielzähler und die Seite unter `/stats` |
 | `backup.js` | Sicherung der Datenbank, einmal am Tag |
+| `versions.js` | Schreibt beim Bauen `/versions.json` ins Image, siehe „Versionen und Sicherheitsprüfung“ |
 | `tests/*.spec.js` | Tests für Spielablauf, Datenbank und den ganzen Server |
 
-Im Hauptordner liegen dazu `package.json` (Befehle), `Dockerfile` und `.dockerignore`. Der Server lädt `js/config.js`, `js/rules.js` und `js/bot.js`, deshalb baut das Dockerfile aus dem ganzen Repo.
+Im Hauptordner liegen dazu `package.json` (Befehle), `Dockerfile`, `.dockerignore` und `versions.json`. Der Server lädt `js/config.js`, `js/rules.js` und `js/bot.js`, deshalb baut das Dockerfile aus dem ganzen Repo.
 
 ## Einstellungen in `js/config.js`
 
@@ -83,6 +84,26 @@ Der Server läuft als Anwendung in Coolify, gebaut aus dem `Dockerfile`. Es gibt
 - **Einmal im Monat** in Coolify oder per SSH (`df -h`, `free -h`) Arbeitsspeicher, CPU und Platz ansehen.
 - Die Zertifikate holt Coolify von selbst (Let's Encrypt). Bei Spaceship zeigen dafür die A-Einträge `@` und `*` auf den Server. `*` deckt `www`, `backend` und jede neue Subdomain ab, die braucht dann nur noch einen Eintrag in Coolify. AAAA-Einträge gibt es keine. `unpacked.dev` zeigt mit allen Subdomains schon dorthin, für die Testadresse ist also nichts einzutragen.
 - **Eine Adresse umziehen, die schon läuft:** vorher die TTL bei Spaceship auf 5 Minuten senken, dann DNS ändern und gleich *Redeploy*. Sonst sehen manche bis zu 30 Minuten einen Zertifikatsfehler, und bei `.app` lässt der sich nicht wegklicken.
+
+### Versionen und Sicherheitsprüfung
+
+Alle Versionen, auf denen HEXA läuft, stehen in `versions.json` im Hauptordner: Bun, das Docker-Image, Node.js und die GitHub Actions für die Tests, die Schriften. npm-Pakete gibt es keine. Zu jedem Eintrag steht kurz, wofür er da ist, und unter `exposure`, was von außen erreichbar ist. Das hilft einzuschätzen, ob eine Lücke HEXA wirklich trifft. `node --test` prüft, dass die Datei zu `Dockerfile`, Workflows und `package.json` passt.
+
+Beim Bauen schreibt `server/versions.js` daraus **`/versions.json`** ins Image, ergänzt um das, was wirklich drinsteckt (Abschnitt `image`): Bun, Alpine, SQLite und alle Alpine-Pakete, etwa busybox, musl, OpenSSL und zlib. Stimmt Bun nicht mit `versions.json` überein, bricht der Build ab. Von außen ist die Datei nicht erreichbar, sie liegt außerhalb von `/app` und steht nicht in der Liste der ausgelieferten Dateien.
+
+Auf dem Server liest man sie so, auch ohne Shell im Container:
+
+```bash
+docker cp <container>:/versions.json - | tar -xO
+```
+
+`tools/collect-versions.sh` sammelt das für alle laufenden Container in eine Datei, dazu das Image jedes Containers (auch Coolify, Proxy und Datenbanken) sowie Betriebssystem, Kernel und Docker des Servers. Das Skript gehört auf den Server, nicht in den Container. Täglich per cron, vor der Prüfung auf Sicherheitslücken:
+
+```bash
+0 5 * * * sh /root/collect-versions.sh /root/versions/all.json
+```
+
+Andere Projekte auf demselben Server machen es genauso: `/versions.json` im Image, gleiches Format. Versionen ändern nur nach Absprache, siehe `CLAUDE.md`.
 
 ### Die App gleich mit
 

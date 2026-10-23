@@ -1,0 +1,80 @@
+{
+  "about": "Versionen und Abhängigkeiten von HEXA für Sicherheitsprüfungen. Liegt im Image unter /versions.json, dort ergänzt um das, was wirklich drinsteckt (Abschnitt image). Ändern nur nach Absprache, siehe CLAUDE.md. tests/versions.test.js prüft, dass die Angaben zu Dockerfile und Workflows passen.",
+  "project": "hexa",
+  "repo": "github.com/unpacked-dev/hexa",
+  "components": [
+    {
+      "name": "bun",
+      "type": "runtime",
+      "version": "1.3.11",
+      "use": ["production", "ci"],
+      "pinned": ["Dockerfile", ".github/workflows/ci.yml"],
+      "note": "Führt den Server aus. Genutzt: Bun.serve (HTTP und WebSocket, ohne Kompression), bun:sqlite, Bun.file, Bun.hash. Nicht genutzt: fetch, node:zlib, CompressionStream/DecompressionStream, Bun.spawn."
+    },
+    {
+      "name": "oven/bun",
+      "type": "docker-image",
+      "version": "1.3.11-alpine",
+      "use": ["production"],
+      "pinned": ["Dockerfile"],
+      "note": "Basis-Image mit Alpine Linux. Die Alpine-Version, SQLite und alle Alpine-Pakete (etwa busybox, musl, OpenSSL, zlib) schreibt der Build nach /versions.json, Abschnitt image."
+    },
+    {
+      "name": "node",
+      "type": "runtime",
+      "version": "22",
+      "use": ["ci"],
+      "pinned": [".github/workflows/ci.yml", ".github/workflows/release.yml"],
+      "note": "Nur in GitHub Actions für node --test und das Release-ZIP, immer die neueste 22.x des Runners. Läuft nicht auf dem Server."
+    },
+    {
+      "name": "actions/checkout",
+      "type": "github-action",
+      "version": "v5",
+      "use": ["ci"],
+      "pinned": [".github/workflows/ci.yml", ".github/workflows/release.yml"],
+      "note": "Holt den Code in GitHub Actions."
+    },
+    {
+      "name": "actions/setup-node",
+      "type": "github-action",
+      "version": "v5",
+      "use": ["ci"],
+      "pinned": [".github/workflows/ci.yml", ".github/workflows/release.yml"],
+      "note": "Installiert Node.js in GitHub Actions."
+    },
+    {
+      "name": "oven-sh/setup-bun",
+      "type": "github-action",
+      "version": "v2",
+      "use": ["ci"],
+      "pinned": [".github/workflows/ci.yml"],
+      "note": "Installiert Bun in GitHub Actions für die Server-Tests."
+    },
+    {
+      "name": "Archivo",
+      "type": "font",
+      "version": "v25",
+      "use": ["app"],
+      "pinned": ["THIRD-PARTY-NOTICES.md"],
+      "note": "Schrift als WOFF2 in fonts/archivo, unverändert von Google Fonts. Kein Code."
+    },
+    {
+      "name": "Kalam",
+      "type": "font",
+      "version": "v18",
+      "use": ["app"],
+      "pinned": ["THIRD-PARTY-NOTICES.md"],
+      "note": "Schrift als WOFF2 in fonts/kalam, unverändert von Google Fonts. Kein Code."
+    }
+  ],
+  "packages": {
+    "npm": []
+  },
+  "exposure": {
+    "server": "Bun.serve auf Port 3000 hinter dem Proxy von Coolify (TLS und gzip macht der Proxy). Öffentlich: GET /health, GET /stats, GET /stats.json, POST /count (liest keinen Inhalt), WebSocket /ws (JSON-Nachrichten, keine Kompression) und die App-Dateien: index.html, favicon.svg, manifest.webmanifest, sw.js, docs/social-preview.png, css/, js/, lang/, fonts/, icons/. Sonst nichts, /versions.json ist von außen nicht erreichbar.",
+    "data": "SQLite-Datei /data/hexa.sqlite im Volume, nur vorbereitete Statements. Sicherung täglich mit bun server/backup.js.",
+    "outbound": "Der Server baut selbst keine Verbindungen nach außen auf.",
+    "app": "Läuft im Browser ohne fremde Bibliotheken, ohne Build und ohne externe Server. Einzige Gegenstelle ist der eigene Server."
+  }
+}

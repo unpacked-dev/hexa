@@ -208,6 +208,7 @@ HEXA ist bewusst einfach gebaut: **reines HTML, CSS und JavaScript** – kein Fr
 - **Faire Würfel:** Zufallszahlen kommen aus `crypto.getRandomValues`, ohne Modulo-Verzerrung. Online würfelt der Server genauso.
 - **Online-Server ohne Pakete:** [Bun](https://bun.sh) mit `Bun.serve` für HTTP und WebSocket und SQLite als Datenbank, in einem Docker-Container mit Coolify auf einem eigenen Server in Frankfurt. Der Server würfelt, prüft jeden Zug und schickt nach jeder Änderung allen den ganzen Stand. Die App zeigt ihn nur an. Mehr in [server/README.md](server/README.md).
 - **Bots mit Mathe statt KI:** Ein Bot rechnet jeden Zug exakt durch. Für jede Möglichkeit, Würfel liegen zu lassen, kennt er die Wahrscheinlichkeit jedes Ergebnisses. Was ein Feld für den Rest des Spiels wert ist, schätzt er mit rund 170 Zahlen. Die stammen aus dem perfekten Spiel, das die Werkzeuge in `tools/` für alle 1,65 Millionen Spielstände ausrechnen. Leichtere Stufen machen Fehler wie Menschen: Sie denken weniger an später und lassen öfter nicht die besten Würfel liegen.
+- **Versionen für Sicherheitsprüfungen:** Alle Versionen stehen in `versions.json`, jedes Image bringt sie unter `/versions.json` mit, ergänzt um Alpine-Pakete und SQLite. Von außen ist die Datei nicht erreichbar. Mehr in [server/README.md](server/README.md#versionen-und-sicherheitsprüfung).
 - **Lokal bleibt alles auf dem Gerät:** Spielstand, Highscores, Tagesspiele, Design und Ton werden im `localStorage` deines Browsers gespeichert und nie übertragen. Startet ein lokales Spiel oder ein Tagesspiel, schickt die App nur eine leere Meldung, damit der Server Spiele zählen kann ([Statistik](https://backend.hexa-countdown.app/stats)). Sonst spricht sie nur im Online-Modus mit dem Server, auch dann ohne Konto.
 - **Offline dank Service Worker:** `sw.js` legt beim ersten Öffnen alle Dateien auf dem Gerät ab (rund 0,7 MB). Code kommt zuerst aus dem Netz, damit Updates sofort ankommen. Ohne Netz oder nach 3 Sekunden Warten nimmt die App ihre Kopie. Schriften und Icons kommen gleich aus der Kopie. Eine Versionsnummer braucht es dafür nicht.
 - **Keine fremden Server:** Schriften und Icons liegen im Repository. Beim Spielen wird nichts von Google oder anderen Anbietern geladen. Es gibt keine Cookies und kein Tracking.
@@ -247,13 +248,17 @@ hexa/
 │   ├── sw.test.js         # prüft, dass sw.js jede Datei der App kennt
 │   ├── daily.test.js      # Tests für das Tagesspiel
 │   ├── tutorial.test.js   # spielt die festen Würfe des Tutorials mit der echten Wertung nach
-│   └── bot.test.js        # Tests für die Bots
+│   ├── bot.test.js        # Tests für die Bots
+│   └── versions.test.js   # prüft, dass versions.json zu Dockerfile und Workflows passt
 ├── tools/
 │   ├── bot-optimal.js     # rechnet das perfekte Spiel für alle Spielstände aus
 │   ├── bot-fit.js         # leitet daraus die Werte für die Bots ab
-│   └── bot-sim.js         # lässt Bots viele Partien spielen und zeigt die Zahlen
+│   ├── bot-sim.js         # lässt Bots viele Partien spielen und zeigt die Zahlen
+│   └── collect-versions.sh # für den Server: sammelt /versions.json aus allen Containern
 ├── server/                # Server für den Online-Modus (Bun, SQLite), liefert auch die App aus und zählt Spiele, siehe server/README.md
 ├── package.json           # Befehle für den Server: bun run dev, bun run test
+├── versions.json          # alle Versionen für Sicherheitsprüfungen, im Image unter /versions.json
+├── CLAUDE.md              # Hinweise für Claude: Versionen nur nach Absprache ändern
 ├── Dockerfile             # Container für den Server, gebaut von Coolify
 ├── docs/                  # Screenshots, Vorschaubild und Konzept für den Online-Modus
 └── THIRD-PARTY-NOTICES.md # Lizenzen von Schriften und Icons
@@ -261,7 +266,7 @@ hexa/
 
 ### Tests
 
-Wertung, Sprachen, Einstellungen, Bots und das Tutorial sind mit dem eingebauten Test-Runner von Node.js abgedeckt (Node 18 oder neuer, keine Installation nötig):
+Wertung, Sprachen, Einstellungen, Bots, das Tutorial und die Versionsliste sind mit dem eingebauten Test-Runner von Node.js abgedeckt (Node 18 oder neuer, keine Installation nötig):
 
 ```bash
 node --test

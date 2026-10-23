@@ -3,6 +3,12 @@
 Alle wichtigen Änderungen an HEXA: Countdown stehen hier.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), die Versionen folgen [Semantic Versioning](https://semver.org/lang/de/).
 
+## [Unreleased]
+
+### Neu
+
+- **Versionen für Sicherheitsprüfungen:** `versions.json` listet alles, worauf HEXA läuft: Bun, das Docker-Image, Node.js und die GitHub Actions für die Tests, die Schriften, dazu was von außen erreichbar ist. npm-Pakete gibt es keine. Beim Bauen kommt die Liste als `/versions.json` ins Image, ergänzt um das, was wirklich drinsteckt: Alpine, SQLite und alle Alpine-Pakete. Von außen ist sie nicht erreichbar. `tools/collect-versions.sh` sammelt auf dem Server die Listen aller Container für eine tägliche Prüfung ein. `node --test` prüft, dass die Liste zu Dockerfile und Workflows passt, und der Build bricht ab, wenn Bun nicht stimmt. In `CLAUDE.md` steht: Versionen nur nach Absprache ändern.
+
 ## [1.18.0] – 2026-10-23
 
 HEXA lernen mit Pip: eine geführte Runde direkt an Würfeln und Block.

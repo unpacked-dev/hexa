@@ -1,5 +1,5 @@
 # HEXA – Online-Server. Läuft mit Coolify auf dem eigenen Server, siehe server/README.md.
-# Die Bun-Version zusammen mit .github/workflows/ci.yml ändern.
+# Die Bun-Version nur nach Absprache ändern (CLAUDE.md), zusammen mit .github/workflows/ci.yml und versions.json.
 FROM oven/bun:1.3.11-alpine
 WORKDIR /app
 ENV NODE_ENV=production PORT=3000 HEXA_DB=/data/hexa.sqlite
@@ -14,6 +14,11 @@ COPY icons/ icons/
 COPY index.html sw.js manifest.webmanifest favicon.svg ./
 # Aus docs/ nur das Vorschaubild für geteilte Links
 COPY docs/social-preview.png docs/
+
+# Versionen für die Sicherheitsprüfung: /versions.json, außerhalb von /app, wird nie ausgeliefert.
+# versions.json aus dem Repo plus das, was im Image wirklich steckt. Siehe „Versionen“ in server/README.md.
+COPY versions.json /tmp/versions.json
+RUN bun server/versions.js /tmp/versions.json /versions.json && rm /tmp/versions.json
 
 # Hier liegt die Datenbank. Das Volume übernimmt beim ersten Start den Besitzer dieses Ordners.
 RUN mkdir -p /data && chown bun:bun /data
