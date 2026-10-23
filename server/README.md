@@ -87,9 +87,15 @@ Der Server läuft als Anwendung in Coolify, gebaut aus dem `Dockerfile`. Es gibt
 
 ### Versionen und Sicherheitsprüfung
 
-Alle Versionen, auf denen HEXA läuft, stehen in `versions.json` im Hauptordner: Bun, das Docker-Image, Node.js und die GitHub Actions für die Tests, die Schriften. npm-Pakete gibt es keine. Zu jedem Eintrag steht kurz, wofür er da ist, und unter `exposure`, was von außen erreichbar ist. Das hilft einzuschätzen, ob eine Lücke HEXA wirklich trifft. `node --test` prüft, dass die Datei zu `Dockerfile`, Workflows und `package.json` passt.
+Alle Versionen, auf denen HEXA läuft, stehen in `versions.json` im Hauptordner: Bun, das Docker-Image, Node.js und die GitHub Actions für die Tests, die Schriften. npm-Pakete gibt es keine. Drin stehen nur der Projektname und die Versionen, ohne Beschreibungen, damit die tägliche Prüfung kurz bleibt:
 
-Beim Bauen schreibt `server/versions.js` daraus **`/versions.json`** ins Image, ergänzt um das, was wirklich drinsteckt (Abschnitt `image`): Bun, Alpine, SQLite und alle Alpine-Pakete, etwa busybox, musl, OpenSSL und zlib. Stimmt Bun nicht mit `versions.json` überein, bricht der Build ab. Von außen ist die Datei nicht erreichbar, sie liegt außerhalb von `/app` und steht nicht in der Liste der ausgelieferten Dateien.
+```json
+{ "project": "hexa", "versions": { "bun": "1.4.4", "oven/bun": "1.4.4-alpine", … } }
+```
+
+`node --test` prüft, dass die Datei zu `Dockerfile`, Workflows, `package.json` und den Schriften passt, und dass nichts drinsteht, was nirgends festgelegt ist.
+
+Beim Bauen schreibt `server/versions.js` daraus **`/versions.json`** ins Image, im selben Format, ergänzt um das, was wirklich drinsteckt: Alpine, SQLite und alle Alpine-Pakete, etwa busybox, musl, OpenSSL (`libssl3`) und zlib. Stimmt Bun nicht mit `versions.json` überein, bricht der Build ab. Von außen ist die Datei nicht erreichbar, sie liegt außerhalb von `/app` und steht nicht in der Liste der ausgelieferten Dateien.
 
 Auf dem Server liest man sie so, auch ohne Shell im Container:
 
