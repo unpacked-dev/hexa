@@ -3,7 +3,9 @@
 Alle wichtigen Änderungen an HEXA: Countdown stehen hier.
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), die Versionen folgen [Semantic Versioning](https://semver.org/lang/de/).
 
-## [Unreleased]
+## [1.17.1] – 2026-10-23
+
+Neuer Tag, neues Spiel: Ein angefangenes Tagesspiel gilt nur an seinem Tag.
 
 ### Geändert
 
@@ -307,6 +309,7 @@ Die erste Version von HEXA.
 - **Web-App:** installierbar auf dem Home-Bildschirm, Bildschirm bleibt während des Spiels an.
 - **Tests:** Wertung aller Felder mit `node --test` abgedeckt.
 
+[1.17.1]: https://github.com/unpacked-dev/hexa/releases/tag/v1.17.1
 [1.17.0]: https://github.com/unpacked-dev/hexa/releases/tag/v1.17.0
 [1.16.0]: https://github.com/unpacked-dev/hexa/releases/tag/v1.16.0
 [1.15.0]: https://github.com/unpacked-dev/hexa/releases/tag/v1.15.0
